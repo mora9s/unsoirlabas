@@ -1,8 +1,8 @@
-import { asset, days } from '../journal'
+import { asset, coverOf, days, storyExcerpt } from '../journal'
 import type { Draft } from '../journal'
 import Icon from './Icon'
 
-export default function Home({ openDay, create, drafts, openDraft }: { openDay: (day: number) => void; create: () => void; drafts: Draft[]; openDraft: (draft: Draft) => void }) {
+export default function Home({ openDay, create, drafts, openDraft, editDraft }: { openDay: (day: number) => void; create: () => void; drafts: Draft[]; openDraft: (draft: Draft) => void; editDraft: (draft: Draft) => void }) {
   return <>
     <section className="trip-hero" aria-labelledby="trip-title">
       <img className="hero-photo" src={asset('el-nido-big-lagoon.jpg')} alt="Le Big Lagoon d’El Nido, entre eau turquoise et falaises de calcaire" fetchPriority="high" />
@@ -31,7 +31,20 @@ export default function Home({ openDay, create, drafts, openDraft }: { openDay: 
         </article>)}
       </div>
     </section>
-    {drafts.length > 0 && <section className="saved-drafts page-width" aria-labelledby="drafts-title"><p className="eyebrow">Conservés sur cet appareil</p><h2 id="drafts-title">Vos nouvelles pages</h2>{drafts.map(draft => <button key={draft.id} className="saved-draft" onClick={() => openDraft(draft)}><Icon name="book" /><span>{draft.title}<small>Brouillon personnel · reprendre l’écriture</small></span><Icon name="arrow" /></button>)}</section>}
+    {drafts.length > 0 && <section className="saved-drafts page-width" aria-labelledby="drafts-title"><p className="eyebrow">Conservés sur cet appareil</p><h2 id="drafts-title">Vos nouvelles pages</h2>{drafts.map(draft => {
+      const cover = coverOf(draft)
+      return <article key={draft.id} className="personal-entry">
+        <div className={`personal-cover ${cover ? '' : 'cover-without-photo'}`}>
+          {cover ? <img src={cover.src} alt={`Couverture : ${cover.name}`} /> : <><Icon name="book" /><p>Il reste les mots.</p></>}
+        </div>
+        <div className="day-copy"><span className="status draft"><i />Brouillon personnel</span><h3>{draft.title}</h3><p>{storyExcerpt(draft.story)}</p>
+          <div className="personal-actions">
+            <button className="text-button" onClick={() => openDraft(draft)} aria-label={`Lire ${draft.title}`}>Lire ce chapitre<Icon name="arrow" /></button>
+            <button className="text-button" onClick={() => editDraft(draft)} aria-label={`Modifier ${draft.title}`}>Modifier la journée<Icon name="book" /></button>
+          </div>
+        </div>
+      </article>
+    })}</section>}
     <section className="invitation page-width"><span className="eyebrow">Le rituel du soir</span><h2>Et aujourd’hui,<br />qu’allez-vous <em>garder</em> ?</h2><p>Quelques photos. Vos mots. Une nouvelle page du voyage.</p><button className="button" onClick={create}>Raconter ma journée <Icon name="plus" /></button><span className="local-note">Votre carnet reste sur cet appareil.</span></section>
   </>
 }

@@ -1,3 +1,5 @@
+import { createId } from './id'
+
 export const asset = (name: string) => `/assets/${name}`
 
 export const days = [
@@ -20,19 +22,44 @@ export type Draft = { id: string; title: string; memories: string; tone: string;
 export type Trip = { version: 1; drafts: Draft[] }
 export const storageKey = 'philippines-trip'
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function isMedia(value: unknown): value is Media {
+  return isRecord(value) && typeof value.id === 'string' && value.id.length > 0 &&
+    typeof value.name === 'string' && typeof value.src === 'string' &&
+    /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(value.src)
+}
+
+function isDraft(value: unknown): value is Draft {
+  return isRecord(value) && typeof value.id === 'string' && value.id.length > 0 &&
+    typeof value.title === 'string' && typeof value.story === 'string' &&
+    typeof value.memories === 'string' && typeof value.tone === 'string' &&
+    typeof value.coverId === 'string' && value.status === 'draft' &&
+    Array.isArray(value.media) && value.media.every(isMedia) &&
+    new Set(value.media.map(item => item.id)).size === value.media.length
+}
+
+export function coverOf(draft: Draft): Media | undefined {
+  return draft.media.find(item => item.id === draft.coverId) ?? draft.media[0]
+}
+
+export function storyExcerpt(story: string, limit = 160): string {
+  const text = story.trim().replace(/\s+/g, ' ')
+  return text.length <= limit ? text : `${text.slice(0, limit - 1).trimEnd()}…`
+}
+
 export function readTrip(): { trip: Trip; error: string } {
   try {
     const raw = localStorage.getItem(storageKey)
-    if (!raw) return { trip: { version: 1, drafts: [] }, error: '' }
-    const value = JSON.parse(raw)
-    if (value.version !== 1 || !Array.isArray(value.drafts) || !value.drafts.every((draft: Draft) =>
-      typeof draft.id === 'string' && typeof draft.title === 'string' && typeof draft.story === 'string' &&
-      typeof draft.memories === 'string' && typeof draft.tone === 'string' && typeof draft.coverId === 'string' &&
-      draft.status === 'draft' && Array.isArray(draft.media) && draft.media.every((item: Media) =>
-        typeof item.id === 'string' && typeof item.name === 'string' && typeof item.src === 'string' && /^data:image\/(jpeg|png|webp);base64,/.test(item.src)))) {
+    if (raw === null) return { trip: { version: 1, drafts: [] }, error: '' }
+    const value: unknown = JSON.parse(raw)
+    if (!isRecord(value) || value.version !== 1 || !Array.isArray(value.drafts) ||
+      !value.drafts.every(isDraft) || new Set(value.drafts.map(draft => draft.id)).size !== value.drafts.length) {
       throw new Error('Format non reconnu')
     }
-    return { trip: value, error: '' }
+    return { trip: { version: 1, drafts: value.drafts }, error: '' }
   } catch {
     return { trip: { version: 1, drafts: [] }, error: 'Le carnet enregistré ne peut pas être lu. Vos données n’ont pas été modifiées ; exportez ou rétablissez le stockage de ce navigateur avant d’enregistrer.' }
   }
@@ -71,7 +98,7 @@ export async function importImage(file: File): Promise<Media> {
     context.fillStyle = '#f6f2e9'
     context.fillRect(0, 0, canvas.width, canvas.height)
     context.drawImage(image, 0, 0, canvas.width, canvas.height)
-    return { id: crypto.randomUUID(), name: file.name, src: canvas.toDataURL('image/jpeg', 0.82) }
+    return { id: createId(), name: file.name, src: canvas.toDataURL('image/jpeg', 0.82) }
   } catch (error) {
     throw new Error(error instanceof Error && error.message.startsWith('La préparation') ? error.message : `Impossible de lire « ${file.name} ». Essayez une autre image.`)
   } finally {

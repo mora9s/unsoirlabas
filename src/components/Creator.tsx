@@ -2,10 +2,11 @@ import { useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import { generateStory, importImage, readTrip, storageKey } from '../journal'
 import type { Draft, Media, Trip } from '../journal'
+import { createId } from '../id'
 import Icon from './Icon'
 
-export default function Creator({ initialDraft, onSave }: { initialDraft?: Draft; onSave: (trip: Trip) => void }) {
-  const [id] = useState(() => initialDraft?.id ?? crypto.randomUUID())
+export default function Creator({ initialDraft, onSave }: { initialDraft?: Draft; onSave: (trip: Trip, draft: Draft) => void }) {
+  const [id] = useState(() => initialDraft?.id ?? createId())
   const [title, setTitle] = useState(initialDraft?.title ?? 'Une nouvelle journée aux Philippines')
   const [media, setMedia] = useState<Media[]>(initialDraft?.media ?? [])
   const [coverId, setCoverId] = useState(initialDraft?.coverId ?? '')
@@ -96,11 +97,11 @@ export default function Creator({ initialDraft, onSave }: { initialDraft?: Draft
     const trip: Trip = { version: 1, drafts: [...current.trip.drafts.filter(item => item.id !== id), draft] }
     try {
       localStorage.setItem(storageKey, JSON.stringify(trip))
-      onSave(trip)
-      setNotice('Votre journée a été ajoutée au voyage. Le brouillon est conservé sur cet appareil.')
     } catch {
       setError('L’enregistrement n’a pas abouti : le stockage est plein ou indisponible. Retirez quelques photos puis réessayez. Votre travail reste ouvert ici.')
+      return
     }
+    onSave(trip, draft)
   }
 
   return <section className="creator page-width" data-testid="creator">

@@ -28,14 +28,11 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1440, height: 1000
       await page.waitForLoadState('networkidle')
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)
       expect(overflow, route).toBeLessThanOrEqual(1)
-      await expect(page.locator('main h1').first()).toBeVisible()
-      // Explicitly decode lazy-loaded images before judging their availability.
-      const failures = await page.locator('img').evaluateAll(async images => {
-        const outcomes = await Promise.all(images.map(async image => {
-          try { await (image as HTMLImageElement).decode(); return false } catch { return true }
-        }))
-        return outcomes.filter(Boolean).length
-      })
+      await expect(page.locator('main h1:visible').first()).toBeVisible()
+      // Start every lazy image, then poll with a bounded assertion: none is skipped.
+      await page.locator('img').evaluateAll(images => images.forEach(image => { (image as HTMLImageElement).loading = 'eager' }))
+      await expect.poll(() => page.locator('img').evaluateAll(images => images.every(image => (image as HTMLImageElement).complete)), { timeout: 7_000 }).toBe(true)
+      const failures = await page.locator('img').evaluateAll(images => images.filter(image => (image as HTMLImageElement).naturalWidth === 0).length)
       expect(failures, route).toBe(0)
       if (['carnet', 'day-3', 'create', 'share'].includes(route)) {
         await page.screenshot({ path: testInfo.outputPath(`${route}-${viewport.width}.png`), fullPage: true })
@@ -66,7 +63,11 @@ test('couverture, ordre, suppression et reprise du brouillon après rechargement
   await creator.getByRole('button', { name: 'Prévisualiser' }).click()
   await creator.getByRole('button', { name: 'Ajouter au voyage' }).click()
   await expect(creator.getByText(/ajoutée au voyage/)).toBeVisible()
+  await expect(page).toHaveURL(/#draft\//)
+  await page.getByRole('button', { name: 'Modifier cette journée' }).click()
+  await creator.getByRole('button', { name: 'Prévisualiser' }).click()
   await creator.getByRole('button', { name: 'Ajouter au voyage' }).click()
+  await expect(page).toHaveURL(/#draft\//)
   const trip = await page.evaluate(() => JSON.parse(localStorage.getItem('philippines-trip')!))
   expect(trip.drafts).toHaveLength(1)
   expect(trip.drafts[0].media).toHaveLength(2)
@@ -74,7 +75,7 @@ test('couverture, ordre, suppression et reprise du brouillon après rechargement
   expect(trip.drafts[0].coverId).toBe(trip.drafts[0].media[0].id)
   await page.goto('/#carnet')
   await page.reload()
-  await page.getByRole('button', { name: /Notre matin sur l’eau/ }).click()
+  await page.getByRole('button', { name: 'Modifier Notre matin sur l’eau', exact: true }).click()
   await expect(creator.getByLabel('Le titre de votre journée')).toHaveValue('Notre matin sur l’eau')
   await expect(items).toHaveCount(2)
   await expect(creator.getByLabel('Votre récit, à votre façon')).toHaveValue(/pluie au retour/)

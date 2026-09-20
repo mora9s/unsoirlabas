@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Home from './components/Home'
 import Chapter from './components/Chapter'
+import CustomChapter from './components/CustomChapter'
 import Creator from './components/Creator'
 import ShareStudio from './components/ShareStudio'
 import Icon from './components/Icon'
@@ -8,10 +9,19 @@ import { readTrip } from './journal'
 import type { Draft } from './journal'
 import './journal.css'
 
-type View = 'home' | 'create' | 'share' | 'day-1' | 'day-3' | 'day-8'
+type View = 'home' | 'create' | 'share' | 'day-1' | 'day-3' | 'day-8' | 'missing' | `draft/${string}` | `share/${string}`
 function currentView(): View {
-  const hash = window.location.hash.slice(1).split('/')[0]
-  return ['create', 'share', 'day-1', 'day-3', 'day-8'].includes(hash) ? hash as View : 'home'
+  const hash = window.location.hash.slice(1)
+  if (hash.startsWith('draft/') || hash.startsWith('share/')) return hash as View
+  const base = hash.split('/')[0]
+  if (['create', 'share', 'day-1', 'day-3', 'day-8'].includes(base)) return base as View
+  return ['', 'carnet', 'main'].includes(hash) ? 'home' : 'missing'
+}
+
+function draftId(view: View): string | undefined {
+  const parts = view.split('/')
+  if (parts.length !== 2 || !parts[1]) return undefined
+  try { return decodeURIComponent(parts[1]) } catch { return undefined }
 }
 
 export default function App() {
@@ -20,15 +30,21 @@ export default function App() {
   const [editing, setEditing] = useState<Draft>()
   const [newDraftNumber, setNewDraftNumber] = useState(0)
   const [creatorOpened, setCreatorOpened] = useState(view === 'create')
+  const [savedId, setSavedId] = useState<string>()
+  const personalRoute = view.startsWith('draft/') || view.startsWith('share/')
+  const draft = personalRoute ? stored.trip.drafts.find(item => item.id === draftId(view)) : undefined
+  const missing = view === 'missing' || (personalRoute && !draft)
+  const sharing = view === 'share' || view.startsWith('share/')
   const mainRef = useRef<HTMLElement>(null)
   const lastView = useRef(view)
 
   useEffect(() => {
     const updateView = () => {
-      const hash = window.location.hash.slice(1).split('/')[0]
-      if (hash && !['carnet', 'create', 'share', 'day-1', 'day-3', 'day-8'].includes(hash)) return
+      if (window.location.hash === '#main') return
       const next = currentView()
       setView(next)
+      setSavedId(undefined)
+      setStored(readTrip())
       if (next === 'create') setCreatorOpened(true)
     }
     const updateStorage = () => setStored(readTrip())
@@ -43,7 +59,7 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    const title = view === 'home' ? 'Philippines — 18 jours entre îles et lumière' : view === 'create' ? 'Créer une journée' : view === 'share' ? 'Studio de partage' : `Jour ${view.slice(4)} — Philippines`
+    const title = missing ? 'Cette page est introuvable' : draft ? `${sharing ? 'Partager — ' : ''}${draft.title}` : view === 'home' ? 'Philippines — 18 jours entre îles et lumière' : view === 'create' ? 'Créer une journée' : sharing ? 'Studio de partage' : `Jour ${view.slice(4)} — Philippines`
     document.title = `${title} · Les jours au large`
     if (lastView.current !== view) {
       mainRef.current?.focus({ preventScroll: true })
@@ -52,9 +68,10 @@ export default function App() {
       else window.scrollTo({ top: 0, behavior: 'instant' })
       lastView.current = view
     }
-  }, [view])
+  }, [view, draft, missing, sharing])
 
   function navigate(next: View) {
+    setSavedId(undefined)
     window.history.pushState(null, '', next === 'home' ? '#carnet' : `#${next}`)
     setView(next)
     if (next === 'create') setCreatorOpened(true)
@@ -65,6 +82,10 @@ export default function App() {
   }
 
   function openDay(day: number) { navigate(`day-${day}` as View) }
+  function editDraft(item: Draft) {
+    setEditing(item)
+    navigate('create')
+  }
   function newDay() {
     setEditing(undefined)
     setNewDraftNumber(previous => previous + 1)
@@ -80,19 +101,19 @@ export default function App() {
       </button>
       <nav aria-label="Navigation principale">
         <button
-          className={view === 'home' || view.startsWith('day') ? 'active' : ''}
-          aria-current={view === 'home' || view.startsWith('day') ? 'page' : undefined}
+          className={view === 'home' || view.startsWith('day') || view.startsWith('draft/') ? 'active' : ''}
+          aria-current={view === 'home' || view.startsWith('day') || view.startsWith('draft/') ? 'page' : undefined}
           onClick={() => navigate('home')}
         ><Icon name="book" /><span>Le carnet</span></button>
         <button
           className={view === 'create' ? 'active' : ''}
           aria-current={view === 'create' ? 'page' : undefined}
-          onClick={() => navigate('create')}
+          onClick={newDay}
         ><Icon name="plus" /><span>Créer</span></button>
         <button
-          className={`share-nav ${view === 'share' ? 'active' : ''}`}
-          aria-current={view === 'share' ? 'page' : undefined}
-          onClick={() => navigate('share')}
+          className={`share-nav ${sharing ? 'active' : ''}`}
+          aria-current={sharing ? 'page' : undefined}
+          onClick={() => navigate(draft ? `share/${encodeURIComponent(draft.id)}` : 'share')}
         ><Icon name="share" /><span>Partager</span></button>
       </nav>
     </header>
@@ -103,7 +124,8 @@ export default function App() {
           openDay={openDay}
           create={newDay}
           drafts={stored.trip.drafts}
-          openDraft={draft => { setEditing(draft); navigate('create') }}
+          openDraft={draft => navigate(`draft/${encodeURIComponent(draft.id)}`)}
+          editDraft={editDraft}
         />
       )}
       {view.startsWith('day') && (
@@ -114,16 +136,32 @@ export default function App() {
           share={() => navigate('share')}
         />
       )}
+      {missing && <section className="workspace-heading page-width recovery-page">
+        <p className="eyebrow">Le carnet personnel</p><h1>Cette page est introuvable</h1>
+        <p>Ce chapitre n’est pas disponible dans ce navigateur. Les journées personnelles restent sur l’appareil où elles ont été enregistrées.</p>
+        <button className="button" onClick={() => navigate('home')}>Retour au carnet<Icon name="left" /></button>
+      </section>}
+      {view.startsWith('draft/') && draft && <>
+        {/* Keep the creation receipt accessible after leaving the editor. */}
+        {savedId === draft.id && <div className="page-width" data-testid="creator"><p role="status" aria-live="polite" className="success-message">Votre journée a été ajoutée au voyage. Le brouillon est enregistré sur cet appareil, jamais publié.</p></div>}
+        <CustomChapter draft={draft} home={() => navigate('home')} edit={() => editDraft(draft)} share={() => navigate(`share/${encodeURIComponent(draft.id)}`)} />
+      </>}
       {creatorOpened && (
         <div hidden={view !== 'create'}>
           <Creator
             key={editing?.id ?? `new-${newDraftNumber}`}
             initialDraft={editing}
-            onSave={trip => setStored({ trip, error: '' })}
+            onSave={(trip, saved) => {
+              setStored({ trip, error: '' })
+              setEditing(saved)
+              setCreatorOpened(false)
+              navigate(`draft/${encodeURIComponent(saved.id)}`)
+              setSavedId(saved.id)
+            }}
           />
         </div>
       )}
-      {view === 'share' && <ShareStudio />}
+      {sharing && !missing && <ShareStudio key={draft?.id ?? 'el-nido'} draft={draft} />}
     </main>
     <footer className="site-footer page-width">
       <div className="footer-brand">
@@ -131,7 +169,7 @@ export default function App() {
       </div>
       <div>
         <span>Philippines — le journal vivant</span>
-        <small>Prototype local · rien n’est publié en ligne<br />Photographies et vidéo : fonds Wikimedia fourni.</small>
+        <small>Prototype local · rien n’est publié en ligne<br />Chapitres de démonstration : fonds Wikimedia fourni.<br />Journées personnelles : vos photos et vos mots.</small>
       </div>
       <button
         className="text-button"
