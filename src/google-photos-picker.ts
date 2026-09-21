@@ -11,7 +11,7 @@ const maxWaitMs = 2 * 60 * 1000
 type UnknownRecord = Record<string, unknown>
 type TokenResponse = { access_token?: string; error?: string }
 type TokenClient = { requestAccessToken: (options?: { prompt?: string }) => void }
-type TokenClientConfig = { client_id: string; scope: string; callback: (response: TokenResponse) => void; error_callback?: () => void }
+type TokenClientConfig = { client_id: string; scope: string; callback: (response: TokenResponse) => void; error_callback?: (error: { type?: string }) => void }
 type GoogleIdentity = { accounts: { oauth2: { initTokenClient: (config: TokenClientConfig) => TokenClient } } }
 
 type PollingConfig = { pollInterval?: string; timeoutIn?: string }
@@ -87,7 +87,7 @@ function validItem(value: unknown): PickerMediaItem | undefined {
 function publicError(error: unknown): Error {
   if (error instanceof DOMException && error.name === 'AbortError') return new Error('Import Google Photos annulé.')
   const message = error instanceof Error ? error.message : ''
-  if (message === 'Réponse Picker invalide.' || message === 'autorisation Google a été refusée' || message === 'La sélection Google Photos a expiré.' || message.startsWith('La fenêtre Google Photos a été bloquée')) return new Error(message)
+  if (message === 'Réponse Picker invalide.' || message === 'autorisation Google a été refusée' || message === 'La sélection Google Photos a expiré.' || message.startsWith('La fenêtre Google Photos a été bloquée') || message.startsWith('Google Photos Picker API') || message.startsWith('La connexion Google')) return new Error(message)
   return new Error('Google Photos est indisponible ou la sélection a expiré. Réessayez.')
 }
 
@@ -121,7 +121,12 @@ async function accessToken(clientId: string, signal: AbortSignal): Promise<strin
         if (typeof response.access_token === 'string' && response.access_token.length > 20) { consentGranted = true; resolve(response.access_token) }
         else reject(new Error(response.error === 'access_denied' ? 'autorisation Google a été refusée' : 'Google Identity indisponible.'))
       },
-      error_callback: () => { signal.removeEventListener('abort', cancel); reject(new Error('Google Identity indisponible.')) },
+      error_callback: error => {
+        signal.removeEventListener('abort', cancel)
+        if (error.type === 'popup_failed') reject(new Error('La connexion Google a été bloquée par le navigateur. Autorisez les fenêtres surgissantes puis réessayez.'))
+        else if (error.type === 'popup_closed') reject(new Error('La connexion Google a été interrompue avant sa validation. Réessayez.'))
+        else reject(new Error('La connexion Google est indisponible. Réessayez.'))
+      },
     })
     client.requestAccessToken({ prompt: consentGranted ? '' : 'consent' })
   })
@@ -131,7 +136,12 @@ async function pickerFetch(path: string, token: string, init: RequestInit, signa
   const url = new URL(path, `${apiBase}/`).href
   if (!url.startsWith(`${apiBase}/`)) throw new Error('Réponse Picker invalide.')
   const response = await fetch(url, { ...init, signal, redirect: 'error', headers: { Authorization: `Bearer ${token}`, ...(init.headers ?? {}) } })
-  if (!response.ok) throw new Error('API Picker indisponible.')
+  if (!response.ok) {
+    if (response.status === 401) throw new Error('La connexion Google a expiré. Reconnectez-vous puis réessayez.')
+    if (response.status === 403) throw new Error('Google Photos Picker API refuse l’accès. Vérifiez que l’API est activée dans le même projet Google Cloud et que votre compte est ajouté aux utilisateurs de test.')
+    if (response.status === 429) throw new Error('Google Photos Picker API reçoit trop de demandes. Patientez une minute puis réessayez.')
+    throw new Error(`Google Photos Picker API est indisponible (erreur ${response.status}). Réessayez.`)
+  }
   return response
 }
 

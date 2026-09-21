@@ -106,7 +106,8 @@ test('refus de l’API Picker ne modifie pas les médias', async ({ page }) => {
   await page.route('https://photospicker.googleapis.com/**', route => route.fulfill({ status: 403, json: { error: { status: 'PERMISSION_DENIED' } } }))
   await page.goto('/#create')
   await page.getByRole('button', { name: 'Choisir dans Google Photos' }).click()
-  await expect(page.getByRole('alert')).toContainText('Google Photos est indisponible')
+  await expect(page.getByRole('alert')).toContainText('API refuse l’accès')
+  await expect(page.getByRole('alert')).toContainText('utilisateurs de test')
   await expect(page.getByTestId('media-item')).toHaveCount(0)
 })
 
