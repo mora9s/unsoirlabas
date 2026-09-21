@@ -1,8 +1,9 @@
 # Philippines — Les jours au large
 
 Carnet de voyage éditorial en français, réalisé avec React 19, TypeScript et Vite.
-Toutes les photographies et la vidéo proviennent de `public/assets/`. Aucun service
-distant, authentification ou publication sur un réseau social.
+Les médias personnels restent locaux. Un import Google Photos Picker, désactivé par
+défaut tant qu’un client OAuth Web public n’est pas configuré, permet de choisir des
+photos sans transformer l’application en synchronisation ou publication distante.
 
 ## Lancer et vérifier
 
@@ -23,6 +24,16 @@ le build doit donc précéder les tests. La configuration fournie utilise Chrome
 - `/#create` : import multiple, couverture, réorganisation, suppression, écriture,
   génération locale contextualisée, aperçu et enregistrement du brouillon.
 - `/#share` : Story 9:16 et publication 4:5, légende modifiable, copie et export PNG.
+
+## Album partagé et Google Photos
+
+L’atelier référence l’album partagé **PHILIPPINES 2027** et l’ouvre uniquement à la
+demande. L’import Picker est séparé : il demande le choix explicite de l’utilisateur,
+importe uniquement des photos et les convertit localement en données portables. Il
+reste désactivé sans `VITE_GOOGLE_PHOTOS_CLIENT_ID` (ou
+`window.__GOOGLE_PHOTOS_CONFIG__.clientId`) et sur HTTP non sécurisé. La configuration,
+les limites, la confidentialité et les prérequis de compte réel sont détaillés dans
+[`docs/google-photos-picker.md`](docs/google-photos-picker.md).
 
 ## Sauvegarde Drive
 

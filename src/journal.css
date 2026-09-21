@@ -196,6 +196,16 @@
 .step-heading h2 { font-size: 28px; letter-spacing: -0.03em; }
 .step-heading p { font-size: 11px; margin-top: 7px; color: var(--muted); }
 .upload-zone { position: relative; padding: 44px 20px; min-height: 250px; border: 1px dashed #9da98d; background: #ecefe4; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; cursor: pointer; }
+.trip-source { padding: 24px; margin-bottom: 18px; border-left: 2px solid #829270; background: linear-gradient(120deg, #edf0e4, #f7f3ea); }
+.trip-source .eyebrow, .google-import .eyebrow { color: #667654; font-size: 8px; }
+.trip-source h3, .google-import h3 { margin-top: 8px; font-size: 27px; }
+.trip-source > p:not(.eyebrow), .google-import > div > p:not(.eyebrow) { margin-top: 10px; color: var(--muted); font-size: 12px; line-height: 1.75; }
+.trip-source a { display: inline-flex; min-height: 44px; align-items: center; margin-top: 14px; border-bottom: 1px solid #849078; font-size: 11px; text-decoration: none; }
+.trip-source a:hover { color: var(--rust); }
+.google-import { display: grid; grid-template-columns: minmax(0, 1fr) minmax(170px, .72fr); gap: 20px; align-items: end; margin-bottom: 18px; padding: 22px 24px; border: 1px solid #c9cfbc; background: #fffdf8; }
+.google-import-actions { display: flex; flex-direction: column; gap: 10px; }
+.google-import-actions .button { width: 100%; gap: 10px; padding-inline: 14px; font-size: 11px; }
+.google-import-actions .local-note { font-size: 10px; }
 .upload-zone:hover, .upload-zone:focus-within { background: #e0e7d6; }
 .upload-zone:focus-within { outline: 3px solid var(--rust); outline-offset: 5px; }
 .upload-zone > svg { width: 28px; height: 28px; margin-bottom: 20px; }
@@ -431,6 +441,10 @@
   .step-heading { margin-bottom: 24px; }
   .step-heading h2 { font-size: 28px; }
   .upload-zone { min-height: 220px; padding: 28px 12px; }
+  .trip-source { padding: 21px 18px; }
+  .trip-source h3, .google-import h3 { font-size: 25px; }
+  .google-import { grid-template-columns: 1fr; padding: 20px 18px; gap: 16px; }
+  .google-import-actions .button { min-height: 48px; }
   .upload-zone strong { font-size: 24px; }
   .media-grid { gap: 12px; }
   .media-controls { padding-inline: 7px; }
