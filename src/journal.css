@@ -484,3 +484,34 @@
   .site-footer > div:nth-child(2) { max-width: 225px; }
   .site-footer > .text-button { margin-left: auto; }
 }
+
+/* Personal photos keep their complete framing. Editorial crops remain reserved
+   for the fixed demo chapters, where their focal points are art-directed. */
+.custom-chapter .chapter-cover {
+  max-width: 1320px;
+  margin-inline: auto;
+  background: #e8e5db;
+}
+.custom-chapter .chapter-cover > img {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  object-position: center;
+}
+.custom-chapter .photo-mosaic img,
+.custom-chapter .photo-mosaic .photo-1 img,
+.custom-chapter .photo-mosaic .photo-2 img,
+.custom-chapter .photo-mosaic .photo-3 img,
+.custom-chapter .photo-mosaic .photo-4 img,
+.custom-chapter .photo-mosaic .photo-5 img,
+.custom-chapter .photo-mosaic .photo-6 img {
+  display: block;
+  width: 100%;
+  height: auto !important;
+  object-fit: contain;
+}
+
+@media (max-width: 720px) {
+  .custom-chapter .chapter-cover { margin-inline: 12px; }
+}

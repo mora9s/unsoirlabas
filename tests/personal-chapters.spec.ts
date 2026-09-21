@@ -69,6 +69,14 @@ test('sans randomUUID : créer, importer, lire, recharger, modifier et partager'
   expect(new Set([trip.drafts[0].id, ...trip.drafts[0].media.map((item: { id: string }) => item.id)]).size).toBe(3)
   const cover = trip.drafts[0].media[1].src
   await expect(chapter.locator('.chapter-cover img')).toHaveAttribute('src', cover)
+  const chapterPhotos = chapter.locator('.chapter-cover img, .photo-mosaic img')
+  await expect.poll(() => chapterPhotos.evaluateAll(images => images.every(image => (image as HTMLImageElement).naturalWidth > 0))).toBe(true)
+  const ratios = await chapterPhotos.evaluateAll(images => images.map(image => {
+    const photo = image as HTMLImageElement
+    const box = photo.getBoundingClientRect()
+    return { natural: photo.naturalWidth / photo.naturalHeight, rendered: box.width / box.height }
+  }))
+  for (const ratio of ratios) expect(Math.abs(ratio.natural - ratio.rendered)).toBeLessThan(0.02)
   await fits(page)
   await page.reload()
   await expect(chapter.getByRole('heading', { name: title, exact: true })).toBeVisible()
