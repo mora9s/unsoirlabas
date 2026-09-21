@@ -18,8 +18,10 @@ const MAX_MEDIA_BYTES = 5 * 1024 * 1024
 
 type ArchiveMedia = { id: string; name: string; mime: string; path: string; bytes: number; sha256: string }
 type ArchiveDraft = Omit<Draft, 'media'> & { media: ArchiveMedia[] }
+type ArchiveProduct = 'Un soir là-bas' | 'Les jours au large'
+const compatibleProducts: readonly ArchiveProduct[] = ['Un soir là-bas', 'Les jours au large']
 type Manifest = {
-  product: 'Les jours au large'
+  product: ArchiveProduct
   format: typeof archiveFormat
   version: typeof archiveVersion
   tripId: typeof tripId
@@ -77,7 +79,7 @@ function validPath(path: string) {
 function parseManifest(value: unknown): Manifest {
   if (!exactObject(value, ['product', 'format', 'version', 'tripId', 'createdAt', 'records', 'media', 'bytes', 'journal'])) fail('Le manifeste contient des champs inconnus ou incomplets.')
   const manifest = value as Manifest
-  if (manifest.product !== 'Les jours au large' || manifest.format !== archiveFormat || manifest.version !== archiveVersion || manifest.tripId !== tripId) fail('Cette sauvegarde n’est pas compatible avec ce carnet.')
+  if (!compatibleProducts.includes(manifest.product) || manifest.format !== archiveFormat || manifest.version !== archiveVersion || manifest.tripId !== tripId) fail('Cette sauvegarde n’est pas compatible avec ce carnet.')
   if (typeof manifest.createdAt !== 'string' || Number.isNaN(Date.parse(manifest.createdAt)) || !exactObject(manifest.journal, ['version', 'drafts']) || manifest.journal.version !== 1 || !Array.isArray(manifest.journal.drafts)) fail('Le manifeste de sauvegarde est invalide.')
   if (manifest.journal.drafts.length > MAX_RECORDS) fail('Cette sauvegarde contient trop de chapitres.')
   for (const draft of manifest.journal.drafts) {
@@ -151,7 +153,7 @@ export async function createArchive(trip: Trip, createdAt = new Date().toISOStri
     const { media: _media, ...record } = draft
     drafts.push({ ...record, media })
   }
-  const manifest: Manifest = { product: 'Les jours au large', format: archiveFormat, version: archiveVersion, tripId, createdAt, records: drafts.length, media: mediaCount, bytes: payloadBytes, journal: { version: 1, drafts } }
+  const manifest: Manifest = { product: 'Un soir là-bas', format: archiveFormat, version: archiveVersion, tripId, createdAt, records: drafts.length, media: mediaCount, bytes: payloadBytes, journal: { version: 1, drafts } }
   files['manifest.json'] = encoder.encode(JSON.stringify(manifest, null, 2))
   const archive = new Blob([zipSync(files, { level: 0 })], { type: 'application/zip' })
   if (archive.size > MAX_ARCHIVE_BYTES) fail('Le carnet dépasse 25 Mo et ne peut pas être restauré sur un autre appareil dans ce format.')

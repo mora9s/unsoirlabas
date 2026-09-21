@@ -60,7 +60,7 @@ export default function App() {
 
   useEffect(() => {
     const title = missing ? 'Cette page est introuvable' : draft ? `${sharing ? 'Partager — ' : ''}${draft.title}` : view === 'home' ? 'Philippines — 18 jours entre îles et lumière' : view === 'create' ? 'Créer une journée' : sharing ? 'Studio de partage' : `Jour ${view.slice(4)} — Philippines`
-    document.title = `${title} · Les jours au large`
+    document.title = `${title} · Un soir là-bas`
     if (lastView.current !== view) {
       mainRef.current?.focus({ preventScroll: true })
       const anchor = document.getElementById(window.location.hash.slice(1))
@@ -95,9 +95,9 @@ export default function App() {
   return <>
     <a className="skip-link" href="#main">Aller au contenu</a>
     <header className="site-header">
-      <button className="wordmark" onClick={() => navigate('home')} aria-label="Les jours au large — accueil">
+      <button className="wordmark" onClick={() => navigate('home')} aria-label="Un soir là-bas — accueil">
         <span className="brand-symbol" aria-hidden="true"><i /><i /><i /></span>
-        <span>les jours <em>au large</em><small>LES VOYAGES PASSENT. LES HISTOIRES RESTENT.</small></span>
+        <span>un soir <em>là-bas</em><small>RACONTÉ SUR PLACE. PARTAGÉ EN DIX MINUTES.</small></span>
       </button>
       <nav aria-label="Navigation principale">
         <button

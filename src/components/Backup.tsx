@@ -37,7 +37,7 @@ export default function Backup({ trip, onRestore }: { trip: Trip; onRestore: (tr
       const supported = preferShare && typeof navigator.share === 'function' && typeof navigator.canShare === 'function' && navigator.canShare({ files: [shareFile] })
       if (supported) {
         try {
-          await navigator.share({ title: 'Sauvegarde du carnet Philippines', text: 'Archive personnelle du carnet Les jours au large.', files: [shareFile] })
+          await navigator.share({ title: 'Sauvegarde du carnet Philippines', text: 'Archive personnelle du carnet Un soir là-bas.', files: [shareFile] })
           setNotice({ kind: 'info', text: 'La feuille de partage a été ouverte. Choisissez Drive pour y déposer cette archive ; le carnet local reste la source de référence.' })
         } catch (error) {
           if ((error as DOMException).name === 'AbortError') setNotice({ kind: 'info', text: 'Partage annulé. Votre carnet local n’a pas été modifié.' })
