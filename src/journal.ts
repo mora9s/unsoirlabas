@@ -33,12 +33,17 @@ function isMedia(value: unknown): value is Media {
 }
 
 function isDraft(value: unknown): value is Draft {
-  return isRecord(value) && typeof value.id === 'string' && value.id.length > 0 &&
-    typeof value.title === 'string' && typeof value.story === 'string' &&
-    typeof value.memories === 'string' && typeof value.tone === 'string' &&
-    typeof value.coverId === 'string' && value.status === 'draft' &&
-    Array.isArray(value.media) && value.media.every(isMedia) &&
-    new Set(value.media.map(item => item.id)).size === value.media.length
+  return isRecord(value) && typeof value.id === 'string' && value.id.length > 0 && value.id.length <= 160 &&
+    typeof value.title === 'string' && value.title.length <= 120 && typeof value.story === 'string' && value.story.length <= 20000 &&
+    typeof value.memories === 'string' && value.memories.length <= 4000 && typeof value.tone === 'string' && value.tone.length <= 80 &&
+    typeof value.coverId === 'string' && value.status === 'draft' && Array.isArray(value.media) && value.media.length <= 12 &&
+    value.media.every(isMedia) && new Set(value.media.map(item => item.id)).size === value.media.length &&
+    (value.coverId === '' ? value.media.length === 0 : value.media.some(item => item.id === value.coverId))
+}
+
+export function validateTrip(value: unknown): value is Trip {
+  return isRecord(value) && value.version === 1 && Array.isArray(value.drafts) && value.drafts.length <= 40 &&
+    value.drafts.every(isDraft) && new Set(value.drafts.map(draft => draft.id)).size === value.drafts.length
 }
 
 export function coverOf(draft: Draft): Media | undefined {
@@ -55,11 +60,10 @@ export function readTrip(): { trip: Trip; error: string } {
     const raw = localStorage.getItem(storageKey)
     if (raw === null) return { trip: { version: 1, drafts: [] }, error: '' }
     const value: unknown = JSON.parse(raw)
-    if (!isRecord(value) || value.version !== 1 || !Array.isArray(value.drafts) ||
-      !value.drafts.every(isDraft) || new Set(value.drafts.map(draft => draft.id)).size !== value.drafts.length) {
+    if (!validateTrip(value)) {
       throw new Error('Format non reconnu')
     }
-    return { trip: { version: 1, drafts: value.drafts }, error: '' }
+    return { trip: value, error: '' }
   } catch {
     return { trip: { version: 1, drafts: [] }, error: 'Le carnet enregistré ne peut pas être lu. Vos données n’ont pas été modifiées ; exportez ou rétablissez le stockage de ce navigateur avant d’enregistrer.' }
   }

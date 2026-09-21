@@ -1,8 +1,9 @@
 import { asset, coverOf, days, storyExcerpt } from '../journal'
 import type { Draft } from '../journal'
+import Backup from './Backup'
 import Icon from './Icon'
 
-export default function Home({ openDay, create, drafts, openDraft, editDraft }: { openDay: (day: number) => void; create: () => void; drafts: Draft[]; openDraft: (draft: Draft) => void; editDraft: (draft: Draft) => void }) {
+export default function Home({ openDay, create, drafts, openDraft, editDraft, trip, onRestore }: { openDay: (day: number) => void; create: () => void; drafts: Draft[]; openDraft: (draft: Draft) => void; editDraft: (draft: Draft) => void; trip: import('../journal').Trip; onRestore: (trip: import('../journal').Trip) => void }) {
   return <>
     <section className="trip-hero" aria-labelledby="trip-title">
       <img className="hero-photo" src={asset('el-nido-big-lagoon.jpg')} alt="Le Big Lagoon d’El Nido, entre eau turquoise et falaises de calcaire" fetchPriority="high" />
@@ -31,6 +32,7 @@ export default function Home({ openDay, create, drafts, openDraft, editDraft }: 
         </article>)}
       </div>
     </section>
+    <Backup trip={trip} onRestore={onRestore} />
     {drafts.length > 0 && <section className="saved-drafts page-width" aria-labelledby="drafts-title"><p className="eyebrow">Conservés sur cet appareil</p><h2 id="drafts-title">Vos nouvelles pages</h2>{drafts.map(draft => {
       const cover = coverOf(draft)
       return <article key={draft.id} className="personal-entry">

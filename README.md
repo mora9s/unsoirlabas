@@ -24,7 +24,25 @@ le build doit donc précéder les tests. La configuration fournie utilise Chrome
   génération locale contextualisée, aperçu et enregistrement du brouillon.
 - `/#share` : Story 9:16 et publication 4:5, légende modifiable, copie et export PNG.
 
-## Données et limites volontaires
+## Sauvegarde Drive
+
+Depuis l’accueil, **Sauvegarder dans Drive** prépare une archive ZIP versionnée et
+portable. Sur les appareils qui proposent le partage de fichiers, la feuille de
+partage permet de choisir Drive ; sinon l’archive est téléchargée, y compris sur
+un réseau local ou hors ligne, pour être déposée manuellement dans
+`Voyages / Philippines / Sauvegardes`. L’application ne prétend jamais avoir
+chargé le fichier dans Drive.
+
+L’archive contient les chapitres personnels, leur ordre et leurs identifiants,
+les récits et les photos sélectionnées/redimensionnées du carnet. Les originaux
+de l’appareil ou de Drive, les chapitres de démonstration, les comptes Drive et
+les modifications non enregistrées n’y figurent pas. **Importer depuis Drive**
+ouvre le sélecteur de fichiers (où Drive peut être choisi), vérifie l’archive puis
+affiche un aperçu avant une restauration qui remplace le carnet local : il n’y a
+pas encore de fusion. Une synchronisation OAuth directe demanderait un client Web
+public, des origines HTTPS autorisées et une validation dédiée ; aucun identifiant
+OAuth n’est embarqué dans ce prototype.
+
 
 Les brouillons utilisent la clé `philippines-trip` de `localStorage`, sous la forme
 `{ version: 1, drafts: [...] }`. Les photos importées sont redimensionnées à
@@ -50,8 +68,5 @@ la validation du stockage, la génération et la préparation des images.
 Les tests d’acceptation fournis sont inchangés. `tests/journal-extended.spec.ts`
 ajoute les deux dimensions cibles, le contrôle des médias et requêtes,
 la reprise des brouillons, le clavier, l’historique et les dimensions des PNG.
-
-État de cette livraison : code écrit, exécution non vérifiée. Le lanceur de
-commandes a refusé lint, build et tests avant leur exécution, avec le statut
-`BLOCKED: Security scan` en mode non interactif. Aucun résultat vert ni capture
-du prototype exécuté n’est revendiqué.
+`tests/archive.spec.ts` vérifie l’archive ZIP, son manifeste, la restauration
+explicitement confirmée et la non-mutation lors d’un rejet ou d’une annulation.

@@ -126,6 +126,11 @@ export default function App() {
           drafts={stored.trip.drafts}
           openDraft={draft => navigate(`draft/${encodeURIComponent(draft.id)}`)}
           editDraft={editDraft}
+          trip={stored.trip}
+          onRestore={trip => {
+            setStored({ trip, error: '' })
+            navigate('home')
+          }}
         />
       )}
       {view.startsWith('day') && (
