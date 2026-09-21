@@ -515,3 +515,25 @@
 @media (max-width: 720px) {
   .custom-chapter .chapter-cover { margin-inline: 12px; }
 }
+
+.voice-narration { margin-top: 32px; padding: 24px; border: 1px solid #bdc8b0; background: linear-gradient(135deg, #edf1e5, #fffdf7); overflow-wrap: anywhere; max-width: 100%; }
+.voice-entry-card { display: grid; gap: 7px; width: 100%; margin-top: 24px; padding: 20px; color: inherit; text-align: left; border: 1px solid #bdc8b0; background: linear-gradient(135deg, #edf1e5, #fffdf7); cursor: pointer; }
+.voice-entry-card strong { font: 24px var(--serif); }
+.voice-entry-card small { color: var(--muted); line-height: 1.5; }
+.voice-narration h2 { margin: 10px 0; font-size: 29px; }
+.voice-narration > p:not(.eyebrow):not(.local-note) { color: var(--muted); font-size: 12px; line-height: 1.7; }
+.voice-live { min-height: 1.8em; margin: 14px 0 0; }
+.voice-actions, .voice-card > div { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+.voice-actions .button { gap: 10px; padding-inline: 14px; font-size: 11px; }
+.voice-actions label { position: relative; overflow: hidden; }
+.voice-actions input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.voice-card { margin-top: 20px; padding-top: 18px; border-top: 1px solid #c9cfbc; }
+.voice-card > strong { display: block; font-size: 12px; }
+.voice-card > .status { margin-top: 9px; }
+.voice-card textarea, .voice-card input { width: 100%; max-width: 100%; box-sizing: border-box; }
+.voice-card .generate-button { margin-top: 15px; }
+.voice-transcript, .voice-draft { margin-top: 22px; padding-top: 18px; border-top: 1px solid #c9cfbc; }
+.voice-transcript article, .voice-draft article { margin: 14px 0; padding: 14px; background: #fffdf8; border-left: 2px solid #81946d; }
+.voice-transcript article p, .voice-draft article p { margin-top: 8px; font-size: 10px; color: var(--muted); }
+.voice-draft article textarea { min-height: 90px; font-family: var(--serif); line-height: 1.6; }
+@media (max-width: 760px) { .voice-narration { padding: 19px 16px; } .voice-actions .button { width: 100%; } .voice-entry-card { padding: 18px 16px; } }

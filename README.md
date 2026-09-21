@@ -81,3 +81,24 @@ ajoute les deux dimensions cibles, le contrôle des médias et requêtes,
 la reprise des brouillons, le clavier, l’historique et les dimensions des PNG.
 `tests/archive.spec.ts` vérifie l’archive ZIP, son manifeste, la restauration
 explicitement confirmée et la non-mutation lors d’un rejet ou d’une annulation.
+
+## Le récit du soir — IA locale
+
+Dans l’atelier, **Commencer le récit du soir** ouvre le parcours audio local-first :
+enregistrement ou import, transcription française, correction des segments,
+rédaction fondée sur ces segments, revue des preuves puis insertion explicite dans
+l’éditeur. L’IA ne sauvegarde et ne publie jamais le chapitre automatiquement.
+
+Après `npm run build`, FastAPI sert l’application et l’API sur la boucle locale,
+derrière l’origine HTTPS privée Tailscale. `faster-whisper small` assure la
+transcription et Ollama exécute `qwen2.5:3b`; aucun modèle, secret ou jeton d’IA
+n’est placé dans le navigateur. Les services locaux sont persistants via systemd
+utilisateur. `npm run preview` reste une solution de repli sans API vocale.
+
+Le service stocke ses fichiers privés dans `voice-data/` (ignoré par Git), exige
+l’origine/hôte configurés (`VOICE_ALLOWED_ORIGINS`, `VOICE_ALLOWED_HOSTS`) et
+`X-Un-Soir-Request: voice-v1` sur toute mutation. Les uploads sont limités à
+64 MiB, vérifiés par SHA-256 et les tâches SQLite sont exécutées une par une.
+
+Installation, architecture, limites, modèles validés et commandes de vérification :
+[`docs/voice-ai.md`](docs/voice-ai.md).

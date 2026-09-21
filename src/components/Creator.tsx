@@ -6,6 +6,7 @@ import type { Draft, Media, Trip } from '../journal'
 import { createId } from '../id'
 import { tripAlbum } from '../trip-media'
 import Icon from './Icon'
+import VoiceNarration from './VoiceNarration'
 
 type PickerLaunch = { url: string; open: () => void }
 
@@ -22,6 +23,7 @@ export default function Creator({ initialDraft, onSave }: { initialDraft?: Draft
   const [pickerBusy, setPickerBusy] = useState(false)
   const [pickerLaunch, setPickerLaunch] = useState<PickerLaunch>()
   const [notice, setNotice] = useState('')
+  const [showVoice, setShowVoice] = useState(false)
   const [error, setError] = useState('')
   const storyRef = useRef<HTMLTextAreaElement>(null)
   const previewRef = useRef<HTMLElement>(null)
@@ -170,6 +172,7 @@ export default function Creator({ initialDraft, onSave }: { initialDraft?: Draft
       <div className="editor-note"><span className="eyebrow">Un petit conseil</span><p>La meilleure photo n’est pas toujours la plus belle.<br /><em>C’est celle qui vous ramène là-bas.</em></p></div>
     </div><div className="writing-workspace"><div className="step-heading"><span>02</span><div><h2>Les mots pour le dire</h2><p>On commence par ce qui vous revient.</p></div></div>
       <label className="field-label" htmlFor="day-title">Le titre de votre journée</label><input id="day-title" value={title} maxLength={120} onChange={event => { setTitle(event.target.value); changed() }} />
+      {showVoice ? <VoiceNarration onAccept={(nextTitle, nextMemories, nextStory) => { setTitle(nextTitle); setMemories(nextMemories); setStory(nextStory); setPreview(false); setNotice('Le récit a rempli l’éditeur. Relisez-le : rien n’est enregistré ni publié.'); setError('') }} /> : <button className="voice-entry-card" type="button" onClick={() => setShowVoice(true)}><span className="eyebrow">Voix · Premium local</span><strong>Commencer le récit du soir</strong><small>Enregistrez ou importez un audio, puis relisez chaque preuve avant d’utiliser le récit.</small></button>}
       <label className="field-label" htmlFor="memories">Souvenirs de la journée</label><input id="memories" value={memories} maxLength={4000} onChange={event => { setMemories(event.target.value); changed() }} aria-describedby="memories-hint" /><p className="field-hint" id="memories-hint">Un lieu, un goût, une anecdote… Quelques mots suffisent.</p>
       <fieldset className="tone-field"><legend>Quelle couleur donner aux mots ?</legend><div>{['Contemplatif', 'Aventure', 'Spontané'].map(option => <label key={option} className={tone === option ? 'selected' : ''}><input type="radio" name="tone" value={option} checked={tone === option} onChange={() => { setTone(option); changed() }} />{option}</label>)}</div></fieldset>
       <button className="button generate-button" onClick={generate}>Générer le récit <Icon name="arrow" /></button><p className="field-hint">Une proposition locale à partir de vos souvenirs, sans IA distante. Vous gardez le dernier mot.</p>
