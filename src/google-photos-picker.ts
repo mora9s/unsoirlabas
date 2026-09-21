@@ -123,7 +123,7 @@ async function accessToken(clientId: string, signal: AbortSignal): Promise<strin
       },
       error_callback: error => {
         signal.removeEventListener('abort', cancel)
-        if (error.type === 'popup_failed') reject(new Error('La connexion Google a été bloquée par le navigateur. Autorisez les fenêtres surgissantes puis réessayez.'))
+        if (error.type === 'popup_failed_to_open') reject(new Error('La connexion Google a été bloquée par le navigateur. Autorisez les fenêtres surgissantes puis réessayez.'))
         else if (error.type === 'popup_closed') reject(new Error('La connexion Google a été interrompue avant sa validation. Réessayez.'))
         else reject(new Error('La connexion Google est indisponible. Réessayez.'))
       },
@@ -215,11 +215,9 @@ async function download(item: PickerMediaItem, index: number, limit: number, sig
   return new File([blob], filename(item, index), { type: responseMime })
 }
 
-export async function importGooglePhotos({ remaining, signal, normalize }: { remaining: number; signal: AbortSignal; normalize: (file: File) => Promise<Media> }): Promise<GooglePhotosImport> {
+export async function importGooglePhotos({ remaining, signal, normalize, openPicker }: { remaining: number; signal: AbortSignal; normalize: (file: File) => Promise<Media>; openPicker: (url: string, signal: AbortSignal) => Promise<void> }): Promise<GooglePhotosImport> {
   const availability = googlePhotosAvailability()
   if (!availability.enabled) throw new Error(availability.reason === 'insecure-context' ? 'La connexion Google nécessite HTTPS.' : 'Ajoutez un identifiant client Web public pour connecter Google Photos.')
-  const popup = window.open('about:blank', 'google-photos-picker', 'popup,width=480,height=720,resizable=yes,scrollbars=yes')
-  if (!popup) throw new Error('La fenêtre Google Photos a été bloquée. Autorisez les fenêtres surgissantes puis réessayez.')
   let token = ''
   let sessionId = ''
   try {
@@ -227,7 +225,7 @@ export async function importGooglePhotos({ remaining, signal, normalize }: { rem
     ensureActive(signal)
     const session = validSession(await (await pickerFetch('sessions', token, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }, signal)).json(), true)
     sessionId = session.id
-    popup.location.replace(`${session.pickerUri.replace(/\/$/, '')}/autoclose`)
+    await openPicker(`${session.pickerUri.replace(/\/$/, '')}/autoclose`, signal)
     await poll(session, token, signal)
     const all = await selectedItems(session.id, token, signal)
     const videosSkipped = all.filter(item => item.type === 'VIDEO').length
@@ -256,7 +254,6 @@ export async function importGooglePhotos({ remaining, signal, normalize }: { rem
     if (sessionId && token) {
       try { await pickerFetch(`sessions/${encodeURIComponent(sessionId)}`, token, { method: 'DELETE' }, new AbortController().signal) } catch { /* Cleanup is best effort and never exposes credentials. */ }
     }
-    if (!popup.closed) popup.close()
   }
 }
 

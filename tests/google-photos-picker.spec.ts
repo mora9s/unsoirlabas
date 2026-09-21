@@ -6,7 +6,7 @@ const albumUrl = 'https://photos.app.goo.gl/y4cpr6M1oJZZHwro7'
 const key = 'philippines-trip'
 const tinyJpeg = Buffer.from('/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////2wBDAf//////////////////////////////////////////////////////////////////////////////////////wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAX/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIQAxAAAAEf/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABBQJ//8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAgBAwEBPwF//8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQAGPwJ//8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPyF//9k=', 'base64')
 
-async function configured(page: import('@playwright/test').Page, mode: 'success' | 'denied' = 'success') {
+async function configured(page: import('@playwright/test').Page, mode: 'success' | 'denied' | 'popup-blocked' = 'success') {
   await page.addInitScript(({ mode }) => {
     window.__GOOGLE_PHOTOS_CONFIG__ = { clientId: 'public-test-client.apps.googleusercontent.com' }
     let closed = false
@@ -17,8 +17,17 @@ async function configured(page: import('@playwright/test').Page, mode: 'success'
     }
     window.open = () => opened as unknown as Window
     ;(window as unknown as { oauthPrompts: string[] }).oauthPrompts = []
-    window.google = { accounts: { oauth2: { initTokenClient: ({ callback }: { callback: (response: { access_token?: string; error?: string }) => void }) => ({ requestAccessToken: (options?: { prompt?: string }) => { ;(window as unknown as { oauthPrompts: string[] }).oauthPrompts.push(options?.prompt ?? ''); setTimeout(() => callback(mode === 'denied' ? { error: 'access_denied' } : { access_token: 'test-access-token-long-enough-for-gis' }), 0) } }) } } }
+    window.google = { accounts: { oauth2: { initTokenClient: ({ callback, error_callback }: { callback: (response: { access_token?: string; error?: string }) => void; error_callback?: (error: { type?: string }) => void }) => ({ requestAccessToken: (options?: { prompt?: string }) => { ;(window as unknown as { oauthPrompts: string[] }).oauthPrompts.push(options?.prompt ?? ''); setTimeout(() => mode === 'popup-blocked' ? error_callback?.({ type: 'popup_failed_to_open' }) : callback(mode === 'denied' ? { error: 'access_denied' } : { access_token: 'test-access-token-long-enough-for-gis' }), 0) } }) } } }
   }, { mode })
+}
+
+async function openPicker(page: import('@playwright/test').Page) {
+  const link = page.getByRole('link', { name: 'Ouvrir Google Photos pour choisir' })
+  await expect(link).toBeVisible()
+  await expect(link).toHaveAttribute('target', '_blank')
+  const href = await link.getAttribute('href')
+  await link.dispatchEvent('click')
+  return href ?? ''
 }
 
 test('album partagé explicite et import Picker configuré, paginé et portable', async ({ page }, testInfo) => {
@@ -41,6 +50,7 @@ test('album partagé explicite et import Picker configuré, paginé et portable'
   await expect(page.getByRole('link', { name: 'Ouvrir l’album' })).toHaveAttribute('href', albumUrl)
   await expect(page.getByRole('link', { name: 'Ouvrir l’album' })).toHaveAttribute('rel', /noopener/)
   await page.getByRole('button', { name: 'Choisir dans Google Photos' }).click()
+  const pickerUrl = await openPicker(page)
   await expect(page.getByTestId('media-item')).toHaveCount(2)
   expect(deleted).toBe(true)
   expect(sessionPollUrl).toContain('/v1/sessions/opaque%2Fid%2Bvalue%3D')
@@ -48,7 +58,7 @@ test('album partagé explicite et import Picker configuré, paginé et portable'
   expect(new URL(mediaListUrl).searchParams.get('sessionId')).toBe('opaque/id+value=')
   expect(await page.evaluate(() => (window as unknown as { oauthPrompts: string[] }).oauthPrompts)).toEqual(['consent'])
   await expect(page.getByRole('status')).toContainText('2 photos importées depuis Google Photos')
-  expect(await page.evaluate(() => (window as unknown as { pickerUrl: string }).pickerUrl)).toContain('/autoclose')
+  expect(pickerUrl).toContain('/autoclose')
   await page.getByLabel('Votre récit, à votre façon').fill('Deux photos choisies, préparées ici.')
   await page.getByRole('button', { name: 'Prévisualiser' }).click(); await page.getByRole('button', { name: 'Ajouter au voyage' }).click()
   const local = await page.evaluate(key => localStorage.getItem(key)!, key)
@@ -72,14 +82,18 @@ test('sans configuration ou en HTTP non sécurisé, album et import appareil res
   await expect(page.getByLabel('Importer des photos')).toBeEnabled()
 })
 
-test('refus OAuth et popup bloquée laissent le carnet intact', async ({ page }) => {
+test('refus OAuth laisse le carnet intact', async ({ page }) => {
   await configured(page, 'denied'); await page.goto('/#create')
   await page.getByRole('button', { name: 'Choisir dans Google Photos' }).click()
   await expect(page.getByRole('alert')).toContainText('autorisation Google a été refusée')
   await expect(page.getByTestId('media-item')).toHaveCount(0)
-  await page.addInitScript(() => { window.open = () => null }); await page.reload()
+})
+
+test('popup OAuth bloquée donne une consigne précise', async ({ page }) => {
+  await configured(page, 'popup-blocked'); await page.goto('/#create')
   await page.getByRole('button', { name: 'Choisir dans Google Photos' }).click()
-  await expect(page.getByRole('alert')).toContainText('fenêtre Google Photos a été bloquée')
+  await expect(page.getByRole('alert')).toContainText('connexion Google a été bloquée')
+  await expect(page.getByRole('alert')).toContainText('fenêtres surgissantes')
 })
 
 test('vidéos et photos au-delà de la capacité sont signalées sans les importer', async ({ page }) => {
@@ -96,6 +110,7 @@ test('vidéos et photos au-delà de la capacité sont signalées sans les import
   await page.getByLabel('Importer des photos').setInputFiles(Array.from({ length: 11 }, () => 'public/assets/el-nido-bay.jpg'))
   await expect(page.getByTestId('media-item')).toHaveCount(11)
   await page.getByRole('button', { name: 'Choisir dans Google Photos' }).click()
+  await openPicker(page)
   await expect(page.getByTestId('media-item')).toHaveCount(12)
   await expect(page.getByRole('status')).toContainText('1 vidéo non importée')
   await expect(page.getByRole('status')).toContainText('1 photo au-delà de la limite de 12')
@@ -123,6 +138,7 @@ test('session expirée et annulation restent sans effet sur le carnet', async ({
   })
   await page.goto('/#create')
   await page.getByRole('button', { name: 'Choisir dans Google Photos' }).click()
+  await openPicker(page)
   await expect(page.getByRole('alert')).toContainText('sélection Google Photos a expiré')
   expect(deleted).toBe(true)
   await expect(page.getByTestId('media-item')).toHaveCount(0)
@@ -160,6 +176,7 @@ test('un téléchargement sans Content-Length reste borné avant mise en mémoir
     }
   })
   await page.getByRole('button', { name: 'Choisir dans Google Photos' }).click()
+  await openPicker(page)
   await expect(page.getByRole('status')).toContainText('1 photo indisponible ou trop lourde')
   await expect(page.getByTestId('media-item')).toHaveCount(0)
   expect(await page.evaluate(() => (window as unknown as { chunkedDownloadCancelled?: boolean }).chunkedDownloadCancelled)).toBe(true)

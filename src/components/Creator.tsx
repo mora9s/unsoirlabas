@@ -7,6 +7,8 @@ import { createId } from '../id'
 import { tripAlbum } from '../trip-media'
 import Icon from './Icon'
 
+type PickerLaunch = { url: string; open: () => void }
+
 export default function Creator({ initialDraft, onSave }: { initialDraft?: Draft; onSave: (trip: Trip, draft: Draft) => void }) {
   const [id] = useState(() => initialDraft?.id ?? createId())
   const [title, setTitle] = useState(initialDraft?.title ?? 'Une nouvelle journée aux Philippines')
@@ -18,6 +20,7 @@ export default function Creator({ initialDraft, onSave }: { initialDraft?: Draft
   const [preview, setPreview] = useState(false)
   const [busy, setBusy] = useState(false)
   const [pickerBusy, setPickerBusy] = useState(false)
+  const [pickerLaunch, setPickerLaunch] = useState<PickerLaunch>()
   const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
   const storyRef = useRef<HTMLTextAreaElement>(null)
@@ -60,7 +63,7 @@ export default function Creator({ initialDraft, onSave }: { initialDraft?: Draft
     pickerAbort.current = controller
     setPickerBusy(true)
     try {
-      const result = await importGooglePhotos({ remaining: 12 - media.length, signal: controller.signal, normalize: importImage })
+      const result = await importGooglePhotos({ remaining: 12 - media.length, signal: controller.signal, normalize: importImage, openPicker: waitForPickerOpen })
       if (controller.signal.aborted) return
       setMedia(previous => [...previous, ...result.media])
       setCoverId(previous => previous || result.media[0]?.id || '')
@@ -76,6 +79,21 @@ export default function Creator({ initialDraft, onSave }: { initialDraft?: Draft
     } finally {
       if (pickerAbort.current === controller) { pickerAbort.current = undefined; setPickerBusy(false) }
     }
+  }
+
+  function waitForPickerOpen(url: string, signal: AbortSignal): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const abort = () => { setPickerLaunch(undefined); reject(new DOMException('Import annulé.', 'AbortError')) }
+      signal.addEventListener('abort', abort, { once: true })
+      setPickerLaunch({
+        url,
+        open: () => {
+          signal.removeEventListener('abort', abort)
+          setPickerLaunch(undefined)
+          resolve()
+        },
+      })
+    })
   }
 
   function cancelGoogleImport() {
@@ -145,7 +163,7 @@ export default function Creator({ initialDraft, onSave }: { initialDraft?: Draft
     <header className="workspace-heading"><p className="eyebrow">L’atelier du soir <span className="divider">/</span> Créer une journée</p><h1>Les instants passent.<br /><em>Écrivons la suite.</em></h1><p>Vos photos, vos mots. Dix minutes pour ne rien oublier.</p><span className="privacy-note"><Icon name="check" /> Vos choix sont copiés dans le carnet, jamais publiés.</span></header>
     <div className="creator-layout"><div className="media-workspace"><div className="step-heading"><span>01</span><div><h2>Les images du jour</h2><p>Choisissez celles qui racontent vraiment.</p></div></div>
       <aside className="trip-source" aria-labelledby="trip-source-title"><p className="eyebrow">L’album commun</p><h3 id="trip-source-title">{tripAlbum.title}</h3><p>Les deux téléphones, le drone et les appareils photo s’y retrouvent. Ouvrez-le pour vérifier que les souvenirs du jour sont bien réunis.</p><a href={tripAlbum.url} target="_blank" rel="noopener noreferrer">Ouvrir l’album <span aria-hidden="true">↗</span></a></aside>
-      <div className="google-import" aria-labelledby="google-import-title"><div><p className="eyebrow">Photos choisies, seulement</p><h3 id="google-import-title">Votre sélection Google Photos</h3><p>Choisissez les images de cette journée. Elles seront préparées localement pour le carnet, sans publication.</p></div><div className="google-import-actions"><button className="button button-outline" onClick={pickerBusy ? cancelGoogleImport : importFromGoogle} disabled={busy || (!picker.enabled && !pickerBusy)}>{pickerBusy ? 'Annuler l’import Google Photos' : 'Choisir dans Google Photos'}</button>{!picker.enabled && <p className="local-note">{picker.reason === 'insecure-context' ? 'La connexion Google nécessite l’adresse sécurisée. L’album et l’import depuis cet appareil restent disponibles ici.' : 'La connexion sécurisée Google Photos reste à activer. En attendant, ouvrez l’album puis importez depuis cet appareil.'}</p>}</div></div>
+      <div className="google-import" aria-labelledby="google-import-title"><div><p className="eyebrow">Photos choisies, seulement</p><h3 id="google-import-title">Votre sélection Google Photos</h3><p>Choisissez les images de cette journée. Elles seront préparées localement pour le carnet, sans publication.</p></div><div className="google-import-actions"><button className="button button-outline" onClick={pickerBusy ? cancelGoogleImport : importFromGoogle} disabled={busy || (!picker.enabled && !pickerBusy)}>{pickerBusy ? 'Annuler l’import Google Photos' : 'Choisir dans Google Photos'}</button>{pickerLaunch && <a className="button" href={pickerLaunch.url} target="_blank" rel="noopener noreferrer" onClick={pickerLaunch.open}>Ouvrir Google Photos pour choisir</a>}{!picker.enabled && <p className="local-note">{picker.reason === 'insecure-context' ? 'La connexion Google nécessite l’adresse sécurisée. L’album et l’import depuis cet appareil restent disponibles ici.' : 'La connexion sécurisée Google Photos reste à activer. En attendant, ouvrez l’album puis importez depuis cet appareil.'}</p>}</div></div>
       <label className={`upload-zone ${busy ? 'is-busy' : ''}`}><Icon name="upload" /><strong>{busy ? 'Préparation des photos…' : 'Déposez vos souvenirs ici'}</strong><span>Choisir des photos sur cet appareil</span><small>JPEG, PNG, WebP, GIF, AVIF · 12 photos maximum<br />12 Mo par photo · optimisées pour le carnet</small><input type="file" multiple accept="image/jpeg,image/png,image/webp,image/gif,image/avif" aria-label="Importer des photos" onChange={upload} disabled={busy || pickerBusy} /></label>
       <div className="media-grid">{media.map((item, index) => <article className={`media-item ${cover?.id === item.id ? 'is-cover' : ''}`} data-testid="media-item" key={item.id}><div className="media-photo"><img src={item.src} alt={`Photo importée : ${item.name}`} /><span className="media-number">{String(index + 1).padStart(2, '0')}</span><button className="remove-media" onClick={() => remove(item)} aria-label={`Supprimer ${item.name}`}><Icon name="close" /></button></div><div className="media-controls"><button className="cover-button" aria-pressed={cover?.id === item.id} onClick={() => { setCoverId(item.id); changed() }}>{cover?.id === item.id ? <><Icon name="check" /> Couverture</> : 'Choisir en couverture'}</button><div><button aria-label={`Déplacer ${item.name} vers le précédent`} disabled={index === 0} onClick={() => move(index, -1)}><Icon name="left" /></button><button aria-label={`Déplacer ${item.name} vers le suivant`} disabled={index === media.length - 1} onClick={() => move(index, 1)}><Icon name="arrow" /></button></div></div></article>)}</div>
       {media.length > 0 && <p className="local-note">La couverture ouvre votre chapitre. Les flèches composent l’ordre de votre album.</p>}
