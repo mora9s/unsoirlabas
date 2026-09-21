@@ -37,6 +37,7 @@ test('album partagé explicite et import Picker configuré, paginé et portable'
   let sessionPollUrl = ''
   let mediaListUrl = ''
   let sessionDeleteUrl = ''
+  const mediaAuthorizations: string[] = []
   await page.route('https://photospicker.googleapis.com/**', async route => {
     const request = route.request(); const url = request.url()
     if (request.method() === 'POST' && url.endsWith('/v1/sessions')) return route.fulfill({ json: { id: 'opaque/id+value=', pickerUri: 'https://photos.google.com/picker/test', pollingConfig: { pollInterval: '0s', timeoutIn: '30s' } } })
@@ -45,7 +46,10 @@ test('album partagé explicite et import Picker configuré, paginé et portable'
     if (request.method() === 'DELETE') { deleted = true; sessionDeleteUrl = url; return route.fulfill({ status: 204 }) }
     await route.fallback()
   })
-  await page.route('https://lh3.googleusercontent.com/**', route => route.fulfill({ contentType: 'image/jpeg', body: tinyJpeg }))
+  await page.route('https://lh3.googleusercontent.com/**', route => {
+    mediaAuthorizations.push(route.request().headers().authorization ?? '')
+    return route.fulfill({ contentType: 'image/jpeg', body: tinyJpeg })
+  })
   await page.goto('/#create')
   await expect(page.getByRole('link', { name: 'Ouvrir l’album' })).toHaveAttribute('href', albumUrl)
   await expect(page.getByRole('link', { name: 'Ouvrir l’album' })).toHaveAttribute('rel', /noopener/)
@@ -56,6 +60,7 @@ test('album partagé explicite et import Picker configuré, paginé et portable'
   expect(sessionPollUrl).toContain('/v1/sessions/opaque%2Fid%2Bvalue%3D')
   expect(sessionDeleteUrl).toContain('/v1/sessions/opaque%2Fid%2Bvalue%3D')
   expect(new URL(mediaListUrl).searchParams.get('sessionId')).toBe('opaque/id+value=')
+  expect(mediaAuthorizations).toEqual(['Bearer test-access-token-long-enough-for-gis', 'Bearer test-access-token-long-enough-for-gis'])
   expect(await page.evaluate(() => (window as unknown as { oauthPrompts: string[] }).oauthPrompts)).toEqual(['consent'])
   await expect(page.getByRole('status')).toContainText('2 photos importées depuis Google Photos')
   expect(pickerUrl).toContain('/autoclose')

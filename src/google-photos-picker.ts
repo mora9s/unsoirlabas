@@ -203,9 +203,9 @@ async function boundedBlob(response: Response, mime: string, limit: number): Pro
   return new Blob(chunks, { type: mime })
 }
 
-async function download(item: PickerMediaItem, index: number, limit: number, signal: AbortSignal): Promise<File> {
+async function download(item: PickerMediaItem, index: number, limit: number, token: string, signal: AbortSignal): Promise<File> {
   const url = `${item.baseUrl}=w2048-h2048`
-  const response = await fetch(url, { signal, redirect: 'error' })
+  const response = await fetch(url, { signal, redirect: 'error', headers: { Authorization: `Bearer ${token}` } })
   const contentLength = Number(response.headers.get('content-length'))
   const maximum = Math.min(maxFileBytes, limit)
   if (!response.ok || maximum <= 0 || (Number.isFinite(contentLength) && contentLength > maximum)) throw new Error('Téléchargement photo indisponible.')
@@ -238,7 +238,7 @@ export async function importGooglePhotos({ remaining, signal, normalize, openPic
     for (const [index, item] of planned.entries()) {
       ensureActive(signal)
       try {
-        const file = await download(item, index, maxBatchBytes - bytes, signal)
+        const file = await download(item, index, maxBatchBytes - bytes, token, signal)
         bytes += file.size
         files.push(file)
       } catch (error) {
