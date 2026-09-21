@@ -20,8 +20,8 @@ test('le récit du soir reste replié puis importe, révise et exige une accepta
   await voice.getByLabel('Importer un enregistrement audio').setInputFiles({ name: 'soir.webm', mimeType: 'audio/webm', buffer: Buffer.from('voice') })
   await expect(voice.getByText('Audio conservé sur cet appareil', { exact: true })).toBeVisible()
   await voice.getByRole('button', { name: 'Transcrire en français' }).click()
-  await expect(voice.getByLabel('Texte corrigé')).toBeVisible()
-  await voice.getByLabel('Texte corrigé').fill('Le marché était calme puis nous avons mangé des mangues.')
+  await expect(voice.getByLabel('Votre transcription')).toBeVisible()
+  await voice.getByLabel('Votre transcription').fill('Le marché était calme puis nous avons mangé des mangues.')
   await voice.getByRole('button', { name: 'Écrire une proposition avec l’IA' }).click()
   await expect(voice.getByLabel('Titre proposé')).toBeVisible()
   expect(draftTranscriptVersion).toBeGreaterThanOrEqual(1)
@@ -32,6 +32,42 @@ test('le récit du soir reste replié puis importe, révise et exige une accepta
   await expect(page.getByLabel('Souvenirs de la journée')).toHaveValue(/marché était calme/)
   await expect(page.getByLabel('Votre récit, à votre façon')).toHaveValue('Version relue et corrigée du récit.')
   await expect(page.evaluate(() => localStorage.getItem('philippines-trip'))).resolves.toBeNull()
+})
+
+test('un échec de rédaction est visible et le nouvel essai utilise une nouvelle tâche', async ({ page }) => {
+  let operation: 'transcription' | 'draft' = 'transcription'
+  let draftAttempts = 0
+  const draftKeys: string[] = []
+  await page.route('**/api/voice/**', async route => {
+    const request = route.request()
+    const url = request.url()
+    if (request.method() === 'PUT') return route.fulfill({ json: { status: 'server-received' } })
+    if (url.endsWith('/transcriptions')) { operation = 'transcription'; return route.fulfill({ status: 202, json: { jobId: 'transcription' } }) }
+    if (url.endsWith('/drafts')) {
+      operation = 'draft'
+      draftAttempts += 1
+      draftKeys.push(request.postDataJSON().idempotencyKey)
+      return route.fulfill({ status: 202, json: { jobId: `draft-${draftAttempts}` } })
+    }
+    if (url.includes('/jobs/')) {
+      if (operation === 'transcription') return route.fulfill({ json: { status: 'completed', result: { segments: [{ id: 'S1', start: 0, end: 5, text: 'Une belle journée.' }], language: 'fr' } } })
+      if (draftAttempts === 1) return route.fulfill({ json: { status: 'failed', error: 'generation_unavailable' } })
+      return route.fulfill({ json: { status: 'completed', result: { transcriptVersion: 1, title: 'Une belle journée', paragraphs: [{ text: 'Une belle journée.', supportingSegmentIds: ['S1'] }], uncertainty: [], warnings: [] } } })
+    }
+    return route.fulfill({ json: {} })
+  })
+  await page.goto('/#create')
+  await page.getByRole('button', { name: 'Commencer le récit du soir' }).click()
+  const voice = page.getByTestId('voice-narration')
+  await voice.getByLabel('Importer un enregistrement audio').setInputFiles({ name: 'soir.webm', mimeType: 'audio/webm', buffer: Buffer.from('voice') })
+  await voice.getByRole('button', { name: 'Transcrire en français' }).click()
+  await expect(voice.getByLabel('Votre transcription')).toBeVisible()
+  await voice.getByRole('button', { name: 'Écrire une proposition avec l’IA' }).click()
+  await expect(voice.getByText('La rédaction IA a échoué. Touchez le bouton pour réessayer.')).toBeVisible()
+  await voice.getByRole('button', { name: 'Écrire une proposition avec l’IA' }).click()
+  await expect(voice.getByLabel('Titre proposé')).toHaveValue('Une belle journée')
+  expect(draftKeys).toHaveLength(2)
+  expect(draftKeys[1]).not.toBe(draftKeys[0])
 })
 
 test('le récit du soir indique une erreur de micro sans empêcher l’import', async ({ page }) => {

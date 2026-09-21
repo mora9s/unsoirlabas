@@ -535,5 +535,9 @@
 .voice-transcript, .voice-draft { margin-top: 22px; padding-top: 18px; border-top: 1px solid #c9cfbc; }
 .voice-transcript article, .voice-draft article { margin: 14px 0; padding: 14px; background: #fffdf8; border-left: 2px solid #81946d; }
 .voice-transcript article p, .voice-draft article p { margin-top: 8px; font-size: 10px; color: var(--muted); }
+.voice-transcript > textarea { min-height: 210px; margin-top: 8px; font-family: var(--sans); font-size: 16px; line-height: 1.65; }
+.voice-transcript details { margin-top: 14px; padding: 12px 14px; background: #fffdf8; color: var(--muted); font-size: 11px; line-height: 1.55; }
+.voice-transcript summary { cursor: pointer; color: var(--sea); font-weight: 700; }
+.voice-transcript details p { margin: 9px 0 0; }
 .voice-draft article textarea { min-height: 90px; font-family: var(--serif); line-height: 1.6; }
 @media (max-width: 760px) { .voice-narration { padding: 19px 16px; } .voice-actions .button { width: 100%; } .voice-entry-card { padding: 18px 16px; } }
