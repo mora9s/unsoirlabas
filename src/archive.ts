@@ -142,12 +142,12 @@ function preflightZip(bytes: Uint8Array) {
   if (cursor !== directoryOffset + directorySize) fail('Cette archive ZIP ne peut pas être ouverte.')
 }
 
-export async function createArchive(trip: Trip, createdAt = new Date().toISOString()): Promise<Blob> {
+export async function createArchive(trip: Trip, createdAt = new Date().toISOString(), source?: { upcomingTrips: UpcomingTrip[]; personalJournals: Journals }): Promise<Blob> {
   if (!validateTrip(trip)) fail('Le carnet local ne peut pas être sauvegardé.')
-  const upcoming = readUpcoming()
-  if (upcoming.error) fail('Les décomptes locaux ne peuvent pas être sauvegardés tant que leur stockage est invalide.')
-  const personal = readJournals()
-  if (personal.error) fail('Les carnets locaux ne peuvent pas être sauvegardés tant que leur stockage est invalide.')
+  const upcoming = source ? { trips: source.upcomingTrips, error: '' } : readUpcoming()
+  if (upcoming.error || !validateUpcomingTrips(upcoming.trips)) fail('Les décomptes locaux ne peuvent pas être sauvegardés tant que leur stockage est invalide.')
+  const personal = source ? { data: source.personalJournals, error: '' } : readJournals()
+  if (personal.error || !validateJournals(personal.data)) fail('Les carnets locaux ne peuvent pas être sauvegardés tant que leur stockage est invalide.')
   const files: Record<string, Uint8Array> = {}
   let mediaCount = 0
   let payloadBytes = 0

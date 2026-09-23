@@ -86,6 +86,11 @@ test('migration Philippines non destructive puis archive ZIP restaure les carnet
   await expect(fresh.getByRole('heading', { name: 'Restaurer ce carnet ?' })).toBeVisible()
   await expect(fresh.getByRole('heading', { name: 'Restaurer ce carnet ?' }).locator('..')).toContainText('2 carnets')
   expect(await fresh.evaluate(key => localStorage.getItem(key), journalsKey)).toBeNull()
+  const safetyPending = fresh.waitForEvent('download')
+  await fresh.getByRole('button', { name: /télécharger la copie de sécurité/i }).click()
+  const safetyDownload = await safetyPending
+  await safetyDownload.saveAs(testInfo.outputPath('multi-trip-safety.zip'))
+  await fresh.getByRole('checkbox', { name: /je confirme que la copie de sécurité est téléchargée et vérifiée/i }).check()
   await fresh.getByRole('button', { name: 'Restaurer ce carnet' }).click()
   await expect(fresh.getByRole('status')).toContainText('restaurés')
   const restored = await fresh.evaluate(key => JSON.parse(localStorage.getItem(key)!), journalsKey)
