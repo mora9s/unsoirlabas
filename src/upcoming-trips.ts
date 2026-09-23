@@ -1,7 +1,9 @@
 import { createId } from './id'
 
 export const upcomingKey = 'un-soir-la-bas-upcoming-v1'
-export type UpcomingTrip = { id: string; destination: string; departure: string }
+export type PlanItem = { id: string; text: string }
+export type PlanStop = { id: string; place: string; date?: string }
+export type UpcomingTrip = { id: string; destination: string; departure: string; plan?: { ideas: PlanItem[]; stops: PlanStop[]; notes: string } }
 
 export function calendarDate(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
@@ -22,19 +24,39 @@ export function daysUntil(departure: string, now: Date): number | null {
   return Math.round((Date.UTC(parts[0], parts[1] - 1, parts[2]) - today) / 86400000)
 }
 
+function exact(value: unknown, required: string[], optional: string[] = []): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value) &&
+    required.every(key => Object.prototype.hasOwnProperty.call(value, key)) &&
+    Object.keys(value).every(key => required.includes(key) || optional.includes(key))
+}
+
+function uniqueIds(items: { id: string }[]) { return new Set(items.map(item => item.id)).size === items.length }
+function validId(value: unknown): value is string { return typeof value === 'string' && value.length > 0 && value.length <= 160 }
+function validText(value: unknown, max: number): value is string { return typeof value === 'string' && value.trim().length > 0 && value.length <= max }
+
+export function validateUpcoming(value: unknown): value is UpcomingTrip[] {
+  if (!Array.isArray(value) || value.length > 12) return false
+  return value.every(item => {
+    if (!exact(item, ['id', 'destination', 'departure'], ['plan']) || !validId(item.id) ||
+      !validText(item.destination, 80) || typeof item.departure !== 'string' || !dateParts(item.departure)) return false
+    if (item.plan === undefined) return !Object.prototype.hasOwnProperty.call(item, 'plan')
+    const plan = item.plan
+    if (!exact(plan, ['ideas', 'stops', 'notes']) || !Array.isArray(plan.ideas) || !Array.isArray(plan.stops) ||
+      plan.ideas.length > 30 || plan.stops.length > 30 || typeof plan.notes !== 'string' || plan.notes.length > 4000) return false
+    if (!plan.ideas.every(idea => exact(idea, ['id', 'text']) && validId(idea.id) && validText(idea.text, 160)) || !uniqueIds(plan.ideas)) return false
+    if (!plan.stops.every(stop => exact(stop, ['id', 'place'], ['date']) && validId(stop.id) && validText(stop.place, 160) &&
+      (!Object.prototype.hasOwnProperty.call(stop, 'date') || (typeof stop.date === 'string' && !!dateParts(stop.date)))) || !uniqueIds(plan.stops)) return false
+    return true
+  }) && uniqueIds(value)
+}
+
 export function readUpcoming(): { trips: UpcomingTrip[]; error: string } {
   try {
     const raw = localStorage.getItem(upcomingKey)
-    if (!raw) return { trips: [], error: '' }
+    if (raw === null) return { trips: [], error: '' }
     const parsed: unknown = JSON.parse(raw)
-    if (!Array.isArray(parsed) || parsed.length > 12 || !parsed.every(item =>
-      item && typeof item === 'object' && typeof item.id === 'string' && item.id.length > 0 && item.id.length <= 160 &&
-      typeof item.destination === 'string' && item.destination.trim().length > 0 && item.destination.length <= 80 &&
-      typeof item.departure === 'string' && dateParts(item.departure)
-    )) throw new Error('Invalid trips')
-    const trips = parsed as UpcomingTrip[]
-    if (new Set(trips.map(trip => trip.id)).size !== trips.length) throw new Error('Duplicate trips')
-    return { trips, error: '' }
+    if (!validateUpcoming(parsed)) throw new Error('Invalid trips')
+    return { trips: parsed, error: '' }
   } catch {
     return { trips: [], error: 'Impossible de lire les décomptes enregistrés. Les données n’ont pas été modifiées ; vérifiez le stockage de ce navigateur avant d’enregistrer.' }
   }

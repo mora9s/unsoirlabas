@@ -3,6 +3,8 @@ import { sha256 } from '@noble/hashes/sha2.js'
 import { bytesToHex } from '@noble/hashes/utils.js'
 import type { Draft, Trip } from './journal'
 import { validateTrip } from './journal'
+import type { UpcomingTrip } from './upcoming-trips'
+import { validateUpcoming } from './upcoming-trips'
 
 export const archiveFormat = 'les-jours-au-large-journal'
 export const archiveVersion = 1
@@ -30,9 +32,10 @@ type Manifest = {
   media: number
   bytes: number
   journal: { version: 1; drafts: ArchiveDraft[] }
+  upcoming?: { path: 'upcoming.json'; bytes: number; sha256: string }
 }
 
-type Preview = { trip: Trip; createdAt: string; records: number; media: number; bytes: number }
+type Preview = { trip: Trip; upcoming?: UpcomingTrip[]; createdAt: string; records: number; media: number; bytes: number }
 
 function fail(message: string): never { throw new Error(message) }
 function exactObject(value: unknown, keys: readonly string[]): value is Record<string, unknown> {
@@ -67,6 +70,7 @@ async function digest(bytes: Uint8Array) {
 }
 function exactPaths(manifest: Manifest) {
   const paths = new Set(['manifest.json'])
+  if (manifest.upcoming) paths.add(manifest.upcoming.path)
   for (const draft of manifest.journal.drafts) for (const media of draft.media) {
     if (paths.has(media.path)) fail('L’archive contient des chemins dupliqués.')
     paths.add(media.path)
@@ -77,8 +81,11 @@ function validPath(path: string) {
   return /^media\/[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+\.(jpg|png|webp)$/.test(path) && !path.includes('..')
 }
 function parseManifest(value: unknown): Manifest {
-  if (!exactObject(value, ['product', 'format', 'version', 'tripId', 'createdAt', 'records', 'media', 'bytes', 'journal'])) fail('Le manifeste contient des champs inconnus ou incomplets.')
+  if (!value || typeof value !== 'object' || Array.isArray(value)) fail('Le manifeste contient des champs inconnus ou incomplets.')
+  const legacyKeys = ['product', 'format', 'version', 'tripId', 'createdAt', 'records', 'media', 'bytes', 'journal']
+  if (!(exactObject(value, legacyKeys) || exactObject(value, [...legacyKeys, 'upcoming']))) fail('Le manifeste contient des champs inconnus ou incomplets.')
   const manifest = value as Manifest
+  if (Object.prototype.hasOwnProperty.call(manifest, 'upcoming') && (!manifest.upcoming || !exactObject(manifest.upcoming, ['path', 'bytes', 'sha256']) || manifest.upcoming.path !== 'upcoming.json' || !Number.isSafeInteger(manifest.upcoming.bytes) || manifest.upcoming.bytes < 0 || !/^[a-f0-9]{64}$/.test(manifest.upcoming.sha256))) fail('La collection des prochains voyages est invalide.')
   if (!compatibleProducts.includes(manifest.product) || manifest.format !== archiveFormat || manifest.version !== archiveVersion || manifest.tripId !== tripId) fail('Cette sauvegarde n’est pas compatible avec ce carnet.')
   if (typeof manifest.createdAt !== 'string' || Number.isNaN(Date.parse(manifest.createdAt)) || !exactObject(manifest.journal, ['version', 'drafts']) || manifest.journal.version !== 1 || !Array.isArray(manifest.journal.drafts)) fail('Le manifeste de sauvegarde est invalide.')
   if (manifest.journal.drafts.length > MAX_RECORDS) fail('Cette sauvegarde contient trop de chapitres.')
@@ -129,9 +136,11 @@ function preflightZip(bytes: Uint8Array) {
   if (cursor !== directoryOffset + directorySize) fail('Cette archive ZIP ne peut pas être ouverte.')
 }
 
-export async function createArchive(trip: Trip, createdAt = new Date().toISOString()): Promise<Blob> {
+export async function createArchive(trip: Trip, upcoming: UpcomingTrip[], createdAt = new Date().toISOString()): Promise<Blob> {
   if (!validateTrip(trip)) fail('Le carnet local ne peut pas être sauvegardé.')
-  const files: Record<string, Uint8Array> = {}
+  if (!validateUpcoming(upcoming)) fail('Les prochains voyages locaux ne peuvent pas être sauvegardés.')
+  const upcomingBytes = encoder.encode(JSON.stringify(upcoming))
+  const files: Record<string, Uint8Array> = { 'upcoming.json': upcomingBytes }
   let mediaCount = 0
   let payloadBytes = 0
   const drafts: ArchiveDraft[] = []
@@ -153,7 +162,7 @@ export async function createArchive(trip: Trip, createdAt = new Date().toISOStri
     const { media: _media, ...record } = draft
     drafts.push({ ...record, media })
   }
-  const manifest: Manifest = { product: 'Un soir là-bas', format: archiveFormat, version: archiveVersion, tripId, createdAt, records: drafts.length, media: mediaCount, bytes: payloadBytes, journal: { version: 1, drafts } }
+  const manifest: Manifest = { product: 'Un soir là-bas', format: archiveFormat, version: archiveVersion, tripId, createdAt, records: drafts.length, media: mediaCount, bytes: payloadBytes, journal: { version: 1, drafts }, upcoming: { path: 'upcoming.json', bytes: upcomingBytes.byteLength, sha256: await digest(upcomingBytes) } }
   files['manifest.json'] = encoder.encode(JSON.stringify(manifest, null, 2))
   const archive = new Blob([zipSync(files, { level: 0 })], { type: 'application/zip' })
   if (archive.size > MAX_ARCHIVE_BYTES) fail('Le carnet dépasse 25 Mo et ne peut pas être restauré sur un autre appareil dans ce format.')
@@ -179,6 +188,16 @@ export async function previewArchive(file: File): Promise<Preview> {
   try { manifest = parseManifest(JSON.parse(decoder.decode(manifestBytes))) } catch (error) { fail(error instanceof Error ? error.message : 'Le manifeste de sauvegarde est invalide.') }
   const expected = exactPaths(manifest)
   if (expected.size !== entries.length || entries.some(([path]) => !expected.has(path))) fail('Cette archive contient des fichiers inattendus ou manquants.')
+  let upcoming: UpcomingTrip[] | undefined
+  if (manifest.upcoming) {
+    const bytes = contents[manifest.upcoming.path]
+    if (!bytes || bytes.byteLength !== manifest.upcoming.bytes || await digest(bytes) !== manifest.upcoming.sha256) fail('La collection des prochains voyages a été modifiée ou est incomplète.')
+    try {
+      const parsed: unknown = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes))
+      if (!validateUpcoming(parsed)) fail('La collection des prochains voyages est invalide.')
+      upcoming = parsed
+    } catch (error) { fail(error instanceof Error ? error.message : 'La collection des prochains voyages est invalide.') }
+  }
   const drafts: Draft[] = []
   const ids = new Set<string>()
   let mediaCount = 0
@@ -205,7 +224,7 @@ export async function previewArchive(file: File): Promise<Preview> {
   }
   const trip: Trip = { version: 1, drafts }
   if (!validateTrip(trip) || manifest.records !== drafts.length || manifest.media !== mediaCount || manifest.bytes !== payloadBytes) fail('Les données du carnet sont invalides ou incomplètes.')
-  return { trip, createdAt: manifest.createdAt, records: manifest.records, media: manifest.media, bytes: manifest.bytes }
+  return { trip, upcoming, createdAt: manifest.createdAt, records: manifest.records, media: manifest.media, bytes: manifest.bytes }
 }
 
 export function archiveFilename(date = new Date()) {

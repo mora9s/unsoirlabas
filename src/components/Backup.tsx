@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { archiveFilename, createArchive, previewArchive } from '../archive'
 import { storageKey } from '../journal'
+import { readUpcoming, upcomingKey } from '../upcoming-trips'
 import type { Trip } from '../journal'
 import Icon from './Icon'
 
@@ -31,7 +32,9 @@ export default function Backup({ trip, onRestore }: { trip: Trip; onRestore: (tr
   async function backup(preferShare: boolean) {
     setBusy(true); setNotice(undefined)
     try {
-      const archive = await createArchive(trip)
+      const upcoming = readUpcoming()
+      if (upcoming.error) throw new Error(upcoming.error)
+      const archive = await createArchive(trip, upcoming.trips)
       const filename = archiveFilename()
       const shareFile = new File([archive], filename, { type: 'application/zip' })
       const supported = preferShare && typeof navigator.share === 'function' && typeof navigator.canShare === 'function' && navigator.canShare({ files: [shareFile] })
@@ -61,20 +64,34 @@ export default function Backup({ trip, onRestore }: { trip: Trip; onRestore: (tr
 
   function restore() {
     if (!staged) return
-    const previous = localStorage.getItem(storageKey)
+    if (staged.upcoming !== undefined && readUpcoming().error) {
+      setNotice({ kind: 'error', text: 'Les préparatifs déjà enregistrés sont illisibles. Ils n’ont pas été remplacés ; vérifiez ou exportez le stockage avant de restaurer cette archive.' })
+      return
+    }
+    const previousTrip = localStorage.getItem(storageKey)
+    const previousUpcoming = localStorage.getItem(upcomingKey)
     try {
-      // Serialise before replacing so quota errors leave the previous exact value intact.
-      const next = JSON.stringify(staged.trip)
-      localStorage.setItem(storageKey, next)
+      // Serialize before any write, then roll both keys back if either write fails.
+      const nextTrip = JSON.stringify(staged.trip)
+      const nextUpcoming = staged.upcoming === undefined ? undefined : JSON.stringify(staged.upcoming)
+      if (nextUpcoming !== undefined) localStorage.setItem(upcomingKey, nextUpcoming)
+      localStorage.setItem(storageKey, nextTrip)
       onRestore(staged.trip)
       setStaged(undefined)
-      setNotice({ kind: 'success', text: 'Le carnet a été restauré sur cet appareil. Vous retrouvez vos pages et vos photos.' })
+      setNotice({ kind: 'success', text: staged.upcoming === undefined
+        ? 'Le carnet a été restauré. Cette ancienne archive ne contenait pas de préparatifs : ceux de cet appareil sont conservés.'
+        : 'Le carnet a été restauré avec les préparatifs de l’archive sur cet appareil.' })
     } catch {
+      let rolledBack = true
       try {
-        if (previous === null) localStorage.removeItem(storageKey)
-        else localStorage.setItem(storageKey, previous)
-      } catch { /* The browser refused both the write and its defensive rollback. */ }
-      setNotice({ kind: 'error', text: 'La restauration n’a pas abouti : le stockage est plein ou indisponible. Le carnet déjà présent n’a pas été modifié.' })
+        if (previousTrip === null) localStorage.removeItem(storageKey)
+        else localStorage.setItem(storageKey, previousTrip)
+        if (previousUpcoming === null) localStorage.removeItem(upcomingKey)
+        else localStorage.setItem(upcomingKey, previousUpcoming)
+      } catch { rolledBack = false }
+      setNotice({ kind: 'error', text: rolledBack
+        ? 'La restauration n’a pas abouti : le stockage est plein ou indisponible. Le carnet et les préparatifs déjà présents n’ont pas été modifiés.'
+        : 'La restauration a échoué et le navigateur a aussi refusé le retour arrière. Vérifiez le stockage avant toute nouvelle modification.' })
     }
   }
 
@@ -91,6 +108,9 @@ export default function Backup({ trip, onRestore }: { trip: Trip; onRestore: (tr
       <p className="eyebrow">Archive prête à relire</p><h3 id="restore-title" ref={previewTitle} tabIndex={-1}>Restaurer ce carnet ?</h3>
       <p>Créée le {date(staged.createdAt)} · {staged.records} chapitre{staged.records > 1 ? 's' : ''} · {staged.media} photo{staged.media > 1 ? 's' : ''} · {size(staged.bytes)}</p>
       <p><strong>Cette restauration remplace entièrement le carnet enregistré sur cet appareil.</strong> Elle ne fusionne pas les chapitres.</p>
+      {staged.upcoming === undefined
+        ? <p>L’archive ne contient pas de préparatifs de voyage : vos préparatifs déjà enregistrés sur cet appareil seront conservés.</p>
+        : <p>Les préparatifs de voyage de l’archive remplaceront ceux de cet appareil ({staged.upcoming.length} voyage{staged.upcoming.length === 1 ? '' : 's'}{staged.upcoming.some(item => item.plan) ? ', avec leurs idées, étapes et notes incluses' : ''}).</p>}
       <div className="personal-actions"><button className="button" onClick={restore}>Restaurer ce carnet <Icon name="check" /></button><button className="text-button" onClick={() => { setStaged(undefined); setNotice({ kind: 'info', text: 'Restauration annulée. Le carnet local n’a pas été modifié.' }) }}>Annuler</button></div>
     </section>}
   </section>

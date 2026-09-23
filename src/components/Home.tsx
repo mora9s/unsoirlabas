@@ -4,7 +4,7 @@ import Backup from './Backup'
 import Icon from './Icon'
 import UpcomingTrips from './UpcomingTrips'
 
-export default function Home({ openDay, create, drafts, openDraft, editDraft, trip, onRestore }: { openDay: (day: number) => void; create: () => void; drafts: Draft[]; openDraft: (draft: Draft) => void; editDraft: (draft: Draft) => void; trip: import('../journal').Trip; onRestore: (trip: import('../journal').Trip) => void }) {
+export default function Home({ openDay, create, drafts, openDraft, editDraft, trip, onRestore, openTrip }: { openDay: (day: number) => void; create: () => void; drafts: Draft[]; openDraft: (draft: Draft) => void; editDraft: (draft: Draft) => void; trip: import('../journal').Trip; onRestore: (trip: import('../journal').Trip) => void; openTrip: (id: string) => void }) {
   return <>
     <section className="trip-hero" aria-labelledby="trip-title">
       <img className="hero-photo" src={asset('el-nido-big-lagoon.jpg')} alt="Le Big Lagoon d’El Nido, entre eau turquoise et falaises de calcaire" fetchPriority="high" />
@@ -18,7 +18,7 @@ export default function Home({ openDay, create, drafts, openDraft, editDraft, tr
       <div className="hero-bottom"><span>Manille <i /> Palawan <i /> Bohol</span><span>18 jours <span className="divider">/</span> Mille façons de se souvenir</span></div>
       <div className="travel-seal" aria-hidden="true"><span>PRENDRE LE TEMPS</span><strong>18</strong><span>JOURS D’AILLEURS</span></div>
     </section>
-    <UpcomingTrips />
+    <UpcomingTrips openTrip={openTrip} />
     <section className="intro page-width">
       <span className="eyebrow"><span className="tiny-sun" aria-hidden="true" /> Le bonheur de garder une trace</span>
       <p>Les journées passent.<br />Les <em>souvenirs</em> restent.</p>

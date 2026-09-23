@@ -4,15 +4,16 @@ import Chapter from './components/Chapter'
 import CustomChapter from './components/CustomChapter'
 import Creator from './components/Creator'
 import ShareStudio from './components/ShareStudio'
+import TripPlanner from './components/TripPlanner'
 import Icon from './components/Icon'
 import { readTrip } from './journal'
 import type { Draft } from './journal'
 import './journal.css'
 
-type View = 'home' | 'create' | 'share' | 'day-1' | 'day-3' | 'day-8' | 'missing' | `draft/${string}` | `share/${string}`
+type View = 'home' | 'create' | 'share' | 'day-1' | 'day-3' | 'day-8' | 'missing' | `draft/${string}` | `share/${string}` | `trip/${string}`
 function currentView(): View {
   const hash = window.location.hash.slice(1)
-  if (hash.startsWith('draft/') || hash.startsWith('share/')) return hash as View
+  if (hash.startsWith('draft/') || hash.startsWith('share/') || hash.startsWith('trip/')) return hash as View
   const base = hash.split('/')[0]
   if (['create', 'share', 'day-1', 'day-3', 'day-8'].includes(base)) return base as View
   return ['', 'carnet', 'main'].includes(hash) ? 'home' : 'missing'
@@ -59,7 +60,7 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    const title = missing ? 'Cette page est introuvable' : draft ? `${sharing ? 'Partager — ' : ''}${draft.title}` : view === 'home' ? 'Philippines — 18 jours entre îles et lumière' : view === 'create' ? 'Créer une journée' : sharing ? 'Studio de partage' : `Jour ${view.slice(4)} — Philippines`
+    const title = missing ? 'Cette page est introuvable' : view.startsWith('trip/') ? 'Planifier un voyage' : draft ? `${sharing ? 'Partager — ' : ''}${draft.title}` : view === 'home' ? 'Philippines — 18 jours entre îles et lumière' : view === 'create' ? 'Créer une journée' : sharing ? 'Studio de partage' : `Jour ${view.slice(4)} — Philippines`
     document.title = `${title} · Un soir là-bas`
     if (lastView.current !== view) {
       mainRef.current?.focus({ preventScroll: true })
@@ -122,6 +123,7 @@ export default function App() {
       {view === 'home' && (
         <Home
           openDay={openDay}
+          openTrip={id => navigate(`trip/${encodeURIComponent(id)}`)}
           create={newDay}
           drafts={stored.trip.drafts}
           openDraft={draft => navigate(`draft/${encodeURIComponent(draft.id)}`)}
@@ -133,6 +135,7 @@ export default function App() {
           }}
         />
       )}
+      {view.startsWith('trip/') && <TripPlanner key={view} id={draftId(view) ?? ''} back={() => navigate('home')} />}
       {view.startsWith('day') && (
         <Chapter
           dayNumber={Number(view.slice(4))}

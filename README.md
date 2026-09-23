@@ -4,8 +4,9 @@ Carnet de voyage éditorial créé sur place : chaque soir, dix minutes pour rac
 Version publique statique : <https://unsoirlabas.vercel.app/>. Vercel construit
 `dist` depuis `main` ; le récit vocal privé n’y est pas proposé (la compilation
 Vercel le remplace par une explication), et l’import Google Photos sans client
-OAuth configuré n’y est pas disponible. Le carnet et les décomptes restent dans
-le navigateur utilisé, sans synchronisation entre appareils.
+OAuth configuré n’y est pas disponible. Le carnet et les voyages restent dans
+le navigateur utilisé ; l’archive ZIP permet leur transfert manuel, sans synchronisation automatique.
+
 Les médias personnels restent locaux. Un import Google Photos Picker, désactivé par
 défaut tant qu’un client OAuth Web public n’est pas configuré, permet de choisir des
 photos sans transformer l’application en synchronisation ou publication distante.
@@ -28,6 +29,9 @@ le build doit donc précéder les tests. La configuration fournie utilise Chrome
   grand décompte en jours calendaires, tri chronologique, modification et retrait.
   Le jour du départ affiche « C’est le grand départ » ; les dates passées restent
   visibles comme souvenirs, sans décompte négatif.
+- Cliquer sur le prochain départ ouvre `/#trip/<id>` : envies, étapes ordonnables
+  avec dates facultatives et notes. Le parcours reste privé et se recharge sur le
+  même appareil. Ce n’est pas encore un carnet par voyage ni un outil de réservation.
 - `/#day-3` : récit d’El Nido, ouverture photographique, six images, moments,
   vidéo et navigation vers Manille et Bohol.
 - `/#create` : import multiple, couverture, réorganisation, suppression, écriture,
@@ -54,12 +58,15 @@ un réseau local ou hors ligne, pour être déposée manuellement dans
 chargé le fichier dans Drive.
 
 L’archive contient les chapitres personnels, leur ordre et leurs identifiants,
-les récits et les photos sélectionnées/redimensionnées du carnet. Les originaux
+les récits et les photos sélectionnées/redimensionnées du carnet, ainsi que les
+voyages à venir et leurs préparatifs (envies, étapes, notes). Les originaux
 de l’appareil ou de Drive, les chapitres de démonstration, les comptes Drive et
 les modifications non enregistrées n’y figurent pas. **Importer depuis Drive**
 ouvre le sélecteur de fichiers (où Drive peut être choisi), vérifie l’archive puis
-affiche un aperçu avant une restauration qui remplace le carnet local : il n’y a
-pas encore de fusion. Une synchronisation OAuth directe demanderait un client Web
+affiche un aperçu avant une restauration qui remplace le carnet local et les
+voyages à venir si l’archive les contient : il n’y a pas encore de fusion. Les
+anciennes archives dépourvues de préparatifs conservent les voyages locaux.
+Une synchronisation OAuth directe demanderait un client Web
 public, des origines HTTPS autorisées et une validation dédiée ; aucun identifiant
 OAuth n’est embarqué dans ce prototype.
 
@@ -73,8 +80,9 @@ d’enregistrement laisse le travail ouvert et affiche une explication.
 Les voyages à venir sont conservés séparément, uniquement sur cet appareil, sous
 `un-soir-la-bas-upcoming-v1`. Leur date suit le calendrier local (pas un nombre
 d’heures restant) et se recalcule à l’ouverture, au retour dans l’onglet et chaque
-minute. Ils ne sont **pas** inclus dans l’archive Drive du carnet ni synchronisés
-entre appareils ; aucune date de voyage de démonstration n’est inventée.
+minute. Les nouvelles archives ZIP les incluent avec une empreinte SHA-256 ; elles
+ne sont pas synchronisées automatiquement. Aucune date de voyage de démonstration
+n’est inventée.
 
 La génération du récit est déterministe : elle encadre les souvenirs saisis selon
 le ton choisi, sans inventer de lieux ni envoyer les données à une IA distante.
