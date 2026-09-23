@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "test:acceptance": "playwright test"
+    "test:acceptance": "playwright test",
+    "smoke:deploy": "node scripts/deploy-smoke.mjs"
   },
   "dependencies": {
     "@noble/hashes": "^2.4.0",

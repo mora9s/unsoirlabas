@@ -10,7 +10,9 @@ export default defineConfig({
     headless: true,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
-    launchOptions: { executablePath: '/usr/bin/google-chrome' },
+    launchOptions: process.env.PLAYWRIGHT_EXECUTABLE_PATH
+      ? { executablePath: process.env.PLAYWRIGHT_EXECUTABLE_PATH }
+      : {},
   },
   webServer: {
     command: 'npm run preview -- --host 127.0.0.1 --port 4673 --strictPort',
