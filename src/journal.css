@@ -122,6 +122,7 @@
 .recovery-page { padding-bottom: 80px; overflow-wrap: anywhere; }
 .recovery-page > p { max-width: 640px; }
 .recovery-page .button { margin-top: 28px; }
+.recovery-actions { display: flex; flex-wrap: wrap; gap: 12px; }
 
 /* A chapter is a reading experience, not a dashboard */
 .chapter-toolbar { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--line); padding-top: 20px; }
