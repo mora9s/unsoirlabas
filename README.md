@@ -18,8 +18,21 @@ photos sans transformer l’application en synchronisation ou publication distan
     npm run test:acceptance
 
 Les tests Playwright lancent le serveur de prévisualisation sur le port 4673 :
-le build doit donc précéder les tests. La configuration fournie utilise Chrome
-à `/usr/bin/google-chrome`.
+le build doit donc précéder les tests ; Playwright utilise son Chromium installé (`npx playwright install chromium`).
+
+## CI et contrôle après publication
+
+GitHub Actions exécute `npm ci`, lint, build public avec SHA de commit, Playwright/Chromium et les tests backend déterministes (adapters IA factices, aucun modèle ni secret requis). Le build écrit `/deployment.json` avec le SHA fourni par Vercel (`VERCEL_GIT_COMMIT_SHA`) ou GitHub (`GITHUB_SHA`). Un build sans ces variables publie `unknown` et échoue donc volontairement au contrôle de déploiement.
+
+Après autorisation explicite de publier la révision, vérifier l’alias de production et lancer le smoke depuis la racine du dépôt :
+
+```bash
+npm ci
+npx playwright install chromium
+npm run smoke:deploy -- --url https://unsoirlabas.vercel.app --expected-sha <SHA_COMPLET_DU_COMMIT_PUBLIE>
+```
+
+Le script compare la SHA attendue à `/deployment.json`, vérifie l’accueil/décompte, `/#create`, `/#share`, les débordements mobile/desktop et l’état vocal public. Si `/api/voice/health` répond 404 (ou si la plate-forme renvoie le document SPA HTML à la place de l’API), le bouton vocal doit être absent et l’avertissement d’accès privé visible. Ce contrôle ne publie rien et ne contacte pas le backend privé. En local, si Chromium n’est pas fourni par Playwright, `PLAYWRIGHT_EXECUTABLE_PATH=/usr/bin/google-chrome` peut sélectionner Chrome installé.
 
 ## Parcours
 

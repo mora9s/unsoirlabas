@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Frontend lint, builds, and Playwright
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - name: Build private/local variant with commit metadata
+        run: npm run build
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+      - run: npx playwright install --with-deps chromium
+      - name: Full acceptance suite on local/private build
+        run: npm run test:acceptance
+      - name: Build public Vercel variant with commit metadata
+        run: npm run build
+        env:
+          VERCEL: '1'
+          VERCEL_GIT_COMMIT_SHA: ${{ github.sha }}
+      - name: Public build contract tests (deterministic, no OAuth secrets)
+        run: npx playwright test tests/public-build.spec.ts tests/google-photos-public-build.spec.ts
+        env:
+          PUBLIC_BUILD_SMOKE: '1'
+
+  backend:
+    name: Backend deterministic fixtures
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: server/requirements.txt
+      - run: python -m pip install --upgrade pip pytest httpx 'fastapi>=0.133,<1'
+      - run: python -m pytest -q tests/backend
