@@ -1,6 +1,10 @@
 # Un soir là-bas
 
 Carnet de voyage éditorial créé sur place : chaque soir, dix minutes pour raconter et partager la journée. Réalisé avec React 19, TypeScript et Vite.
+Version publique statique : <https://unsoirlabas.vercel.app/>. Vercel construit
+`dist` depuis `main` ; le récit vocal local et l’import Google Photos sans client
+OAuth configuré n’y sont pas disponibles. Le carnet et les décomptes restent dans
+le navigateur utilisé, sans synchronisation entre appareils.
 Les médias personnels restent locaux. Un import Google Photos Picker, désactivé par
 défaut tant qu’un client OAuth Web public n’est pas configuré, permet de choisir des
 photos sans transformer l’application en synchronisation ou publication distante.
