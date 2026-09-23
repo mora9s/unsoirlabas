@@ -22,13 +22,16 @@ export default function UpcomingTrips() {
     const sync = (event: StorageEvent) => {
       if (event.key === upcomingKey || event.key === null) setStored(readUpcoming())
     }
+    const restored = () => setStored(readUpcoming())
     const timer = window.setInterval(refresh, 60_000)
     window.addEventListener('focus', refresh)
     window.addEventListener('storage', sync)
+    window.addEventListener('upcoming-trips-updated', restored)
     return () => {
       window.clearInterval(timer)
       window.removeEventListener('focus', refresh)
       window.removeEventListener('storage', sync)
+      window.removeEventListener('upcoming-trips-updated', restored)
     }
   }, [])
 
@@ -102,6 +105,6 @@ export default function UpcomingTrips() {
       <label>Date de départ<input name="departure" type="date" value={departure} min={editing && departure < today ? departure : today} onChange={event => setDeparture(event.target.value)} required /></label>
       <div className="upcoming-form-actions"><button className="button" type="submit">{editing ? 'Enregistrer les modifications' : 'Ajouter au décompte'}</button><button className="text-button" type="button" onClick={() => { setOpen(false); setMessage('') }}>Annuler</button></div>
     </form>}
-    <p className="local-note">Ces dates restent sur cet appareil. Elles ne sont pas incluses dans la sauvegarde du carnet.</p>
+    <p className="local-note">Ces dates restent sur cet appareil. La sauvegarde ZIP les inclut avec le carnet ; le récit vocal et ses fichiers audio ne sont pas inclus.</p>
   </section>
 }
