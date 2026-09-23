@@ -15,6 +15,14 @@ async function seed(page: import('@playwright/test').Page, raw = original, trips
   await page.reload()
 }
 
+async function confirmSafetyCopy(page: import('@playwright/test').Page, path: string) {
+  const pending = page.waitForEvent('download')
+  await page.getByRole('button', { name: /télécharger la copie de sécurité/i }).click()
+  const safetyDownload = await pending
+  await safetyDownload.saveAs(path)
+  await page.getByRole('checkbox', { name: /je confirme que la copie de sécurité est téléchargée et vérifiée/i }).check()
+}
+
 test('archive ZIP réelle, prévisualisation et restauration explicite', async ({ page, browser }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.addInitScript(() => {
@@ -41,6 +49,7 @@ test('archive ZIP réelle, prévisualisation et restauration explicite', async (
   await expect(fresh.getByRole('heading', { name: 'Restaurer ce carnet ?' })).toBeFocused()
   expect(await fresh.evaluate(key => localStorage.getItem(key), key)).toBeNull()
   expect(await fresh.evaluate(key => localStorage.getItem(key), upcomingKey)).toBeNull()
+  await confirmSafetyCopy(fresh, testInfo.outputPath('fresh-safety.zip'))
   await fresh.getByRole('button', { name: 'Restaurer ce carnet' }).click()
   await expect(fresh.getByRole('status')).toContainText('restaurés')
   const restored = await fresh.evaluate(key => JSON.parse(localStorage.getItem(key)!), key)
@@ -123,6 +132,7 @@ test('une archive historique sans voyages conserve les décomptes actuels', asyn
   await page.getByLabel('Choisir une sauvegarde ZIP').setInputFiles(path)
   await expect(page.getByRole('heading', { name: 'Restaurer ce carnet ?' })).toBeVisible()
   await expect(page.locator('.restore-preview')).toContainText('seront remplacés par aucun carnet multi-voyage')
+  await confirmSafetyCopy(page, testInfo.outputPath('legacy-safety.zip'))
   await page.getByRole('button', { name: 'Restaurer ce carnet' }).click()
   await expect(page.getByRole('status')).toContainText('restauré')
   expect(await page.evaluate(key => localStorage.getItem(key), upcomingKey)).toBe(JSON.stringify(upcoming))
@@ -138,6 +148,7 @@ test('un échec quota sur le second stockage rétablit les deux valeurs exactes'
   await download.saveAs(path)
   await page.getByLabel('Choisir une sauvegarde ZIP').setInputFiles(path)
   await expect(page.getByRole('heading', { name: 'Restaurer ce carnet ?' })).toBeVisible()
+  await confirmSafetyCopy(page, testInfo.outputPath('quota-safety.zip'))
   await page.evaluate(() => {
     const originalSet = Storage.prototype.setItem
     Storage.prototype.setItem = function (name, value) {
@@ -146,8 +157,61 @@ test('un échec quota sur le second stockage rétablit les deux valeurs exactes'
     }
   })
   await page.getByRole('button', { name: 'Restaurer ce carnet' }).click()
-  await expect(page.getByRole('alert')).toContainText('stockage est plein')
+  await expect(page.locator('.backup-message[role="alert"]')).toContainText('stockage est plein')
   expect(await page.evaluate(({ key, upcomingKey }) => [localStorage.getItem(key), localStorage.getItem(upcomingKey)], { key, upcomingKey })).toEqual([original, JSON.stringify(upcoming)])
+})
+
+test('un remplacement prévisualise les différences et exige le téléchargement vérifiable de la copie de sécurité', async ({ page }, testInfo) => {
+  await seed(page)
+  const pending = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Sauvegarder dans Drive' }).click()
+  const download = await pending
+  const incomingPath = testInfo.outputPath('incoming.zip')
+  await download.saveAs(incomingPath)
+
+  const currentTrip = JSON.stringify({ version: 1, drafts: [{ id: 'chapitre-source', title: 'Version locale', memories: 'À conserver', tone: 'Spontané', story: 'Texte local.', media: [], coverId: '', status: 'draft' }] })
+  const currentJournals = JSON.stringify({ version: 1, journals: [{ tripId: 'voyage-oslo', destination: 'Oslo', departure: '', chapters: [] }] })
+  await page.evaluate(({ key, currentTrip, upcomingKey, currentJournals }) => {
+    localStorage.setItem(key, currentTrip)
+    localStorage.setItem(upcomingKey, JSON.stringify([{ id: 'voyage-kyoto', destination: 'Kyoto', departure: '2027-04-12' }, { id: 'voyage-oslo', destination: 'Oslo', departure: '2027-05-20' }]))
+    localStorage.setItem('un-soir-la-bas-journals-v1', currentJournals)
+  }, { key, currentTrip, upcomingKey, currentJournals })
+  await page.reload()
+  const currentJournalsRaw = await page.evaluate(() => localStorage.getItem('un-soir-la-bas-journals-v1'))
+
+  await page.getByLabel('Choisir une sauvegarde ZIP').setInputFiles(incomingPath)
+  const preview = page.locator('.restore-preview')
+  await expect(preview).toContainText('Différences avec les données actuelles')
+  await expect(preview).toContainText('voyage-kyoto')
+  await expect(preview).toContainText('Kyoto')
+  await expect(preview).toContainText('Oslo')
+  await expect(preview).toContainText('remplacement uniquement')
+  const restoreButton = page.getByRole('button', { name: 'Restaurer ce carnet' })
+  await expect(restoreButton).toBeDisabled()
+  await expect(page.getByRole('button', { name: /télécharger.*sécurité/i })).toBeVisible()
+
+  const safetyPending = page.waitForEvent('download')
+  await page.getByRole('button', { name: /télécharger.*sécurité/i }).click()
+  const safetyDownload = await safetyPending
+  const safetyPath = testInfo.outputPath('copie-securite.zip')
+  await safetyDownload.saveAs(safetyPath)
+  const safetyArchive = unzipSync(await readFile(safetyPath))
+  const safetyManifest = JSON.parse(new TextDecoder().decode(safetyArchive['manifest.json']))
+  expect(safetyManifest.journal.drafts[0].title).toBe('Version locale')
+  expect(safetyManifest.upcoming.trips.map((item: { destination: string }) => item.destination)).toEqual(['Kyoto', 'Oslo'])
+  expect(safetyManifest.personalJournals.journals[0].destination).toBe('Oslo')
+  await expect(page.getByRole('checkbox', { name: /je confirme que la copie de sécurité est téléchargée et vérifiée/i })).toBeVisible()
+  await page.getByRole('checkbox', { name: /je confirme que la copie de sécurité est téléchargée et vérifiée/i }).check()
+  await expect(restoreButton).toBeEnabled()
+
+  await page.getByRole('button', { name: 'Annuler' }).click()
+  expect(await page.evaluate(({ key, upcomingKey }) => [localStorage.getItem(key), localStorage.getItem(upcomingKey), localStorage.getItem('un-soir-la-bas-journals-v1')], { key, upcomingKey })).toEqual([currentTrip, JSON.stringify([{ id: 'voyage-kyoto', destination: 'Kyoto', departure: '2027-04-12' }, { id: 'voyage-oslo', destination: 'Oslo', departure: '2027-05-20' }]), currentJournalsRaw])
+
+  await page.getByLabel('Choisir une sauvegarde ZIP').setInputFiles(incomingPath)
+  await confirmSafetyCopy(page, testInfo.outputPath('second-safety.zip'))
+  await page.getByRole('button', { name: 'Restaurer ce carnet' }).click()
+  await expect(page.locator('.backup-message[role="status"]')).toContainText('restaurés')
+  expect(await page.evaluate(({ key, upcomingKey }) => [JSON.parse(localStorage.getItem(key)!).drafts[0].title, JSON.parse(localStorage.getItem(upcomingKey)!).map((item: { destination: string }) => item.destination), JSON.parse(localStorage.getItem('un-soir-la-bas-journals-v1')!).journals.map((item: { destination: string }) => item.destination)], { key, upcomingKey })).toEqual(['Le départ', ['Kyoto'], ['Philippines']])
 })
 
 test('la sauvegarde reste disponible sans Web Crypto sur le réseau local', async ({ page }) => {
