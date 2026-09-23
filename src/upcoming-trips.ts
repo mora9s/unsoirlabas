@@ -3,6 +3,16 @@ import { createId } from './id'
 export const upcomingKey = 'un-soir-la-bas-upcoming-v1'
 export type UpcomingTrip = { id: string; destination: string; departure: string }
 
+export function validateUpcomingTrips(value: unknown): value is UpcomingTrip[] {
+  return Array.isArray(value) && value.length <= 12 && value.every(item =>
+    item && typeof item === 'object' && !Array.isArray(item) && Object.keys(item).length === 3 &&
+    Object.prototype.hasOwnProperty.call(item, 'id') && Object.prototype.hasOwnProperty.call(item, 'destination') && Object.prototype.hasOwnProperty.call(item, 'departure') &&
+    typeof item.id === 'string' && item.id.length > 0 && item.id.length <= 160 &&
+    typeof item.destination === 'string' && item.destination.trim().length > 0 && item.destination.length <= 80 &&
+    typeof item.departure === 'string' && dateParts(item.departure)
+  ) && new Set(value.map(item => item.id)).size === value.length
+}
+
 export function calendarDate(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 }
@@ -27,13 +37,8 @@ export function readUpcoming(): { trips: UpcomingTrip[]; error: string } {
     const raw = localStorage.getItem(upcomingKey)
     if (!raw) return { trips: [], error: '' }
     const parsed: unknown = JSON.parse(raw)
-    if (!Array.isArray(parsed) || parsed.length > 12 || !parsed.every(item =>
-      item && typeof item === 'object' && typeof item.id === 'string' && item.id.length > 0 && item.id.length <= 160 &&
-      typeof item.destination === 'string' && item.destination.trim().length > 0 && item.destination.length <= 80 &&
-      typeof item.departure === 'string' && dateParts(item.departure)
-    )) throw new Error('Invalid trips')
-    const trips = parsed as UpcomingTrip[]
-    if (new Set(trips.map(trip => trip.id)).size !== trips.length) throw new Error('Duplicate trips')
+    if (!validateUpcomingTrips(parsed)) throw new Error('Invalid trips')
+    const trips = parsed
     return { trips, error: '' }
   } catch {
     return { trips: [], error: 'Impossible de lire les décomptes enregistrés. Les données n’ont pas été modifiées ; vérifiez le stockage de ce navigateur avant d’enregistrer.' }

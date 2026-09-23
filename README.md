@@ -54,12 +54,16 @@ un réseau local ou hors ligne, pour être déposée manuellement dans
 chargé le fichier dans Drive.
 
 L’archive contient les chapitres personnels, leur ordre et leurs identifiants,
-les récits et les photos sélectionnées/redimensionnées du carnet. Les originaux
-de l’appareil ou de Drive, les chapitres de démonstration, les comptes Drive et
-les modifications non enregistrées n’y figurent pas. **Importer depuis Drive**
-ouvre le sélecteur de fichiers (où Drive peut être choisi), vérifie l’archive puis
-affiche un aperçu avant une restauration qui remplace le carnet local : il n’y a
-pas encore de fusion. Une synchronisation OAuth directe demanderait un client Web
+les récits, les photos sélectionnées/redimensionnées du carnet et les décomptes
+à venir enregistrés sous `un-soir-la-bas-upcoming-v1`. Les archives de version 1
+restent importables ; elles ne contiennent pas de décomptes, donc leur restauration
+conserve ceux déjà présents sur l’appareil. Les originaux de l’appareil ou
+de Drive, les chapitres de démonstration, les comptes Drive et les modifications
+non enregistrées n’y figurent pas. L’audio du récit vocal stocké dans IndexedDB
+n’est pas exporté ni restauré. **Importer depuis Drive** ouvre le sélecteur de
+fichiers (où Drive peut être choisi), vérifie l’archive puis affiche un aperçu avant
+une restauration qui remplace le carnet et les décomptes locaux : il n’y a pas
+encore de fusion. Une synchronisation OAuth directe demanderait un client Web
 public, des origines HTTPS autorisées et une validation dédiée ; aucun identifiant
 OAuth n’est embarqué dans ce prototype.
 
@@ -73,8 +77,8 @@ d’enregistrement laisse le travail ouvert et affiche une explication.
 Les voyages à venir sont conservés séparément, uniquement sur cet appareil, sous
 `un-soir-la-bas-upcoming-v1`. Leur date suit le calendrier local (pas un nombre
 d’heures restant) et se recalcule à l’ouverture, au retour dans l’onglet et chaque
-minute. Ils ne sont **pas** inclus dans l’archive Drive du carnet ni synchronisés
-entre appareils ; aucune date de voyage de démonstration n’est inventée.
+minute. Ils sont inclus dans les nouvelles archives version 2 ; aucun voyage
+de démonstration n’est inventé.
 
 La génération du récit est déterministe : elle encadre les souvenirs saisis selon
 le ton choisi, sans inventer de lieux ni envoyer les données à une IA distante.
