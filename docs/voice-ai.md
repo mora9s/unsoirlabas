@@ -2,6 +2,12 @@
 
 Le navigateur enregistre l’audio dans IndexedDB, par fragments d’une seconde. Une coupure réseau n’efface donc pas un enregistrement déjà reçu par le navigateur. L’audio n’est envoyé au service local qu’après l’action **Transcrire en français**.
 
+Le build privé local (`npm run build`) conserve l’atelier vocal. Le build statique
+Vercel (`VERCEL=1`) ne présente pas ses commandes : aucun service vocal n’y est
+déployé. La création manuelle de journée reste disponible sur Vercel. Une
+éventuelle nouvelle cible publique exige de revoir explicitement cette séparation
+avant publication.
+
 ## Parcours
 
 1. Enregistrer jusqu’à 5 minutes ou importer un fichier audio (64 MiB maximum).

@@ -520,6 +520,7 @@
 .voice-entry-card { display: grid; gap: 7px; width: 100%; margin-top: 24px; padding: 20px; color: inherit; text-align: left; border: 1px solid #bdc8b0; background: linear-gradient(135deg, #edf1e5, #fffdf7); cursor: pointer; }
 .voice-entry-card strong { font: 24px var(--serif); }
 .voice-entry-card small { color: var(--muted); line-height: 1.5; }
+.voice-entry-card.voice-unavailable { cursor: default; border-color: var(--line); background: #edf0e8; }
 .voice-narration h2 { margin: 10px 0; font-size: 29px; }
 .voice-narration > p:not(.eyebrow):not(.local-note) { color: var(--muted); font-size: 12px; line-height: 1.7; }
 .voice-live { min-height: 1.8em; margin: 14px 0 0; }
