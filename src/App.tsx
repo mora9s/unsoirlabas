@@ -6,15 +6,18 @@ import Creator from './components/Creator'
 import ShareStudio from './components/ShareStudio'
 import Icon from './components/Icon'
 import { readTrip } from './journal'
+import { readJournals, journalForTrip, saveChapter, upcomingForJournal } from './trip-journals'
+import type { PersonalJournal } from './trip-journals'
+import TripJournal from './components/TripJournal'
 import type { Draft } from './journal'
 import './journal.css'
 
-type View = 'home' | 'create' | 'share' | 'day-1' | 'day-3' | 'day-8' | 'missing' | `draft/${string}` | `share/${string}`
+type View = string
 function currentView(): View {
   const hash = window.location.hash.slice(1)
-  if (hash.startsWith('draft/') || hash.startsWith('share/')) return hash as View
+  if (/^(draft|share|trip|journey|journal-share|trip-create)\//.test(hash)) return hash
   const base = hash.split('/')[0]
-  if (['create', 'share', 'day-1', 'day-3', 'day-8'].includes(base)) return base as View
+  if (['create', 'share', 'day-1', 'day-3', 'day-8'].includes(base)) return base
   return ['', 'carnet', 'main'].includes(hash) ? 'home' : 'missing'
 }
 
@@ -27,14 +30,24 @@ function draftId(view: View): string | undefined {
 export default function App() {
   const [view, setView] = useState<View>(currentView)
   const [stored, setStored] = useState(readTrip)
+  const [journals, setJournals] = useState(readJournals)
   const [editing, setEditing] = useState<Draft>()
   const [newDraftNumber, setNewDraftNumber] = useState(0)
-  const [creatorOpened, setCreatorOpened] = useState(view === 'create')
+  const [creatorOpened, setCreatorOpened] = useState(view === 'create' || view.startsWith('trip-create/'))
   const [savedId, setSavedId] = useState<string>()
   const personalRoute = view.startsWith('draft/') || view.startsWith('share/')
   const draft = personalRoute ? stored.trip.drafts.find(item => item.id === draftId(view)) : undefined
-  const missing = view === 'missing' || (personalRoute && !draft)
-  const sharing = view === 'share' || view.startsWith('share/')
+  const tripParts = view.split('/').map(part => { try { return decodeURIComponent(part) } catch { return '' } })
+  const journalTripId = tripParts[1] ?? ''
+  const journal = journals.data.journals.find(item => item.tripId === journalTripId) ?? (() => { const upcoming = upcomingForJournal(journalTripId); return upcoming ? journalForTrip(journals.data, upcoming) : undefined })()
+  const journalChapterId = tripParts[2]
+  const journalChapter = journal?.chapters.find(item => item.id === journalChapterId)
+  const journalRoute = view.startsWith('trip/') || view.startsWith('journey/') || view.startsWith('journal-share/')
+  const tripCreating = view.startsWith('trip-create/')
+  const tripCreateContext = tripCreating ? (journal ? { id: journal.tripId, destination: journal.destination, departure: journal.departure } : (() => { const upcoming = upcomingForJournal(journalTripId); return upcoming ? { id: upcoming.id, destination: upcoming.destination, departure: upcoming.departure } : undefined })()) : undefined
+  const journalSharing = view.startsWith('journal-share/')
+  const missing = view === 'missing' || (personalRoute && !draft) || (tripCreating && !tripCreateContext) || (journalRoute && (!journal || (tripParts[0] !== 'trip' && !journalChapter)))
+  const sharing = view === 'share' || view.startsWith('share/') || journalSharing
   const mainRef = useRef<HTMLElement>(null)
   const lastView = useRef(view)
 
@@ -45,13 +58,16 @@ export default function App() {
       setView(next)
       setSavedId(undefined)
       setStored(readTrip())
-      if (next === 'create') setCreatorOpened(true)
+      setJournals(readJournals())
+      if (next === 'create' || next.startsWith('trip-create/')) setCreatorOpened(true)
     }
-    const updateStorage = () => setStored(readTrip())
+    const updateStorage = () => { setStored(readTrip()); setJournals(readJournals()) }
+    window.addEventListener('trip-journals-updated', updateStorage)
     window.addEventListener('popstate', updateView)
     window.addEventListener('hashchange', updateView)
     window.addEventListener('storage', updateStorage)
     return () => {
+      window.removeEventListener('trip-journals-updated', updateStorage)
       window.removeEventListener('popstate', updateView)
       window.removeEventListener('hashchange', updateView)
       window.removeEventListener('storage', updateStorage)
@@ -74,7 +90,7 @@ export default function App() {
     setSavedId(undefined)
     window.history.pushState(null, '', next === 'home' ? '#carnet' : `#${next}`)
     setView(next)
-    if (next === 'create') setCreatorOpened(true)
+    if (next === 'create' || next.startsWith('trip-create/')) setCreatorOpened(true)
     if (next === view) {
       mainRef.current?.focus({ preventScroll: true })
       window.scrollTo({ top: 0, behavior: 'instant' })
@@ -90,6 +106,18 @@ export default function App() {
     setEditing(undefined)
     setNewDraftNumber(previous => previous + 1)
     navigate('create')
+  }
+  function openUpcomingJournal(trip: { id: string; destination: string; departure: string }) {
+    navigate(`trip/${encodeURIComponent(trip.id)}`)
+  }
+  function createTripChapter(item: PersonalJournal) {
+    setEditing(undefined)
+    setNewDraftNumber(previous => previous + 1)
+    navigate(`trip-create/${encodeURIComponent(item.tripId)}`)
+  }
+  function editTripChapter(item: PersonalJournal, chapter: Draft) {
+    setEditing(chapter)
+    navigate(`trip-create/${encodeURIComponent(item.tripId)}`)
   }
 
   return <>
@@ -127,6 +155,8 @@ export default function App() {
           openDraft={draft => navigate(`draft/${encodeURIComponent(draft.id)}`)}
           editDraft={editDraft}
           trip={stored.trip}
+          onOpenJournal={openUpcomingJournal}
+          journals={journals.data.journals}
           onRestore={trip => {
             setStored({ trip, error: '' })
             navigate('home')
@@ -141,6 +171,15 @@ export default function App() {
           share={() => navigate('share')}
         />
       )}
+      {view.startsWith('trip/') && journal && <TripJournal journal={journal} open={chapter => navigate(`journey/${encodeURIComponent(journal.tripId)}/${encodeURIComponent(chapter.id)}`)} create={() => createTripChapter(journal)} edit={chapter => editTripChapter(journal, chapter)} />}
+      {view.startsWith('journey/') && journal && journalChapter && <CustomChapter draft={journalChapter} home={() => navigate(`trip/${encodeURIComponent(journal.tripId)}`)} edit={() => editTripChapter(journal, journalChapter)} share={() => navigate(`journal-share/${encodeURIComponent(journal.tripId)}/${encodeURIComponent(journalChapter.id)}`)} />}
+      {tripCreating && tripCreateContext && <Creator localStore={false} key={editing?.id ?? `trip-${tripCreateContext.id}-${newDraftNumber}`} initialDraft={editing} onSave={(_trip, saved) => {
+        saveChapter(tripCreateContext.id, tripCreateContext.destination, tripCreateContext.departure, saved)
+        setJournals(readJournals())
+        setEditing(saved)
+        navigate(`journey/${encodeURIComponent(tripCreateContext.id)}/${encodeURIComponent(saved.id)}`)
+      }} />}
+      {journalSharing && journalChapter && <ShareStudio key={`trip-${journalTripId}-${journalChapter.id}`} draft={journalChapter} />}
       {missing && <section className="workspace-heading page-width recovery-page">
         <p className="eyebrow">Le carnet personnel</p><h1>Cette page est introuvable</h1>
         <p>Ce chapitre n’est pas disponible dans ce navigateur. Les journées personnelles restent sur l’appareil où elles ont été enregistrées.</p>
@@ -151,8 +190,8 @@ export default function App() {
         {savedId === draft.id && <div className="page-width" data-testid="creator"><p role="status" aria-live="polite" className="success-message">Votre journée a été ajoutée au voyage. Le brouillon est enregistré sur cet appareil, jamais publié.</p></div>}
         <CustomChapter draft={draft} home={() => navigate('home')} edit={() => editDraft(draft)} share={() => navigate(`share/${encodeURIComponent(draft.id)}`)} />
       </>}
-      {creatorOpened && (
-        <div hidden={view !== 'create'}>
+      {creatorOpened && view === 'create' && (
+        <div>
           <Creator
             key={editing?.id ?? `new-${newDraftNumber}`}
             initialDraft={editing}
@@ -166,7 +205,7 @@ export default function App() {
           />
         </div>
       )}
-      {sharing && !missing && <ShareStudio key={draft?.id ?? 'el-nido'} draft={draft} />}
+      {sharing && !journalSharing && !missing && <ShareStudio key={draft?.id ?? 'el-nido'} draft={draft} />}
     </main>
     <footer className="site-footer page-width">
       <div className="footer-brand">

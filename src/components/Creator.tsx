@@ -12,7 +12,7 @@ declare const __VOICE_PRIVATE_BUILD__: boolean
 
 type PickerLaunch = { url: string; open: () => void }
 
-export default function Creator({ initialDraft, onSave }: { initialDraft?: Draft; onSave: (trip: Trip, draft: Draft) => void }) {
+export default function Creator({ initialDraft, onSave, localStore = true }: { initialDraft?: Draft; onSave: (trip: Trip, draft: Draft) => void; localStore?: boolean }) {
   const [id] = useState(() => initialDraft?.id ?? createId())
   const [title, setTitle] = useState(initialDraft?.title ?? 'Une nouvelle journée aux Philippines')
   const [media, setMedia] = useState<Media[]>(initialDraft?.media ?? [])
@@ -150,17 +150,19 @@ export default function Creator({ initialDraft, onSave }: { initialDraft?: Draft
       setError('Le titre et le récit sont nécessaires pour enregistrer la journée.')
       return
     }
-    const current = readTrip()
+    const current = localStore ? readTrip() : { trip: { version: 1 as const, drafts: [] }, error: '' }
     if (current.error) { setError(current.error); return }
     const draft: Draft = { id, title: title.trim(), memories, tone, story: story.trim(), media, coverId: cover?.id ?? '', status: 'draft' }
     const trip: Trip = { version: 1, drafts: [...current.trip.drafts.filter(item => item.id !== id), draft] }
-    try {
-      localStorage.setItem(storageKey, JSON.stringify(trip))
-    } catch {
-      setError('L’enregistrement n’a pas abouti : le stockage est plein ou indisponible. Retirez quelques photos puis réessayez. Votre travail reste ouvert ici.')
-      return
+    if (localStore) {
+      try { localStorage.setItem(storageKey, JSON.stringify(trip)) }
+      catch {
+        setError('L’enregistrement n’a pas abouti : le stockage est plein ou indisponible. Retirez quelques photos puis réessayez. Votre travail reste ouvert ici.')
+        return
+      }
     }
-    onSave(trip, draft)
+    try { onSave(trip, draft) }
+    catch (caught) { setError(caught instanceof Error ? caught.message : 'Impossible d’enregistrer ce chapitre. Vos données restent ouvertes ici.') }
   }
 
   return <section className="creator page-width" data-testid="creator">

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { archiveFilename, createArchive, previewArchive } from '../archive'
 import { storageKey } from '../journal'
 import { upcomingKey } from '../upcoming-trips'
+import { journalsKey } from '../trip-journals'
 import type { Trip } from '../journal'
 import Icon from './Icon'
 
@@ -67,18 +68,26 @@ export default function Backup({ trip, onRestore }: { trip: Trip; onRestore: (tr
     try {
       previous.set(storageKey, localStorage.getItem(storageKey))
       previous.set(upcomingKey, localStorage.getItem(upcomingKey))
+      previous.set(journalsKey, localStorage.getItem(journalsKey))
       const next = JSON.stringify(staged.trip)
       const nextUpcoming = staged.upcomingTrips === undefined ? undefined : JSON.stringify(staged.upcomingTrips)
+      const nextJournals = JSON.stringify(staged.personalJournals ?? { version: 1, journals: [] })
       localStorage.setItem(storageKey, next)
       written.push(storageKey)
       if (nextUpcoming !== undefined) {
         localStorage.setItem(upcomingKey, nextUpcoming)
         written.push(upcomingKey)
-        window.dispatchEvent(new Event('upcoming-trips-updated'))
       }
+      localStorage.setItem(journalsKey, nextJournals)
+      written.push(journalsKey)
+      if (nextUpcoming !== undefined) window.dispatchEvent(new Event('upcoming-trips-updated'))
+      window.dispatchEvent(new Event('trip-journals-updated'))
       onRestore(staged.trip)
       setStaged(undefined)
-      setNotice({ kind: 'success', text: staged.upcomingTrips === undefined ? 'Le carnet a été restauré. Vos décomptes actuels ont été conservés.' : 'Le carnet et les décomptes ont été restaurés sur cet appareil. Vous retrouvez vos pages, vos photos et vos voyages.' })
+      setNotice({ kind: 'success', text: staged.personalJournals === undefined
+        ? 'Le carnet a été restauré. Les carnets multi-voyage absents de cette ancienne archive ont été remplacés ; les chapitres du carnet historique restauré pourront être migrés. '
+          + (staged.upcomingTrips === undefined ? 'Vos décomptes actuels ont été conservés.' : 'Les voyages à venir ont aussi été remplacés.')
+        : 'Le carnet, les voyages et les carnets personnels inclus ont été restaurés sur cet appareil. Les données locales non incluses ont été remplacées.' })
     } catch {
       for (const key of written.reverse()) {
         try {
@@ -102,8 +111,10 @@ export default function Backup({ trip, onRestore }: { trip: Trip; onRestore: (tr
     {notice && <p role={notice.kind === 'error' ? 'alert' : 'status'} aria-live="polite" className={notice.kind === 'error' ? 'error-message backup-message' : notice.kind === 'success' ? 'success-message backup-message' : 'backup-message'}>{notice.text}</p>}
     {staged && <section className="restore-preview" aria-labelledby="restore-title" aria-live="polite">
       <p className="eyebrow">Archive prête à relire</p><h3 id="restore-title" ref={previewTitle} tabIndex={-1}>Restaurer ce carnet ?</h3>
-      <p>Créée le {date(staged.createdAt)} · {staged.records} chapitre{staged.records > 1 ? 's' : ''} · {staged.media} photo{staged.media > 1 ? 's' : ''} · {staged.upcomingTrips === undefined ? 'ancienne archive : aucun décompte inclus' : `${staged.upcomingTrips.length} voyage${staged.upcomingTrips.length > 1 ? 's' : ''} à venir`} · {size(staged.bytes)}</p>
-      <p><strong>{staged.upcomingTrips === undefined ? 'Cette restauration remplace le carnet, mais conserve vos décomptes actuels.' : 'Cette restauration remplace le carnet et les décomptes enregistrés sur cet appareil.'}</strong> Elle ne fusionne pas les données.</p>
+      <p>Créée le {date(staged.createdAt)} · {staged.records} chapitre{staged.records > 1 ? 's' : ''} · {staged.media} photo{staged.media > 1 ? 's' : ''} du carnet principal · {staged.personalJournals ? `${staged.personalJournals.journals.length} carnet${staged.personalJournals.journals.length > 1 ? 's' : ''}, ${staged.personalJournals.journals.reduce((sum, item) => sum + item.chapters.length, 0)} chapitre${staged.personalJournals.journals.reduce((sum, item) => sum + item.chapters.length, 0) > 1 ? 's' : ''}, ${staged.personalJournals.journals.reduce((sum, item) => sum + item.chapters.reduce((photos, chapter) => photos + chapter.media.length, 0), 0)} photo${staged.personalJournals.journals.reduce((sum, item) => sum + item.chapters.reduce((photos, chapter) => photos + chapter.media.length, 0), 0) > 1 ? 's' : ''} personnelle${staged.personalJournals.journals.reduce((sum, item) => sum + item.chapters.reduce((photos, chapter) => photos + chapter.media.length, 0), 0) > 1 ? 's' : ''}` : 'ancienne archive : aucun carnet multi-voyage inclus'} · {size(staged.bytes)}</p>
+      <p><strong>{staged.personalJournals === undefined
+        ? 'Cette archive ne contient pas les carnets multi-voyage : les carnets locaux actuels seront remplacés par aucun carnet multi-voyage. Le carnet historique restauré pourra ensuite être migré.'
+        : 'Cette restauration remplace les carnets multi-voyage locaux par ceux de l’archive, y compris si l’archive en contient zéro.'}</strong> {staged.upcomingTrips === undefined ? 'Le carnet principal sera remplacé ; les décomptes actuels seront conservés.' : 'Le carnet principal et les décomptes seront remplacés.'} Aucune donnée ne sera fusionnée.</p>
       <div className="personal-actions"><button className="button" onClick={restore}>Restaurer ce carnet <Icon name="check" /></button><button className="text-button" onClick={() => { setStaged(undefined); setNotice({ kind: 'info', text: 'Restauration annulée. Le carnet local n’a pas été modifié.' }) }}>Annuler</button></div>
     </section>}
   </section>

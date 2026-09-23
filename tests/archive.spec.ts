@@ -114,15 +114,19 @@ test('une archive historique sans voyages conserve les décomptes actuels', asyn
   manifest.product = 'Les jours au large'
   manifest.version = 1
   delete manifest.upcoming
+  delete manifest.personalJournals
   legacy['manifest.json'] = new TextEncoder().encode(JSON.stringify(manifest))
   const path = testInfo.outputPath('legacy-v1.zip')
   await writeFile(path, zipSync(legacy))
 
+  await page.evaluate(key => localStorage.setItem(key, JSON.stringify({ version: 1, journals: [{ tripId: 'unrelated-trip', destination: 'Oslo', departure: '', chapters: [] }] })), 'un-soir-la-bas-journals-v1')
   await page.getByLabel('Choisir une sauvegarde ZIP').setInputFiles(path)
   await expect(page.getByRole('heading', { name: 'Restaurer ce carnet ?' })).toBeVisible()
+  await expect(page.locator('.restore-preview')).toContainText('seront remplacés par aucun carnet multi-voyage')
   await page.getByRole('button', { name: 'Restaurer ce carnet' }).click()
   await expect(page.getByRole('status')).toContainText('restauré')
   expect(await page.evaluate(key => localStorage.getItem(key), upcomingKey)).toBe(JSON.stringify(upcoming))
+  expect(await page.evaluate(key => JSON.parse(localStorage.getItem(key)!).journals.map((item: { destination: string; chapters: { id: string }[] }) => [item.destination, item.chapters.map(chapter => chapter.id)]), 'un-soir-la-bas-journals-v1')).toEqual([['Philippines', ['chapitre-source']]])
 })
 
 test('un échec quota sur le second stockage rétablit les deux valeurs exactes', async ({ page }, testInfo) => {
