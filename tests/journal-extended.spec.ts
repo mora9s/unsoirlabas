@@ -96,6 +96,7 @@ test('navigation clavier, ancres du chapitre et historique', async ({ page }) =>
 
 test('export PNG réellement décodable aux deux formats', async ({ page }, testInfo) => {
   await page.goto('/#share')
+  await page.getByTestId('share-chapter-picker').getByRole('button', { name: /Démo · Philippines · Jour 03/ }).click()
   for (const format of ['story', 'post'] as const) {
     await page.getByRole('button', { name: format === 'story' ? 'Story 9:16' : 'Publication / carrousel 4:5', exact: true }).click()
     const pending = page.waitForEvent('download')

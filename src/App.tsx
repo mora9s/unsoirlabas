@@ -9,15 +9,17 @@ import { readTrip } from './journal'
 import { readJournals, journalForTrip, saveChapter, upcomingForJournal } from './trip-journals'
 import type { PersonalJournal } from './trip-journals'
 import TripJournal from './components/TripJournal'
+import ShareChapterPicker from './components/ShareChapterPicker'
+import type { ShareChoice } from './components/ShareChapterPicker'
 import type { Draft } from './journal'
 import './journal.css'
 
 type View = string
 function currentView(): View {
   const hash = window.location.hash.slice(1)
-  if (/^(draft|share|trip|journey|journal-share|trip-create)\//.test(hash)) return hash
+  if (/^(draft|share|share-trip|trip|journey|journal-share|trip-create)\//.test(hash)) return hash
   const base = hash.split('/')[0]
-  if (['create', 'share', 'day-1', 'day-3', 'day-8'].includes(base)) return base
+  if (['create', 'share', 'share-demo', 'day-1', 'day-3', 'day-8'].includes(base)) return base
   return ['', 'carnet', 'main'].includes(hash) ? 'home' : 'missing'
 }
 
@@ -47,8 +49,17 @@ export default function App() {
   const tripEditDraft = tripCreating && journalChapterId ? journal?.chapters.find(item => item.id === journalChapterId) : undefined
   const journalRoute = view.startsWith('trip/') || view.startsWith('journey/') || view.startsWith('journal-share/')
   const journalSharing = view.startsWith('journal-share/')
-  const missing = view === 'missing' || (personalRoute && !draft) || (tripCreating && (!tripCreateContext || (Boolean(journalChapterId) && !tripEditDraft))) || (journalRoute && (!journal || (tripParts[0] !== 'trip' && !journalChapter)))
-  const sharing = view === 'share' || view.startsWith('share/') || journalSharing
+  const tripSharing = view.startsWith('share-trip/')
+  const shareTripId = tripSharing ? tripParts[1] : ''
+  const shareChapterId = tripSharing ? tripParts[2] : ''
+  const shareJournal = tripSharing ? journals.data.journals.find(item => item.tripId === shareTripId) : undefined
+  const shareDraft = shareJournal?.chapters.find(item => item.id === shareChapterId)
+  const missing = view === 'missing' || (personalRoute && !draft) || (tripSharing && !shareDraft) || (tripCreating && (!tripCreateContext || (Boolean(journalChapterId) && !tripEditDraft))) || (journalRoute && (!journal || (tripParts[0] !== 'trip' && !journalChapter)))
+  const sharing = view === 'share' || view === 'share-demo' || view.startsWith('share/') || tripSharing || journalSharing
+  const shareChoices: ShareChoice[] = [
+    ...stored.trip.drafts.filter(item => !journals.data.journals.some(journalItem => journalItem.chapters.some(chapter => chapter.id === item.id))).map(item => ({ key: `legacy:${item.id}`, title: item.title, source: 'Philippines · carnet personnel', image: item.media.find(media => media.id === item.coverId)?.src ?? item.media[0]?.src, open: () => navigate(`share/${encodeURIComponent(item.id)}`) })),
+    ...journals.data.journals.flatMap(journalItem => journalItem.chapters.map(chapter => ({ key: `${journalItem.tripId}:${chapter.id}`, title: chapter.title, source: `${journalItem.destination} · carnet personnel`, image: chapter.media.find(media => media.id === chapter.coverId)?.src ?? chapter.media[0]?.src, open: () => navigate(`share-trip/${encodeURIComponent(journalItem.tripId)}/${encodeURIComponent(chapter.id)}`) }))),
+  ]
   const mainRef = useRef<HTMLElement>(null)
   const lastView = useRef(view)
 
@@ -142,7 +153,7 @@ export default function App() {
         <button
           className={`share-nav ${sharing ? 'active' : ''}`}
           aria-current={sharing ? 'page' : undefined}
-          onClick={() => navigate(draft ? `share/${encodeURIComponent(draft.id)}` : 'share')}
+          onClick={() => navigate('share')}
         ><Icon name="share" /><span>Partager</span></button>
       </nav>
     </header>
@@ -207,7 +218,10 @@ export default function App() {
           />
         </div>
       )}
-      {sharing && !journalSharing && !missing && <ShareStudio key={draft?.id ?? 'el-nido'} draft={draft} />}
+      {sharing && !journalSharing && !missing && view === 'share' && <ShareChapterPicker choices={shareChoices} demo={() => navigate('share-demo')} />}
+      {view === 'share-demo' && <ShareStudio key="el-nido" />}
+      {sharing && !journalSharing && !missing && view.startsWith('share/') && draft && <ShareStudio key={draft.id} draft={draft} />}
+      {tripSharing && shareDraft && <ShareStudio key={`trip-${shareTripId}-${shareDraft.id}`} draft={shareDraft} returnHref={`#journey/${encodeURIComponent(shareTripId)}/${encodeURIComponent(shareDraft.id)}`} />}
     </main>
     <footer className="site-footer page-width">
       <div className="footer-brand">
