@@ -623,3 +623,20 @@
   .trip-journal { padding-block: 42px 74px; }
   .journal-chapters { margin-top: 32px; }
 }
+
+.share-choice-list { display: grid; gap: 12px; max-width: 760px; padding-bottom: 100px; }
+.share-choice { display: grid; grid-template-columns: 84px minmax(0, 1fr) auto; align-items: center; gap: 18px; width: 100%; padding: 12px; border: 1px solid var(--line); background: #fbfaf5; color: var(--ink); text-align: left; cursor: pointer; }
+.share-choice:hover, .share-choice:focus-visible { border-color: #65745c; background: #f4f2e9; }
+.share-choice img, .share-choice-placeholder { width: 84px; height: 68px; object-fit: contain; background: #e8e7df; }
+.share-choice-placeholder { display: grid; place-items: center; color: #66755d; font: 32px var(--serif); }
+.share-choice small, .share-choice strong { display: block; }
+.share-choice small { color: var(--muted); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+.share-choice strong { margin-top: 8px; font: 400 23px/1.12 var(--serif); overflow-wrap: anywhere; }
+.share-demo-choice { border-style: dashed; }
+.share-picker-empty { color: var(--muted); }
+@media (max-width: 520px) {
+  .share-choice-list { padding-bottom: 60px; }
+  .share-choice { grid-template-columns: 62px minmax(0, 1fr) auto; gap: 12px; padding: 9px; }
+  .share-choice img, .share-choice-placeholder { width: 62px; height: 56px; }
+  .share-choice strong { font-size: 19px; }
+}

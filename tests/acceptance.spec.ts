@@ -62,6 +62,7 @@ test('atelier fonctionnel, prévisualisation et persistance', async ({ page }) =
 test('studio social, presse-papiers et téléchargement', async ({ page, context }) => {
   await context.grantPermissions(['clipboard-read', 'clipboard-write'])
   await page.getByRole('button', { name: 'Partager', exact: true }).click()
+  await page.getByTestId('share-chapter-picker').getByRole('button', { name: /Démo · Philippines · Jour 03/ }).click()
   const studio = page.getByTestId('share-studio')
   await expect(studio).toBeVisible()
   await expect(studio.getByTestId('story-preview')).toBeVisible()

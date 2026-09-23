@@ -33,6 +33,76 @@ async function createChapter(page: import('@playwright/test').Page, title: strin
   await expect(page.getByTestId('custom-chapter').getByRole('heading', { name: title })).toBeVisible()
 }
 
+test('Partager globalement choisit un chapitre sauvegardé parmi plusieurs voyages, conserve sa source et exporte ses mots', async ({ page }, testInfo) => {
+  await seed(page)
+  await createChapter(page, 'Un matin à Tokyo', true)
+  const tokyoData = await page.evaluate(key => JSON.parse(localStorage.getItem(key)!).journals.find((item: { destination: string }) => item.destination === 'Tokyo').chapters[0], journalsKey)
+  await page.getByRole('button', { name: 'Le carnet', exact: true }).click()
+  await createChapter(page, 'Un soir à Lisbonne')
+  const lisbonData = await page.evaluate(key => JSON.parse(localStorage.getItem(key)!).journals.find((item: { destination: string }) => item.destination === 'Lisbonne').chapters[0], journalsKey)
+
+  await page.getByRole('button', { name: 'Partager', exact: true }).click()
+  await expect(page.getByRole('heading', { name: /Quel chapitre partager/ })).toBeVisible()
+  const chooser = page.getByTestId('share-chapter-picker')
+  await expect(chooser.getByRole('button', { name: /Un matin à Tokyo/ })).toBeVisible()
+  await expect(chooser.getByRole('button', { name: /Un soir à Lisbonne/ })).toBeVisible()
+  await expect(chooser.getByRole('button', { name: /Démo · Philippines · Jour 03/ })).toBeVisible()
+  await chooser.getByRole('button', { name: /Un matin à Tokyo/ }).click()
+  await expect(page).toHaveURL(new RegExp(`#share-trip/${encodeURIComponent('trip-tokyo')}/${encodeURIComponent(tokyoData.id)}$`))
+  await page.reload()
+  const studio = page.getByTestId('share-studio')
+  await expect(studio.getByTestId('story-preview')).toContainText('Un matin à Tokyo')
+  await expect(studio.getByTestId('story-preview')).not.toContainText('Un soir à Lisbonne')
+  await expect(studio.getByTestId('story-preview').locator('img')).toHaveAttribute('src', tokyoData.media[0].src)
+  await expect(page.getByLabel('La légende proposée')).toHaveValue(`Un matin à Tokyo\n\n${story.replace(/\s+/g, ' ')}`)
+  await page.evaluate(() => {
+    const calls = { texts: [] as string[], images: [] as string[] }
+    Object.assign(window, { selectedExportCalls: calls })
+    const fillText = CanvasRenderingContext2D.prototype.fillText
+    CanvasRenderingContext2D.prototype.fillText = function (text, x, y, maxWidth) { calls.texts.push(text); fillText.call(this, text, x, y, maxWidth) }
+    const drawImage = CanvasRenderingContext2D.prototype.drawImage
+    CanvasRenderingContext2D.prototype.drawImage = function (image: CanvasImageSource, ...coordinates: number[]) {
+      if (image instanceof HTMLImageElement) calls.images.push(image.src)
+      return Reflect.apply(drawImage, this, [image, ...coordinates])
+    }
+  })
+  const pending = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Télécharger', exact: true }).click()
+  const download = await pending
+  const pngPath = testInfo.outputPath('selected-tokyo.png')
+  await download.saveAs(pngPath)
+  const png = await readFile(pngPath)
+  expect(png.subarray(0, 8).toString('hex')).toBe('89504e470d0a1a0a')
+  expect(png.readUInt32BE(16)).toBe(1080)
+  expect(png.readUInt32BE(20)).toBe(1920)
+  const decoded = await page.evaluate(dataUrl => new Promise<number[]>((resolve, reject) => {
+    const image = new Image()
+    image.onload = () => resolve([image.naturalWidth, image.naturalHeight])
+    image.onerror = () => reject(new Error('Export PNG impossible à décoder'))
+    image.src = dataUrl
+  }), `data:image/png;base64,${png.toString('base64')}`)
+  expect(decoded).toEqual([1080, 1920])
+  const exportCalls = await page.evaluate(() => (window as unknown as { selectedExportCalls: { texts: string[]; images: string[] } }).selectedExportCalls)
+  expect(exportCalls.texts.join(' ')).toContain('Un matin à Tokyo')
+  expect(exportCalls.texts.join(' ')).toContain('Le vent frais du matin')
+  expect(exportCalls.images).toEqual([tokyoData.media[0].src])
+  const route = page.url()
+  await page.getByRole('link', { name: 'Retour à cette journée' }).click()
+  await expect(page).toHaveURL(/#journey\/trip-tokyo\//)
+  await page.goBack()
+  await expect(page).toHaveURL(route)
+  await page.getByRole('button', { name: 'Partager', exact: true }).click()
+  await expect(chooser.getByRole('button', { name: /Un soir à Lisbonne/ })).toBeVisible()
+  await chooser.getByRole('button', { name: /Un soir à Lisbonne/ }).click()
+  await expect(page).toHaveURL(new RegExp(`#share-trip/trip-lisbon/${encodeURIComponent(lisbonData.id)}$`))
+  await expect(page.getByTestId('share-studio').getByTestId('story-preview')).toContainText('Un soir à Lisbonne')
+  await expect(page.getByTestId('share-studio').getByTestId('story-preview').locator('img')).toHaveCount(0)
+  await expect(page.getByLabel('La légende proposée')).toHaveValue(`Un soir à Lisbonne\n\n${story.replace(/\s+/g, ' ')}`)
+  await page.getByRole('button', { name: 'Partager', exact: true }).click()
+  await chooser.getByRole('button', { name: /Démo · Philippines · Jour 03/ }).click()
+  await expect(page.getByTestId('share-studio').getByText('El Nido · Palawan', { exact: true })).toBeVisible()
+})
+
 test('deux voyages ont des carnets indépendants : écriture, reload, édition et partage', async ({ page }) => {
   await seed(page)
   await createChapter(page, 'Un matin à Tokyo', true)
