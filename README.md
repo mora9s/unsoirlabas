@@ -19,6 +19,10 @@ le build doit donc précéder les tests. La configuration fournie utilise Chrome
 ## Parcours
 
 - `/#carnet` : couverture, chronologie des trois étapes et brouillons personnels.
+- Sur l’accueil, **Le prochain départ** : destinations et dates à saisir soi-même,
+  grand décompte en jours calendaires, tri chronologique, modification et retrait.
+  Le jour du départ affiche « C’est le grand départ » ; les dates passées restent
+  visibles comme souvenirs, sans décompte négatif.
 - `/#day-3` : récit d’El Nido, ouverture photographique, six images, moments,
   vidéo et navigation vers Manille et Bohol.
 - `/#create` : import multiple, couverture, réorganisation, suppression, écriture,
@@ -60,6 +64,12 @@ Les brouillons utilisent la clé `philippines-trip` de `localStorage`, sous la f
 1 400 pixels maximum et encodées en JPEG pour rester portables après rechargement.
 Les quotas du navigateur peuvent limiter le nombre de journées ; un échec
 d’enregistrement laisse le travail ouvert et affiche une explication.
+
+Les voyages à venir sont conservés séparément, uniquement sur cet appareil, sous
+`un-soir-la-bas-upcoming-v1`. Leur date suit le calendrier local (pas un nombre
+d’heures restant) et se recalcule à l’ouverture, au retour dans l’onglet et chaque
+minute. Ils ne sont **pas** inclus dans l’archive Drive du carnet ni synchronisés
+entre appareils ; aucune date de voyage de démonstration n’est inventée.
 
 La génération du récit est déterministe : elle encadre les souvenirs saisis selon
 le ton choisi, sans inventer de lieux ni envoyer les données à une IA distante.
