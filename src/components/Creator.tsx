@@ -8,6 +8,8 @@ import { tripAlbum } from '../trip-media'
 import Icon from './Icon'
 import VoiceNarration from './VoiceNarration'
 
+declare const __VOICE_PRIVATE_BUILD__: boolean
+
 type PickerLaunch = { url: string; open: () => void }
 
 export default function Creator({ initialDraft, onSave }: { initialDraft?: Draft; onSave: (trip: Trip, draft: Draft) => void }) {
@@ -172,7 +174,7 @@ export default function Creator({ initialDraft, onSave }: { initialDraft?: Draft
       <div className="editor-note"><span className="eyebrow">Un petit conseil</span><p>La meilleure photo n’est pas toujours la plus belle.<br /><em>C’est celle qui vous ramène là-bas.</em></p></div>
     </div><div className="writing-workspace"><div className="step-heading"><span>02</span><div><h2>Les mots pour le dire</h2><p>On commence par ce qui vous revient.</p></div></div>
       <label className="field-label" htmlFor="day-title">Le titre de votre journée</label><input id="day-title" value={title} maxLength={120} onChange={event => { setTitle(event.target.value); changed() }} />
-      {showVoice ? <VoiceNarration onAccept={(nextTitle, nextMemories, nextStory) => { setTitle(nextTitle); setMemories(nextMemories); setStory(nextStory); setPreview(false); setNotice('Le récit a rempli l’éditeur. Relisez-le : rien n’est enregistré ni publié.'); setError('') }} /> : <button className="voice-entry-card" type="button" onClick={() => setShowVoice(true)}><span className="eyebrow">Voix · Premium local</span><strong>Commencer le récit du soir</strong><small>Enregistrez ou importez un audio, puis relisez chaque preuve avant d’utiliser le récit.</small></button>}
+      {!__VOICE_PRIVATE_BUILD__ ? <div className="voice-entry-card voice-unavailable" role="note"><span className="eyebrow">Voix · Accès privé</span><strong>Votre histoire, à votre façon</strong><small>Le récit vocal est réservé à l’accès privé pour le moment. Écrivez vos souvenirs ci-dessous pour créer votre page ici.</small></div> : showVoice ? <VoiceNarration onAccept={(nextTitle, nextMemories, nextStory) => { setTitle(nextTitle); setMemories(nextMemories); setStory(nextStory); setPreview(false); setNotice('Le récit a rempli l’éditeur. Relisez-le : rien n’est enregistré ni publié.'); setError('') }} /> : <button className="voice-entry-card" type="button" onClick={() => setShowVoice(true)}><span className="eyebrow">Voix · Premium local</span><strong>Commencer le récit du soir</strong><small>Enregistrez ou importez un audio, puis relisez chaque preuve avant d’utiliser le récit.</small></button>}
       <label className="field-label" htmlFor="memories">Souvenirs de la journée</label><input id="memories" value={memories} maxLength={4000} onChange={event => { setMemories(event.target.value); changed() }} aria-describedby="memories-hint" /><p className="field-hint" id="memories-hint">Un lieu, un goût, une anecdote… Quelques mots suffisent.</p>
       <fieldset className="tone-field"><legend>Quelle couleur donner aux mots ?</legend><div>{['Contemplatif', 'Aventure', 'Spontané'].map(option => <label key={option} className={tone === option ? 'selected' : ''}><input type="radio" name="tone" value={option} checked={tone === option} onChange={() => { setTone(option); changed() }} />{option}</label>)}</div></fieldset>
       <button className="button generate-button" onClick={generate}>Générer le récit <Icon name="arrow" /></button><p className="field-hint">Une proposition locale à partir de vos souvenirs, sans IA distante. Vous gardez le dernier mot.</p>
