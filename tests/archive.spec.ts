@@ -214,6 +214,23 @@ test('un remplacement prévisualise les différences et exige le téléchargemen
   expect(await page.evaluate(({ key, upcomingKey }) => [JSON.parse(localStorage.getItem(key)!).drafts[0].title, JSON.parse(localStorage.getItem(upcomingKey)!).map((item: { destination: string }) => item.destination), JSON.parse(localStorage.getItem('un-soir-la-bas-journals-v1')!).journals.map((item: { destination: string }) => item.destination)], { key, upcomingKey })).toEqual(['Le départ', ['Kyoto'], ['Philippines']])
 })
 
+test('un changement local après la copie de sécurité impose une nouvelle copie avant remplacement', async ({ page }, testInfo) => {
+  await seed(page)
+  const pending = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Sauvegarder dans Drive' }).click()
+  const incoming = await pending
+  const path = testInfo.outputPath('incoming-change.zip')
+  await incoming.saveAs(path)
+  await page.getByLabel('Choisir une sauvegarde ZIP').setInputFiles(path)
+  await confirmSafetyCopy(page, testInfo.outputPath('before-change.zip'))
+  const changed = JSON.stringify([{ id: 'voyage-nouveau', destination: 'Oslo', departure: '2027-05-20' }])
+  await page.evaluate(({ upcomingKey, changed }) => localStorage.setItem(upcomingKey, changed), { upcomingKey, changed })
+  await page.getByRole('button', { name: 'Restaurer ce carnet' }).click()
+  await expect(page.locator('.backup-message[role="alert"]')).toContainText('Les données locales ont changé')
+  await expect(page.getByRole('button', { name: 'Restaurer ce carnet' })).toBeDisabled()
+  expect(await page.evaluate(key => localStorage.getItem(key), upcomingKey)).toBe(changed)
+})
+
 test('la sauvegarde reste disponible sans Web Crypto sur le réseau local', async ({ page }) => {
   await page.addInitScript(() => {
     Object.defineProperty(window, 'crypto', { value: undefined, configurable: true })

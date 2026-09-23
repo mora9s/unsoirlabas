@@ -34,6 +34,7 @@ export default function Backup({ trip, onRestore }: { trip: Trip; onRestore: (tr
   const [staged, setStaged] = useState<Awaited<ReturnType<typeof previewArchive>>>()
   const [safetyDownloadRequested, setSafetyDownloadRequested] = useState(false)
   const [safetyConfirmed, setSafetyConfirmed] = useState(false)
+  const safetySnapshot = useRef<[string | null, string | null, string | null] | null>(null)
 
   useEffect(() => {
     if (staged) window.requestAnimationFrame(() => previewTitle.current?.focus())
@@ -64,7 +65,7 @@ export default function Backup({ trip, onRestore }: { trip: Trip; onRestore: (tr
 
   async function stage(file?: File) {
     if (!file) return
-    setBusy(true); setNotice(undefined); setStaged(undefined); setSafetyDownloadRequested(false); setSafetyConfirmed(false)
+    setBusy(true); setNotice(undefined); setStaged(undefined); setSafetyDownloadRequested(false); setSafetyConfirmed(false); safetySnapshot.current = null
     try { setStaged(await previewArchive(file)) }
     catch (error) { setNotice({ kind: 'error', text: error instanceof Error ? error.message : 'Cette archive ne peut pas être restaurée.' }) }
     finally { setBusy(false); if (input.current) input.current.value = '' }
@@ -77,8 +78,10 @@ export default function Backup({ trip, onRestore }: { trip: Trip; onRestore: (tr
       const currentTrip = storedValue(storageKey, trip, validateTrip)
       const upcomingTrips = storedValue(upcomingKey, [], validateUpcomingTrips)
       const personalJournals = storedValue(journalsKey, { version: 1, journals: [] }, validateJournals)
+      const snapshot: [string | null, string | null, string | null] = [localStorage.getItem(storageKey), localStorage.getItem(upcomingKey), localStorage.getItem(journalsKey)]
       const archive = await createArchive(currentTrip, new Date().toISOString(), { upcomingTrips, personalJournals })
       download(archive, `copie-securite-${archiveFilename()}`)
+      safetySnapshot.current = snapshot
       setSafetyDownloadRequested(true)
       setNotice({ kind: 'info', text: 'Le navigateur a lancé le téléchargement de la copie de sécurité. Vérifiez le fichier avant de confirmer.' })
     } catch (error) { setNotice({ kind: 'error', text: error instanceof Error ? error.message : 'La copie de sécurité n’a pas pu être préparée.' }) }
@@ -87,6 +90,11 @@ export default function Backup({ trip, onRestore }: { trip: Trip; onRestore: (tr
 
   function restore() {
     if (!staged || !safetyDownloadRequested || !safetyConfirmed) return
+    if (!safetySnapshot.current || [storageKey, upcomingKey, journalsKey].some((key, index) => localStorage.getItem(key) !== safetySnapshot.current?.[index])) {
+      setSafetyDownloadRequested(false); setSafetyConfirmed(false); safetySnapshot.current = null
+      setNotice({ kind: 'error', text: 'Les données locales ont changé depuis la copie de sécurité. Téléchargez une nouvelle copie avant de restaurer.' })
+      return
+    }
     const previous = new Map<string, string | null>()
     const written: string[] = []
     try {
@@ -167,7 +175,7 @@ export default function Backup({ trip, onRestore }: { trip: Trip; onRestore: (tr
         <button className="text-button" onClick={downloadSafetyCopy} disabled={busy}>Télécharger la copie de sécurité <Icon name="arrow" /></button>
         {safetyDownloadRequested && <label><input type="checkbox" checked={safetyConfirmed} onChange={event => setSafetyConfirmed(event.target.checked)} /> Je confirme que la copie de sécurité est téléchargée et vérifiée.</label>}
       </div>
-      <div className="personal-actions"><button className="button" onClick={restore} disabled={!safetyDownloadRequested || !safetyConfirmed || busy}>Restaurer ce carnet <Icon name="check" /></button><button className="text-button" onClick={() => { setStaged(undefined); setSafetyDownloadRequested(false); setSafetyConfirmed(false); setNotice({ kind: 'info', text: 'Restauration annulée. Le carnet local n’a pas été modifié.' }) }}>Annuler</button></div>
+      <div className="personal-actions"><button className="button" onClick={restore} disabled={!safetyDownloadRequested || !safetyConfirmed || busy}>Restaurer ce carnet <Icon name="check" /></button><button className="text-button" onClick={() => { setStaged(undefined); setSafetyDownloadRequested(false); setSafetyConfirmed(false); safetySnapshot.current = null; setNotice({ kind: 'info', text: 'Restauration annulée. Le carnet local n’a pas été modifié.' }) }}>Annuler</button></div>
     </section>}
   </section>
 }
