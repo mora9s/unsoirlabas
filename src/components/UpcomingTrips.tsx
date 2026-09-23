@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { calendarDate, daysUntil, newUpcoming, readUpcoming, upcomingKey } from '../upcoming-trips'
 import type { UpcomingTrip } from '../upcoming-trips'
@@ -16,6 +16,9 @@ export default function UpcomingTrips({ openJournal }: { openJournal: (trip: Upc
   const [destination, setDestination] = useState('')
   const [departure, setDeparture] = useState('')
   const [message, setMessage] = useState('')
+  const [announcement, setAnnouncement] = useState('')
+  const openerRef = useRef<HTMLButtonElement>(null)
+  const destinationRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     const refresh = () => setNow(new Date())
@@ -39,12 +42,26 @@ export default function UpcomingTrips({ openJournal }: { openJournal: (trip: Upc
   const trips = [...stored.trips].sort((a, b) => a.departure.localeCompare(b.departure) || a.destination.localeCompare(b.destination))
   const next = trips.find(trip => (daysUntil(trip.departure, now) ?? -1) >= 0)
 
-  function startEdit(trip?: UpcomingTrip) {
+  function startEdit(trip?: UpcomingTrip, opener?: HTMLButtonElement) {
+    if (opener) openerRef.current = opener
     setEditing(trip?.id ?? null)
     setDestination(trip?.destination ?? '')
     setDeparture(trip?.departure ?? '')
     setMessage('')
+    setAnnouncement('Formulaire de préparation ouvert.')
     setOpen(true)
+  }
+
+  useEffect(() => {
+    if (open) destinationRef.current?.focus()
+  }, [open])
+
+  function closeForm(notice: string) {
+    setOpen(false)
+    setEditing(null)
+    setMessage('')
+    setAnnouncement(notice)
+    window.requestAnimationFrame(() => openerRef.current?.focus())
   }
 
   function save(tripsToSave: UpcomingTrip[]): boolean {
@@ -74,17 +91,16 @@ export default function UpcomingTrips({ openJournal }: { openJournal: (trip: Upc
     const updated = editing
       ? stored.trips.map(trip => trip.id === editing ? { ...trip, destination: name, departure } : trip)
       : [...stored.trips, newUpcoming(name, departure)]
-    if (save(updated)) {
-      setOpen(false)
-      setEditing(null)
-    }
+    const successMessage = editing ? `${name} a été modifié dans le décompte.` : `${name} a été ajouté au décompte.`
+    if (save(updated)) closeForm(successMessage)
   }
 
   return <section className="upcoming-trips page-width" data-testid="upcoming-trips" aria-labelledby="upcoming-title">
     <div className="upcoming-heading">
       <div><p className="eyebrow">L’appel du large</p><h2 id="upcoming-title">Le prochain départ <em>se rapproche.</em></h2></div>
-      <button className="button button-outline" onClick={() => startEdit()} disabled={!!stored.error || trips.length >= 12}>Préparer un voyage <span aria-hidden="true">＋</span></button>
+      <button ref={openerRef} className="button button-outline" onClick={event => startEdit(undefined, event.currentTarget)} disabled={!!stored.error || trips.length >= 12}>Préparer un voyage <span aria-hidden="true">＋</span></button>
     </div>
+    {announcement && <p className="visually-hidden" role="status" aria-live="polite" aria-atomic="true">{announcement}</p>}
     {stored.error && <p role="alert" className="error-message">{stored.error}</p>}
     {message && <p role="alert" className="error-message">{message}</p>}
     {next ? <div className="upcoming-feature" aria-label={`Prochain départ : ${next.destination}`}>
@@ -96,14 +112,14 @@ export default function UpcomingTrips({ openJournal }: { openJournal: (trip: Upc
       return <article key={trip.id} data-testid="upcoming-trip" className={remaining < 0 ? 'is-past' : ''}>
         <div className="upcoming-count">{remaining > 0 ? `J−${remaining}` : remaining === 0 ? 'JOUR J' : 'PASSÉ'}</div>
         <div className="upcoming-trip-copy"><h3>{trip.destination}</h3><p>{departureLabel(trip.departure)}{remaining < 0 ? ' · souvenir à raconter' : ''}</p></div>
-        <div className="upcoming-actions"><button className="text-button" onClick={() => openJournal(trip)}>Carnet</button><button className="text-button" onClick={() => startEdit(trip)} disabled={!!stored.error} aria-label={`Modifier ${trip.destination}`}>Modifier</button><button className="text-button" onClick={() => save(stored.trips.filter(item => item.id !== trip.id))} disabled={!!stored.error} aria-label={`Retirer ${trip.destination}`}>Retirer</button></div>
+        <div className="upcoming-actions"><button className="text-button" onClick={() => openJournal(trip)}>Carnet</button><button className="text-button" onClick={event => startEdit(trip, event.currentTarget)} disabled={!!stored.error} aria-label={`Modifier ${trip.destination}`}>Modifier</button><button className="text-button" onClick={() => save(stored.trips.filter(item => item.id !== trip.id))} disabled={!!stored.error} aria-label={`Retirer ${trip.destination}`}>Retirer</button></div>
       </article>
     })}</div>}
-    {open && <form className="upcoming-form" onSubmit={submit}>
-      <div><p className="eyebrow">Votre prochaine escale</p><h3>{editing ? 'Changer le cap' : 'Faire place à l’attente'}</h3></div>
-      <label>Destination<input name="destination" value={destination} onChange={event => setDestination(event.target.value)} maxLength={80} required autoFocus /></label>
+    {open && <form className="upcoming-form" role="region" aria-labelledby="upcoming-form-title" onKeyDown={event => { if (event.key === 'Escape') closeForm('Préparation du voyage annulée.') }} onSubmit={submit}>
+      <div><p className="eyebrow">Votre prochaine escale</p><h3 id="upcoming-form-title">{editing ? 'Changer le cap' : 'Faire place à l’attente'}</h3></div>
+      <label>Destination<input ref={destinationRef} name="destination" value={destination} onChange={event => setDestination(event.target.value)} maxLength={80} required /></label>
       <label>Date de départ<input name="departure" type="date" value={departure} min={editing && departure < today ? departure : today} onChange={event => setDeparture(event.target.value)} required /></label>
-      <div className="upcoming-form-actions"><button className="button" type="submit">{editing ? 'Enregistrer les modifications' : 'Ajouter au décompte'}</button><button className="text-button" type="button" onClick={() => { setOpen(false); setMessage('') }}>Annuler</button></div>
+      <div className="upcoming-form-actions"><button className="button" type="submit">{editing ? 'Enregistrer les modifications' : 'Ajouter au décompte'}</button><button className="text-button" type="button" onClick={() => closeForm('Modifications annulées.')}>Annuler</button></div>
     </form>}
     <p className="local-note">Ces dates restent sur cet appareil. La sauvegarde ZIP les inclut avec le carnet ; le récit vocal et ses fichiers audio ne sont pas inclus.</p>
   </section>

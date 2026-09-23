@@ -25,7 +25,7 @@
 
 /* Quiet masthead */
 .site-header { height: 100px; display: flex; align-items: center; justify-content: space-between; padding-inline: 48px; gap: 24px; }
-.wordmark { background: none; display: flex; align-items: center; gap: 14px; padding: 0; text-align: left; font-family: var(--serif); font-size: 25px; letter-spacing: -0.8px; }
+.wordmark { background: none; display: flex; align-items: center; gap: 14px; min-height: 44px; padding: 6px 4px; text-align: left; font-family: var(--serif); font-size: 25px; letter-spacing: -0.8px; }
 .wordmark small { display: block; font-family: Arial, sans-serif; font-size: 7px; font-weight: 400; letter-spacing: 1.4px; margin-top: 5px; }
 .brand-symbol { width: 36px; height: 36px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; border: 1px solid #6f806d; border-radius: 50%; transform: rotate(-15deg); }
 .brand-symbol i { width: 19px; height: 4px; border-top: 1px solid var(--sea); border-radius: 50%; }
@@ -557,30 +557,37 @@
 .upcoming-feature-copy { display: flex; flex-direction: column; align-items: start; justify-content: center; padding: 35px clamp(28px, 5vw, 72px); min-width: 0; }
 .upcoming-feature-copy > p { font-family: var(--serif); font-style: italic; font-size: clamp(28px, 3.5vw, 48px); line-height: 1.1; margin-top: 26px; }
 .upcoming-feature-copy > strong { font-family: var(--serif); font-weight: 400; font-size: clamp(42px, 6vw, 80px); letter-spacing: -.05em; line-height: 1.1; overflow-wrap: anywhere; }
-.upcoming-date { margin-top: 26px; font-size: 12px; letter-spacing: .06em; }
+.upcoming-heading .eyebrow, .upcoming-feature-copy .eyebrow, .upcoming-empty .eyebrow, .upcoming-form .eyebrow { font-size: 12px; }
+.upcoming-date { margin-top: 26px; font-size: 14px; letter-spacing: .04em; }
+.upcoming-big-number > span:last-child { font-size: 14px; letter-spacing: .08em; text-transform: uppercase; }
+.upcoming-empty > span:last-child { font-size: 14px; color: var(--muted); }
+.upcoming-trip-copy p { font-size: 14px; color: var(--muted); }
+.upcoming-actions button { font-size: 14px; }
+.upcoming-form label { font-size: 14px; }
+.upcoming-trips > .local-note { margin-top: 17px; font-size: 14px; }
 .upcoming-big-number { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 28px; text-align: center; border-left: 1px solid #e7e9d864; background: #153d3aaa; }
 .upcoming-big-number > span:first-child { font-family: var(--serif); font-style: italic; font-size: 22px; }
 .upcoming-big-number strong { font-family: var(--serif); font-size: clamp(94px, 12vw, 160px); font-weight: 400; line-height: 1; font-variant-numeric: lining-nums tabular-nums; letter-spacing: -.08em; padding-right: .08em; }
-.upcoming-big-number > span:last-child { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; }
+.upcoming-big-number > span:last-child { font-size: 14px; letter-spacing: .08em; text-transform: uppercase; }
 .upcoming-empty { padding: 50px clamp(25px, 5vw, 72px); background: #e6ebdf; border-left: 3px solid #8c9f7b; }
 .upcoming-empty p { font-family: var(--serif); font-size: clamp(28px, 3vw, 42px); margin: 12px 0; }
-.upcoming-empty > span:last-child { font-size: 12px; color: var(--muted); }
+.upcoming-empty > span:last-child { font-size: 14px; color: var(--muted); }
 .upcoming-list { margin-top: 20px; }
 .upcoming-list article { display: grid; grid-template-columns: 94px minmax(0, 1fr) auto; align-items: center; gap: 25px; padding: 14px 18px; border-bottom: 1px solid var(--line); }
 .upcoming-list article.is-past { opacity: .72; }
 .upcoming-count { font-family: var(--serif); font-size: 27px; color: var(--rust); white-space: nowrap; }
 .upcoming-trip-copy { min-width: 0; overflow-wrap: anywhere; }
 .upcoming-trip-copy h3 { font-size: 23px; }
-.upcoming-trip-copy p { font-size: 11px; color: var(--muted); }
+.upcoming-trip-copy p { font-size: 14px; color: var(--muted); }
 .upcoming-actions { display: flex; gap: 14px; }
-.upcoming-actions button { font-size: 11px; }
+.upcoming-actions button { min-width: 44px; justify-content: center; font-size: 14px; }
 .upcoming-form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px 25px; margin-top: 24px; padding: 28px; background: #e9ede2; border: 1px solid #cbd2c0; }
 .upcoming-form > div:first-child, .upcoming-form-actions { grid-column: 1 / -1; }
 .upcoming-form h3 { font-size: 30px; margin-top: 7px; }
-.upcoming-form label { font-size: 12px; }
+.upcoming-form label { font-size: 14px; }
 .upcoming-form input { display: block; margin-top: 8px; }
 .upcoming-form-actions { display: flex; gap: 24px; align-items: center; }
-.upcoming-trips > .local-note { margin-top: 17px; font-size: 10px; }
+.upcoming-trips > .local-note { margin-top: 17px; font-size: 14px; }
 @media (max-width: 720px) {
   .upcoming-trips { padding-block: 44px; }
   .upcoming-heading { align-items: start; flex-direction: column; gap: 20px; }
