@@ -4,6 +4,7 @@ import { importGooglePhotos, googlePhotosAvailability } from '../google-photos-p
 import { generateStory, importImage, readTrip, storageKey } from '../journal'
 import type { Draft, Media, Trip } from '../journal'
 import { createId } from '../id'
+import { discardUnsavedChapter, readUnsavedChapter, writeUnsavedChapter } from '../unsaved-chapters'
 import { tripAlbum } from '../trip-media'
 import Icon from './Icon'
 import VoiceNarration from './VoiceNarration'
@@ -12,8 +13,11 @@ declare const __VOICE_PRIVATE_BUILD__: boolean
 
 type PickerLaunch = { url: string; open: () => void }
 
-export default function Creator({ initialDraft, onSave, localStore = true }: { initialDraft?: Draft; onSave: (trip: Trip, draft: Draft) => void; localStore?: boolean }) {
-  const [id] = useState(() => initialDraft?.id ?? createId())
+export default function Creator({ initialDraft, onSave, localStore = true, recoveryScope = 'personal:new' }: { initialDraft?: Draft; onSave: (trip: Trip, draft: Draft) => void; localStore?: boolean; recoveryScope?: string }) {
+  const [id, setId] = useState(() => initialDraft?.id ?? createId())
+  const [recovery] = useState(() => readUnsavedChapter(recoveryScope))
+  const [recoveryPending, setRecoveryPending] = useState(Boolean(recovery.draft))
+  const [changedSinceOpen, setChangedSinceOpen] = useState(false)
   const [title, setTitle] = useState(initialDraft?.title ?? 'Une nouvelle journée aux Philippines')
   const [media, setMedia] = useState<Media[]>(initialDraft?.media ?? [])
   const [coverId, setCoverId] = useState(initialDraft?.coverId ?? '')
@@ -26,7 +30,7 @@ export default function Creator({ initialDraft, onSave, localStore = true }: { i
   const [pickerLaunch, setPickerLaunch] = useState<PickerLaunch>()
   const [notice, setNotice] = useState('')
   const [showVoice, setShowVoice] = useState(false)
-  const [error, setError] = useState('')
+  const [error, setError] = useState(recovery.error)
   const storyRef = useRef<HTMLTextAreaElement>(null)
   const previewRef = useRef<HTMLElement>(null)
   const pickerAbort = useRef<AbortController | undefined>(undefined)
@@ -35,16 +39,48 @@ export default function Creator({ initialDraft, onSave, localStore = true }: { i
 
   useEffect(() => () => pickerAbort.current?.abort(), [])
 
+  useEffect(() => {
+    if (!changedSinceOpen || recoveryPending) return
+    const draft: Draft = { id, title: title.trim(), memories, tone, story, media, coverId: cover?.id ?? '', status: 'draft' }
+    // Persist the latest editor snapshot after React applies each field update.
+    // oxlint-disable-next-line react/set-state-in-effect -- status reflects localStorage quota/corruption result
+    setError(writeUnsavedChapter(recoveryScope, draft) || recovery.error)
+  }, [changedSinceOpen, recoveryPending, id, title, memories, tone, story, media, cover, coverId, recoveryScope, recovery.error])
+
   function changed() {
+    setChangedSinceOpen(true)
     setNotice('')
     setError('')
+  }
+
+  function resumeRecovery() {
+    const draft = recovery.draft
+    if (!draft) return
+    setId(draft.id)
+    setTitle(draft.title)
+    setMemories(draft.memories)
+    setTone(draft.tone)
+    setStory(draft.story)
+    setMedia(draft.media)
+    setCoverId(draft.coverId)
+    setRecoveryPending(false)
+    setNotice('Votre brouillon a été repris. Les modifications enregistrées précédemment restent distinctes jusqu’à votre validation.')
+  }
+
+  function discardRecovery() {
+    const failure = discardUnsavedChapter(recoveryScope)
+    if (failure) { setError(failure); return }
+    setRecoveryPending(false)
+    setChangedSinceOpen(false)
+    setError(recovery.error)
   }
 
   async function upload(event: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files ?? [])
     event.target.value = ''
     if (!files.length) return
-    changed()
+    setNotice('')
+    setError('')
     if (media.length + files.length > 12) {
       setError('Gardez jusqu’à 12 photos par journée. Retirez-en une avant d’en ajouter d’autres.')
       return
@@ -54,6 +90,7 @@ export default function Creator({ initialDraft, onSave, localStore = true }: { i
     const imported = results.flatMap(result => result.status === 'fulfilled' ? [result.value] : [])
     const errors = results.flatMap(result => result.status === 'rejected' ? [String(result.reason instanceof Error ? result.reason.message : result.reason)] : [])
     setMedia(previous => [...previous, ...imported])
+    if (imported.length) setChangedSinceOpen(true)
     setCoverId(previous => previous || imported[0]?.id || '')
     setBusy(false)
     if (errors.length) setError(errors.join(' '))
@@ -62,7 +99,8 @@ export default function Creator({ initialDraft, onSave, localStore = true }: { i
 
   async function importFromGoogle() {
     if (!picker.enabled || pickerBusy || busy) return
-    changed()
+    setNotice('')
+    setError('')
     const controller = new AbortController()
     pickerAbort.current = controller
     setPickerBusy(true)
@@ -70,6 +108,7 @@ export default function Creator({ initialDraft, onSave, localStore = true }: { i
       const result = await importGooglePhotos({ remaining: 12 - media.length, signal: controller.signal, normalize: importImage, openPicker: waitForPickerOpen })
       if (controller.signal.aborted) return
       setMedia(previous => [...previous, ...result.media])
+      if (result.media.length) setChangedSinceOpen(true)
       setCoverId(previous => previous || result.media[0]?.id || '')
       const skipped = [
         result.videosSkipped ? `${result.videosSkipped} vidéo${result.videosSkipped > 1 ? 's' : ''} non importée${result.videosSkipped > 1 ? 's' : ''}` : '',
@@ -161,9 +200,20 @@ export default function Creator({ initialDraft, onSave, localStore = true }: { i
         return
       }
     }
-    try { onSave(trip, draft) }
+    try {
+      onSave(trip, draft)
+      const cleanupError = discardUnsavedChapter(recoveryScope)
+      if (cleanupError) setError(cleanupError)
+    }
     catch (caught) { setError(caught instanceof Error ? caught.message : 'Impossible d’enregistrer ce chapitre. Vos données restent ouvertes ici.') }
   }
+
+  if (recoveryPending && recovery.draft) return <section className="workspace-heading page-width recovery-page" data-testid="chapter-recovery" aria-labelledby="chapter-recovery-title">
+    <p className="eyebrow">Brouillon local · non enregistré</p><h1 id="chapter-recovery-title">Reprendre votre chapitre ?</h1>
+    <p><strong>{recovery.draft.title || 'Chapitre sans titre'}</strong> — ce travail n’a pas remplacé une page déjà enregistrée. Reprenez-le pour continuer, ou abandonnez-le explicitement.</p>
+    <div className="recovery-actions"><button className="button" onClick={resumeRecovery}>Reprendre le chapitre</button><button className="button button-outline" onClick={discardRecovery}>Abandonner ce brouillon</button></div>
+    {recovery.error && <p role="alert" className="error-message">{recovery.error}</p>}
+  </section>
 
   return <section className="creator page-width" data-testid="creator">
     <header className="workspace-heading"><p className="eyebrow">L’atelier du soir <span className="divider">/</span> Créer une journée</p><h1>Les instants passent.<br /><em>Écrivons la suite.</em></h1><p>Vos photos, vos mots. Dix minutes pour ne rien oublier.</p><span className="privacy-note"><Icon name="check" /> Vos choix sont copiés dans le carnet, jamais publiés.</span></header>
@@ -176,7 +226,7 @@ export default function Creator({ initialDraft, onSave, localStore = true }: { i
       <div className="editor-note"><span className="eyebrow">Un petit conseil</span><p>La meilleure photo n’est pas toujours la plus belle.<br /><em>C’est celle qui vous ramène là-bas.</em></p></div>
     </div><div className="writing-workspace"><div className="step-heading"><span>02</span><div><h2>Les mots pour le dire</h2><p>On commence par ce qui vous revient.</p></div></div>
       <label className="field-label" htmlFor="day-title">Le titre de votre journée</label><input id="day-title" value={title} maxLength={120} onChange={event => { setTitle(event.target.value); changed() }} />
-      {!__VOICE_PRIVATE_BUILD__ ? <div className="voice-entry-card voice-unavailable" role="note"><span className="eyebrow">Voix · Accès privé</span><strong>Votre histoire, à votre façon</strong><small>Le récit vocal est réservé à l’accès privé pour le moment. Écrivez vos souvenirs ci-dessous pour créer votre page ici.</small></div> : showVoice ? <VoiceNarration onAccept={(nextTitle, nextMemories, nextStory) => { setTitle(nextTitle); setMemories(nextMemories); setStory(nextStory); setPreview(false); setNotice('Le récit a rempli l’éditeur. Relisez-le : rien n’est enregistré ni publié.'); setError('') }} /> : <button className="voice-entry-card" type="button" onClick={() => setShowVoice(true)}><span className="eyebrow">Voix · Premium local</span><strong>Commencer le récit du soir</strong><small>Enregistrez ou importez un audio, puis relisez chaque preuve avant d’utiliser le récit.</small></button>}
+      {!__VOICE_PRIVATE_BUILD__ ? <div className="voice-entry-card voice-unavailable" role="note"><span className="eyebrow">Voix · Accès privé</span><strong>Votre histoire, à votre façon</strong><small>Le récit vocal est réservé à l’accès privé pour le moment. Écrivez vos souvenirs ci-dessous pour créer votre page ici.</small></div> : showVoice ? <VoiceNarration onAccept={(nextTitle, nextMemories, nextStory) => { setTitle(nextTitle); setMemories(nextMemories); setStory(nextStory); setPreview(false); setNotice('Le récit a rempli l’éditeur. Relisez-le : rien n’est enregistré ni publié.'); setChangedSinceOpen(true); setError('') }} /> : <button className="voice-entry-card" type="button" onClick={() => setShowVoice(true)}><span className="eyebrow">Voix · Premium local</span><strong>Commencer le récit du soir</strong><small>Enregistrez ou importez un audio, puis relisez chaque preuve avant d’utiliser le récit.</small></button>}
       <label className="field-label" htmlFor="memories">Souvenirs de la journée</label><input id="memories" value={memories} maxLength={4000} onChange={event => { setMemories(event.target.value); changed() }} aria-describedby="memories-hint" /><p className="field-hint" id="memories-hint">Un lieu, un goût, une anecdote… Quelques mots suffisent.</p>
       <fieldset className="tone-field"><legend>Quelle couleur donner aux mots ?</legend><div>{['Contemplatif', 'Aventure', 'Spontané'].map(option => <label key={option} className={tone === option ? 'selected' : ''}><input type="radio" name="tone" value={option} checked={tone === option} onChange={() => { setTone(option); changed() }} />{option}</label>)}</div></fieldset>
       <button className="button generate-button" onClick={generate}>Générer le récit <Icon name="arrow" /></button><p className="field-hint">Une proposition locale à partir de vos souvenirs, sans IA distante. Vous gardez le dernier mot.</p>
@@ -184,6 +234,6 @@ export default function Creator({ initialDraft, onSave, localStore = true }: { i
       <div className="editor-actions"><button className="button button-outline" onClick={showPreview}>Prévisualiser <Icon name="book" /></button><span className="local-note">Rien n’est enregistré avant votre validation.</span></div>
     </div></div>
     <div className="feedback" role="status" aria-live="polite">{busy && <p>Préparation en cours…</p>}{pickerBusy && <p>Connexion à Google Photos en cours…</p>}{notice && <p className="success-message"><Icon name="check" />{notice}</p>}</div>{error && <p role="alert" className="error-message">{error}</p>}
-    {preview && <section className="day-preview" data-testid="day-preview" tabIndex={-1} ref={previewRef}><div className="preview-ribbon"><span className="eyebrow">03 / Votre nouvelle page</span><span className="status draft"><i />Brouillon</span></div>{cover && <img className="preview-cover" src={cover.src} alt={`Couverture : ${cover.name}`} />}<div className="preview-prose"><p className="eyebrow">Philippines · Carnet personnel</p><h2>{title}</h2>{story.split('\n').filter(Boolean).map((paragraph, index) => <p key={index}>{paragraph}</p>)}</div>{media.length > 1 && <div className="preview-album">{media.filter(item => item.id !== cover?.id).map(item => <img key={item.id} src={item.src} alt={`Souvenir : ${item.name}`} />)}</div>}<div className="save-bar"><span>Une page de plus.<br /><small>Enregistrée en brouillon, jamais publiée.</small></span><button className="button" onClick={save} disabled={busy || pickerBusy}>Ajouter au voyage <Icon name="plus" /></button></div></section>}
+    {preview && <section className="day-preview" data-testid="day-preview" tabIndex={-1} ref={previewRef}><div className="preview-ribbon"><span className="eyebrow">03 / Votre nouvelle page</span><span className="status draft"><i />Brouillon</span></div>{cover && <img className="preview-cover" src={cover.src} alt={`Couverture : ${cover.name}`} />}<div className="preview-prose"><p className="eyebrow">Philippines · Carnet personnel</p><h2>{title}</h2>{story.split('\n').filter(Boolean).map((paragraph, index) => <p key={index}>{paragraph}</p>)}</div>{media.length > 1 && <div className="preview-album">{media.filter(item => item.id !== cover?.id).map(item => <img key={item.id} src={item.src} alt={`Souvenir : ${item.name}`} />)}</div>}<div className="save-bar"><span>Une page de plus.<br /><small>Enregistrée après validation, jamais publiée.</small></span><button className="button" onClick={save} disabled={busy || pickerBusy}>Ajouter au voyage <Icon name="plus" /></button></div></section>}
   </section>
 }
