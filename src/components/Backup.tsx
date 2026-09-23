@@ -68,15 +68,17 @@ export default function Backup({ trip, onRestore }: { trip: Trip; onRestore: (tr
       previous.set(storageKey, localStorage.getItem(storageKey))
       previous.set(upcomingKey, localStorage.getItem(upcomingKey))
       const next = JSON.stringify(staged.trip)
-      const nextUpcoming = JSON.stringify(staged.upcomingTrips)
+      const nextUpcoming = staged.upcomingTrips === undefined ? undefined : JSON.stringify(staged.upcomingTrips)
       localStorage.setItem(storageKey, next)
       written.push(storageKey)
-      localStorage.setItem(upcomingKey, nextUpcoming)
-      written.push(upcomingKey)
-      window.dispatchEvent(new Event('upcoming-trips-updated'))
+      if (nextUpcoming !== undefined) {
+        localStorage.setItem(upcomingKey, nextUpcoming)
+        written.push(upcomingKey)
+        window.dispatchEvent(new Event('upcoming-trips-updated'))
+      }
       onRestore(staged.trip)
       setStaged(undefined)
-      setNotice({ kind: 'success', text: 'Le carnet et les décomptes ont été restaurés sur cet appareil. Vous retrouvez vos pages, vos photos et vos voyages.' })
+      setNotice({ kind: 'success', text: staged.upcomingTrips === undefined ? 'Le carnet a été restauré. Vos décomptes actuels ont été conservés.' : 'Le carnet et les décomptes ont été restaurés sur cet appareil. Vous retrouvez vos pages, vos photos et vos voyages.' })
     } catch {
       for (const key of written.reverse()) {
         try {
@@ -100,8 +102,8 @@ export default function Backup({ trip, onRestore }: { trip: Trip; onRestore: (tr
     {notice && <p role={notice.kind === 'error' ? 'alert' : 'status'} aria-live="polite" className={notice.kind === 'error' ? 'error-message backup-message' : notice.kind === 'success' ? 'success-message backup-message' : 'backup-message'}>{notice.text}</p>}
     {staged && <section className="restore-preview" aria-labelledby="restore-title" aria-live="polite">
       <p className="eyebrow">Archive prête à relire</p><h3 id="restore-title" ref={previewTitle} tabIndex={-1}>Restaurer ce carnet ?</h3>
-      <p>Créée le {date(staged.createdAt)} · {staged.records} chapitre{staged.records > 1 ? 's' : ''} · {staged.media} photo{staged.media > 1 ? 's' : ''} · {staged.upcomingTrips.length} voyage{staged.upcomingTrips.length > 1 ? 's' : ''} à venir · {size(staged.bytes)}</p>
-      <p><strong>Cette restauration remplace le carnet et les décomptes enregistrés sur cet appareil.</strong> Elle ne fusionne pas les données.</p>
+      <p>Créée le {date(staged.createdAt)} · {staged.records} chapitre{staged.records > 1 ? 's' : ''} · {staged.media} photo{staged.media > 1 ? 's' : ''} · {staged.upcomingTrips === undefined ? 'ancienne archive : aucun décompte inclus' : `${staged.upcomingTrips.length} voyage${staged.upcomingTrips.length > 1 ? 's' : ''} à venir`} · {size(staged.bytes)}</p>
+      <p><strong>{staged.upcomingTrips === undefined ? 'Cette restauration remplace le carnet, mais conserve vos décomptes actuels.' : 'Cette restauration remplace le carnet et les décomptes enregistrés sur cet appareil.'}</strong> Elle ne fusionne pas les données.</p>
       <div className="personal-actions"><button className="button" onClick={restore}>Restaurer ce carnet <Icon name="check" /></button><button className="text-button" onClick={() => { setStaged(undefined); setNotice({ kind: 'info', text: 'Restauration annulée. Le carnet local n’a pas été modifié.' }) }}>Annuler</button></div>
     </section>}
   </section>

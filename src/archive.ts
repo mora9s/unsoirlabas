@@ -35,7 +35,7 @@ type Manifest = {
   upcoming?: { version: 1; trips: UpcomingTrip[] }
 }
 
-type Preview = { trip: Trip; upcomingTrips: UpcomingTrip[]; createdAt: string; records: number; media: number; bytes: number }
+type Preview = { trip: Trip; upcomingTrips?: UpcomingTrip[]; createdAt: string; records: number; media: number; bytes: number }
 
 function fail(message: string): never { throw new Error(message) }
 function exactObject(value: unknown, keys: readonly string[]): value is Record<string, unknown> {
@@ -216,7 +216,7 @@ export async function previewArchive(file: File): Promise<Preview> {
   }
   const trip: Trip = { version: 1, drafts }
   if (!validateTrip(trip) || manifest.records !== drafts.length || manifest.media !== mediaCount || manifest.bytes !== payloadBytes) fail('Les données du carnet sont invalides ou incomplètes.')
-  return { trip, upcomingTrips: manifest.upcoming?.trips ?? [], createdAt: manifest.createdAt, records: manifest.records, media: manifest.media, bytes: manifest.bytes }
+  return { trip, upcomingTrips: manifest.upcoming?.trips, createdAt: manifest.createdAt, records: manifest.records, media: manifest.media, bytes: manifest.bytes }
 }
 
 export function archiveFilename(date = new Date()) {

@@ -55,8 +55,8 @@ chargé le fichier dans Drive.
 L’archive contient les chapitres personnels, leur ordre et leurs identifiants,
 les récits, les photos sélectionnées/redimensionnées du carnet et les décomptes
 à venir enregistrés sous `un-soir-la-bas-upcoming-v1`. Les archives de version 1
-restent importables ; elles ne contiennent pas de décomptes et leur restauration
-remplace donc ceux de l’appareil par une liste vide. Les originaux de l’appareil ou
+restent importables ; elles ne contiennent pas de décomptes, donc leur restauration
+conserve ceux déjà présents sur l’appareil. Les originaux de l’appareil ou
 de Drive, les chapitres de démonstration, les comptes Drive et les modifications
 non enregistrées n’y figurent pas. L’audio du récit vocal stocké dans IndexedDB
 n’est pas exporté ni restauré. **Importer depuis Drive** ouvre le sélecteur de

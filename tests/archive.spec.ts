@@ -102,7 +102,7 @@ test('archive invalide ou annulée ne modifie jamais le stockage', async ({ page
   expect(await page.evaluate(key => localStorage.getItem(key), key)).toBe(original)
 })
 
-test('une archive historique sans voyages restaure un décompte vide', async ({ page }, testInfo) => {
+test('une archive historique sans voyages conserve les décomptes actuels', async ({ page }, testInfo) => {
   await seed(page)
   const pending = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Sauvegarder dans Drive' }).click()
@@ -122,7 +122,7 @@ test('une archive historique sans voyages restaure un décompte vide', async ({ 
   await expect(page.getByRole('heading', { name: 'Restaurer ce carnet ?' })).toBeVisible()
   await page.getByRole('button', { name: 'Restaurer ce carnet' }).click()
   await expect(page.getByRole('status')).toContainText('restauré')
-  expect(await page.evaluate(key => localStorage.getItem(key), upcomingKey)).toBe('[]')
+  expect(await page.evaluate(key => localStorage.getItem(key), upcomingKey)).toBe(JSON.stringify(upcoming))
 })
 
 test('un échec quota sur le second stockage rétablit les deux valeurs exactes', async ({ page }, testInfo) => {
