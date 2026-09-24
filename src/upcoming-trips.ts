@@ -1,16 +1,25 @@
 import { createId } from './id'
 
 export const upcomingKey = 'un-soir-la-bas-upcoming-v1'
-export type UpcomingTrip = { id: string; destination: string; departure: string }
+export type UpcomingTrip = { id: string; destination: string; departure: string; endDate?: string }
 
 export function validateUpcomingTrips(value: unknown): value is UpcomingTrip[] {
-  return Array.isArray(value) && value.length <= 12 && value.every(item =>
-    item && typeof item === 'object' && !Array.isArray(item) && Object.keys(item).length === 3 &&
-    Object.prototype.hasOwnProperty.call(item, 'id') && Object.prototype.hasOwnProperty.call(item, 'destination') && Object.prototype.hasOwnProperty.call(item, 'departure') &&
-    typeof item.id === 'string' && item.id.length > 0 && item.id.length <= 160 &&
-    typeof item.destination === 'string' && item.destination.trim().length > 0 && item.destination.length <= 80 &&
-    typeof item.departure === 'string' && dateParts(item.departure)
-  ) && new Set(value.map(item => item.id)).size === value.length
+  return Array.isArray(value) && value.length <= 12 && value.every(item => {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) return false
+    const trip = item as Record<string, unknown>
+    const keys = Object.keys(trip)
+    if (keys.some(key => !['id', 'destination', 'departure', 'endDate'].includes(key)) ||
+      !['id', 'destination', 'departure'].every(key => Object.prototype.hasOwnProperty.call(trip, key)) ||
+      (keys.length !== 3 && keys.length !== 4)) return false
+    if (typeof trip.id !== 'string' || !trip.id || trip.id.length > 160 ||
+      typeof trip.destination !== 'string' || !trip.destination.trim() || trip.destination.length > 80 ||
+      typeof trip.departure !== 'string' || !dateParts(trip.departure)) return false
+    return !Object.prototype.hasOwnProperty.call(trip, 'endDate') || (typeof trip.endDate === 'string' && Boolean(dateParts(trip.endDate)) && trip.endDate >= trip.departure)
+  }) && new Set(value.map(item => item.id)).size === value.length
+}
+
+export function tripIsPast(trip: UpcomingTrip, now: Date): boolean {
+  return Boolean(trip.endDate && trip.endDate < calendarDate(now))
 }
 
 export function calendarDate(date: Date): string {

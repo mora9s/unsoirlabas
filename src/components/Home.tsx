@@ -3,9 +3,16 @@ import type { Draft } from '../journal'
 import Backup from './Backup'
 import Icon from './Icon'
 import UpcomingTrips from './UpcomingTrips'
+import '../travel-library.css'
 
 export default function Home({ openDay, create, drafts, openDraft, editDraft, trip, onRestore, onOpenJournal, journals }: { openDay: (day: number) => void; create: () => void; drafts: Draft[]; openDraft: (draft: Draft) => void; editDraft: (draft: Draft) => void; trip: import('../journal').Trip; onRestore: (trip: import('../journal').Trip) => void; onOpenJournal: (trip: import('../upcoming-trips').UpcomingTrip) => void; journals: import('../trip-journals').PersonalJournal[] }) {
   return <>
+    <UpcomingTrips openJournal={onOpenJournal} journals={journals} />
+    <section className="demo-trip page-width" aria-labelledby="demo-trip-title">
+      <p className="eyebrow">Voyage de démonstration · distinct de vos voyages</p>
+      <h2 id="demo-trip-title">Un carnet pour découvrir le format.</h2>
+      <p>Les Philippines sont un exemple éditorial. Vos souvenirs personnels restent dans vos propres carnets.</p>
+    </section>
     <section className="trip-hero" aria-labelledby="trip-title">
       <img className="hero-photo" src={asset('el-nido-big-lagoon.jpg')} alt="Le Big Lagoon d’El Nido, entre eau turquoise et falaises de calcaire" fetchPriority="high" />
       <div className="hero-shade" />
@@ -18,8 +25,6 @@ export default function Home({ openDay, create, drafts, openDraft, editDraft, tr
       <div className="hero-bottom"><span>Manille <i /> Palawan <i /> Bohol</span><span>18 jours <span className="divider">/</span> Mille façons de se souvenir</span></div>
       <div className="travel-seal" aria-hidden="true"><span>PRENDRE LE TEMPS</span><strong>18</strong><span>JOURS D’AILLEURS</span></div>
     </section>
-    <UpcomingTrips openJournal={onOpenJournal} />
-    {journals.length > 0 && <section className="saved-journals page-width" aria-labelledby="saved-journals-title"><p className="eyebrow">Vos carnets par voyage</p><h2 id="saved-journals-title">Chaque départ, son histoire.</h2>{journals.map(journal => <article key={journal.tripId}><div><strong>{journal.destination}</strong><span>{journal.chapters.length} chapitre{journal.chapters.length === 1 ? '' : 's'} · sauvegardé sur cet appareil</span></div><button className="text-button" onClick={() => onOpenJournal({ id: journal.tripId, destination: journal.destination, departure: journal.departure || '2000-01-01' })}>Ouvrir le carnet →</button></article>)}</section>}
     <section className="intro page-width">
       <span className="eyebrow"><span className="tiny-sun" aria-hidden="true" /> Le bonheur de garder une trace</span>
       <p>Les journées passent.<br />Les <em>souvenirs</em> restent.</p>
