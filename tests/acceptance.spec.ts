@@ -16,14 +16,18 @@ test.afterEach(async () => {
 })
 
 test('accueil éditorial et chapitre complet', async ({ page }) => {
-  await expect(page.getByRole('heading', { name: /Philippines/i }).first()).toBeVisible()
+  await expect(page.getByRole('heading', { name: /Partir, puis se souvenir/i })).toBeVisible()
+  await expect(page.getByTestId('day-card')).toHaveCount(0)
+  await page.getByRole('button', { name: 'Découvrir le carnet de démonstration' }).click()
+  await expect(page).toHaveURL(/#demo$/)
+  await expect(page.getByRole('heading', { name: /carnet pour découvrir le format/i })).toBeVisible()
   const cards = page.getByTestId('day-card')
   await expect(cards).toHaveCount(3)
   await expect(page.locator('[data-testid="day-card"][data-status="published"]')).toHaveCount(1)
   await expect(page.locator('[data-testid="day-card"][data-status="draft"]')).toHaveCount(1)
   await expect(page.locator('[data-testid="day-card"][data-status="upcoming"]')).toHaveCount(1)
 
-  await page.getByRole('button', { name: 'Découvrir le jour 3' }).click()
+  await page.getByRole('button', { name: /Voir le jour 3/ }).click()
   const detail = page.getByTestId('day-detail')
   await expect(detail).toBeVisible()
   await expect(detail.getByRole('heading', { name: /Entre lagons et falaises à El Nido/i })).toBeVisible()
@@ -33,7 +37,7 @@ test('accueil éditorial et chapitre complet', async ({ page }) => {
 })
 
 test('atelier fonctionnel, prévisualisation et persistance', async ({ page }) => {
-  await page.getByRole('button', { name: 'Créer', exact: true }).click()
+  await page.getByRole('button', { name: 'Créer une journée', exact: true }).click()
   const creator = page.getByTestId('creator')
   await expect(creator).toBeVisible()
 
@@ -116,7 +120,7 @@ test('un carnet reste dans les souvenirs et ouvrable après le retrait du voyage
 
 test('création accepte une date de fin facultative et rejette une fin antérieure au départ', async ({ page }) => {
   await page.getByRole('button', { name: /préparer un voyage/i }).click()
-  const form = page.getByRole('region', { name: /faire place à l’attente/i })
+  const form = page.getByRole('dialog', { name: /faire place à l’attente/i })
   const future = new Date(Date.now() + 86400000 * 30)
   const start = `${future.getFullYear()}-${String(future.getMonth() + 1).padStart(2, '0')}-${String(future.getDate()).padStart(2, '0')}`
   const earlier = new Date(future.getTime() - 86400000)

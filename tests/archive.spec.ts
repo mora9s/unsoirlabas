@@ -13,6 +13,7 @@ async function seed(page: import('@playwright/test').Page, raw = original, trips
   await page.goto('/')
   await page.evaluate(({ key, raw, upcomingKey, trips }) => { localStorage.setItem(key, raw); localStorage.setItem(upcomingKey, JSON.stringify(trips)) }, { key, raw, upcomingKey, trips })
   await page.reload()
+  await page.getByRole('button', { name: 'Outils et sauvegarde du carnet' }).click()
 }
 
 async function confirmSafetyCopy(page: import('@playwright/test').Page, path: string) {
@@ -44,6 +45,7 @@ test('archive ZIP réelle, prévisualisation et restauration explicite', async (
   const freshContext = await browser.newContext()
   const fresh = await freshContext.newPage()
   await fresh.goto('/')
+  await fresh.getByRole('button', { name: 'Outils et sauvegarde du carnet' }).click()
   await fresh.getByLabel('Choisir une sauvegarde ZIP').setInputFiles(path)
   await expect(fresh.getByRole('heading', { name: 'Restaurer ce carnet ?' })).toBeVisible()
   await expect(fresh.getByRole('heading', { name: 'Restaurer ce carnet ?' })).toBeFocused()
@@ -58,6 +60,7 @@ test('archive ZIP réelle, prévisualisation et restauration explicite', async (
   expect(restored.drafts[0].media).toEqual([{ id: 'photo-source', name: 'café du matin.jpg', src: photo }])
   expect(await fresh.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1)
   expect(await fresh.evaluate(key => JSON.parse(localStorage.getItem(key)!), upcomingKey)).toEqual(upcoming)
+  await fresh.getByRole('button', { name: 'Le carnet', exact: true }).click()
   await expect(fresh.getByTestId('upcoming-trip')).toContainText('Kyoto')
   await freshContext.close()
 })

@@ -20,7 +20,7 @@ async function seed(page: import('@playwright/test').Page) {
 
 async function createChapter(page: import('@playwright/test').Page, title: string, withPhoto = false) {
   const destination = title.includes('Tokyo') ? 'Tokyo' : 'Lisbonne'
-  await page.getByTestId('upcoming-trip').filter({ hasText: destination }).getByRole('button', { name: 'Carnet', exact: true }).click()
+  await page.getByTestId('upcoming-trip').filter({ hasText: destination }).getByRole('button', { name: /^(?:Ouvrir le carnet|Carnet)$/ }).click()
   await page.getByRole('button', { name: new RegExp(`Écrire un chapitre pour ${destination}`) }).click()
   await page.reload()
   await expect(page.locator('[data-testid="creator"]:visible')).toHaveCount(1)
@@ -141,6 +141,7 @@ test('migration Philippines non destructive puis archive ZIP restaure les carnet
   await createChapter(page, 'Un matin à Tokyo', true)
   const personalPhoto = await page.evaluate(key => JSON.parse(localStorage.getItem(key)!).journals.find((item: { destination: string }) => item.destination === 'Tokyo').chapters[0].media[0].src, journalsKey)
   await page.getByRole('button', { name: 'Le carnet', exact: true }).click()
+  await page.getByRole('button', { name: 'Outils et sauvegarde du carnet' }).click()
   const downloadPromise = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Sauvegarder dans Drive' }).click()
   const download = await downloadPromise
@@ -152,6 +153,7 @@ test('migration Philippines non destructive puis archive ZIP restaure les carnet
   const freshContext = await browser.newContext({ viewport: { width: 390, height: 844 } })
   const fresh = await freshContext.newPage()
   await fresh.goto('/')
+  await fresh.getByRole('button', { name: 'Outils et sauvegarde du carnet' }).click()
   await fresh.getByLabel('Choisir une sauvegarde ZIP').setInputFiles(archivePath)
   await expect(fresh.getByRole('heading', { name: 'Restaurer ce carnet ?' })).toBeVisible()
   await expect(fresh.getByRole('heading', { name: 'Restaurer ce carnet ?' }).locator('..')).toContainText('2 carnets')
@@ -174,7 +176,7 @@ test('un stockage de carnets corrompu est conservé et empêche un faux succès'
   await seed(page)
   const raw = '{broken journal bytes'
   await page.evaluate(({ key, raw }) => localStorage.setItem(key, raw), { key: journalsKey, raw })
-  await page.getByTestId('upcoming-trip').filter({ hasText: 'Tokyo' }).getByRole('button', { name: 'Carnet', exact: true }).click()
+  await page.getByTestId('upcoming-trip').filter({ hasText: 'Tokyo' }).getByRole('button', { name: /^(?:Ouvrir le carnet|Carnet)$/ }).click()
   await page.getByRole('button', { name: /Écrire un chapitre pour Tokyo/ }).click()
   await page.getByLabel('Le titre de votre journée').fill('Une page à conserver')
   await page.getByLabel('Souvenirs de la journée').fill('Le premier café.')
@@ -188,7 +190,7 @@ test('un stockage de carnets corrompu est conservé et empêche un faux succès'
 
 test('un quota plein au moment de sauvegarder un chapitre affiche une erreur et garde les données', async ({ page }) => {
   await seed(page)
-  await page.getByTestId('upcoming-trip').filter({ hasText: 'Tokyo' }).getByRole('button', { name: 'Carnet', exact: true }).click()
+  await page.getByTestId('upcoming-trip').filter({ hasText: 'Tokyo' }).getByRole('button', { name: /^(?:Ouvrir le carnet|Carnet)$/ }).click()
   await page.getByRole('button', { name: /Écrire un chapitre pour Tokyo/ }).click()
   await page.getByLabel('Le titre de votre journée').fill('Une page temporaire')
   await page.getByLabel('Souvenirs de la journée').fill('Le premier café.')

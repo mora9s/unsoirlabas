@@ -23,7 +23,7 @@ test('décompte local de plusieurs voyages, tri et rechargement', async ({ page 
   const cards = section.getByTestId('upcoming-trip')
   await expect(cards).toHaveCount(2)
   await expect(cards.first()).toContainText('Lisbonne')
-  await expect(cards.first()).toContainText('J−3')
+  await expect(cards.first().locator('.next-count strong')).toHaveText('3')
   await expect(cards.nth(1)).toContainText('J−15')
   await page.reload()
   await expect(cards).toHaveCount(2)

@@ -69,6 +69,7 @@ test('album partagé explicite et import Picker configuré, paginé et portable'
   const local = await page.evaluate(key => localStorage.getItem(key)!, key)
   expect(local).not.toContain('test-access-token-long-enough-for-gis'); expect(local).not.toContain('googleusercontent.com')
   await page.getByRole('button', { name: 'Retour au carnet' }).click()
+  await page.getByRole('button', { name: 'Outils et sauvegarde du carnet' }).click()
   const download = page.waitForEvent('download'); await page.getByRole('button', { name: 'Sauvegarder dans Drive' }).click()
   const backupPath = testInfo.outputPath('picker-portable.zip'); await (await download).saveAs(backupPath)
   const archive = Buffer.concat(Object.values(unzipSync(await readFile(backupPath))).map(value => Buffer.from(value))).toString('utf8')

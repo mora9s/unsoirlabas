@@ -10,7 +10,7 @@ const trips = [
 const story = 'Le vent frais du matin et le premier café partagé. Ce sont nos souvenirs.'
 
 async function openChapterEditor(page: import('@playwright/test').Page, destination: string) {
-  await page.getByTestId('upcoming-trip').filter({ hasText: destination }).getByRole('button', { name: 'Carnet', exact: true }).click()
+  await page.getByTestId('upcoming-trip').filter({ hasText: destination }).getByRole('button', { name: /^(?:Ouvrir le carnet|Carnet)$/ }).click()
   await page.getByRole('button', { name: new RegExp(`Écrire un chapitre pour ${destination}`) }).click()
 }
 
@@ -93,7 +93,7 @@ test('recovers edits separately from the saved chapter and does not overwrite it
   await page.getByLabel('Le titre de votre journée').fill('Modification non enregistrée')
   await page.getByLabel('Spontané', { exact: true }).check()
   await page.getByRole('button', { name: 'Le carnet', exact: true }).click()
-  await page.getByTestId('upcoming-trip').filter({ hasText: 'Tokyo' }).getByRole('button', { name: 'Carnet', exact: true }).click()
+  await page.getByTestId('upcoming-trip').filter({ hasText: 'Tokyo' }).getByRole('button', { name: /^(?:Ouvrir le carnet|Carnet)$/ }).click()
   await page.getByRole('button', { name: /Modifier/ }).click()
   await expect(page.getByRole('heading', { name: 'Reprendre votre chapitre ?' })).toBeVisible()
   await page.reload()

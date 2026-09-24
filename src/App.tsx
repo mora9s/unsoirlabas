@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import Home from './components/Home'
+import Demo from './components/Demo'
 import Chapter from './components/Chapter'
 import CustomChapter from './components/CustomChapter'
 import Creator from './components/Creator'
@@ -10,6 +11,7 @@ import { readJournals, journalForTrip, saveChapter, upcomingForJournal } from '.
 import type { PersonalJournal } from './trip-journals'
 import TripJournal from './components/TripJournal'
 import ShareChapterPicker from './components/ShareChapterPicker'
+import Backup from './components/Backup'
 import type { ShareChoice } from './components/ShareChapterPicker'
 import type { Draft } from './journal'
 import './journal.css'
@@ -19,7 +21,7 @@ function currentView(): View {
   const hash = window.location.hash.slice(1)
   if (/^(draft|share|share-trip|trip|journey|journal-share|trip-create)\//.test(hash)) return hash
   const base = hash.split('/')[0]
-  if (['create', 'share', 'share-demo', 'day-1', 'day-3', 'day-8'].includes(base)) return base
+  if (['create', 'share', 'share-demo', 'demo', 'tools', 'day-1', 'day-3', 'day-8'].includes(base)) return base
   return ['', 'carnet', 'main'].includes(hash) ? 'home' : 'missing'
 }
 
@@ -87,7 +89,7 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    const title = missing ? 'Cette page est introuvable' : draft ? `${sharing ? 'Partager — ' : ''}${draft.title}` : view === 'home' ? 'Philippines — 18 jours entre îles et lumière' : view === 'create' ? 'Créer une journée' : sharing ? 'Studio de partage' : `Jour ${view.slice(4)} — Philippines`
+    const title = missing ? 'Cette page est introuvable' : draft ? `${sharing ? 'Partager — ' : ''}${draft.title}` : view === 'home' ? 'La bibliothèque des voyages' : view === 'demo' ? 'Démonstration Philippines' : view === 'tools' ? 'Outils du carnet' : view === 'create' ? 'Créer une journée' : sharing ? 'Studio de partage' : `Jour ${view.slice(4)} — Philippines`
     document.title = `${title} · Un soir là-bas`
     if (lastView.current !== view) {
       mainRef.current?.focus({ preventScroll: true })
@@ -140,41 +142,27 @@ export default function App() {
         <span>un soir <em>là-bas</em><small>RACONTÉ SUR PLACE. PARTAGÉ EN DIX MINUTES.</small></span>
       </button>
       <nav aria-label="Navigation principale">
-        <button
-          className={view === 'home' || view.startsWith('day') || view.startsWith('draft/') ? 'active' : ''}
-          aria-current={view === 'home' || view.startsWith('day') || view.startsWith('draft/') ? 'page' : undefined}
-          onClick={() => navigate('home')}
-        ><Icon name="book" /><span>Le carnet</span></button>
-        <button
-          className={view === 'create' ? 'active' : ''}
-          aria-current={view === 'create' ? 'page' : undefined}
-          onClick={newDay}
-        ><Icon name="plus" /><span>Créer</span></button>
-        <button
-          className={`share-nav ${sharing ? 'active' : ''}`}
-          aria-current={sharing ? 'page' : undefined}
-          onClick={() => navigate('share')}
-        ><Icon name="share" /><span>Partager</span></button>
+        <button className={view === 'home' ? 'active' : ''} aria-current={view === 'home' ? 'page' : undefined} onClick={() => navigate('home')}><Icon name="book" /><span>Le carnet</span></button>
+        {view !== 'home' && <button className={view === 'create' ? 'active' : ''} aria-label="Créer une journée" aria-current={view === 'create' ? 'page' : undefined} onClick={newDay}><Icon name="plus" /><span>Créer</span></button>}
+        <button className={`share-nav ${sharing ? 'active' : ''}`} aria-current={sharing ? 'page' : undefined} onClick={() => navigate('share')}><Icon name="share" /><span>Partager</span></button>
       </nav>
     </header>
     <main id="main" ref={mainRef} tabIndex={-1}>
       {stored.error && <p role="alert" className="error-message page-width">{stored.error}</p>}
       {view === 'home' && (
         <Home
-          openDay={openDay}
+          openDay={day => day === 0 ? navigate('demo') : openDay(day)}
+          openTools={() => navigate('tools')}
           create={newDay}
           drafts={stored.trip.drafts}
           openDraft={draft => navigate(`draft/${encodeURIComponent(draft.id)}`)}
           editDraft={editDraft}
-          trip={stored.trip}
           onOpenJournal={openUpcomingJournal}
           journals={journals.data.journals}
-          onRestore={trip => {
-            setStored({ trip, error: '' })
-            navigate('home')
-          }}
         />
       )}
+      {view === 'demo' && <Demo openDay={openDay} />}
+      {view === 'tools' && <section className="tools-page page-width" aria-labelledby="tools-title"><p className="eyebrow">Réglages et conservation</p><h1 id="tools-title">Outils du carnet</h1><Backup trip={stored.trip} onRestore={trip => { setStored({ trip, error: '' }); setJournals(readJournals()) }} /></section>}
       {view.startsWith('day') && (
         <Chapter
           dayNumber={Number(view.slice(4))}

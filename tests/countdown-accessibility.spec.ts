@@ -11,7 +11,7 @@ test('prepare-trip form opens accessibly and returns focus after cancel, save, a
   const opener = page.getByRole('button', { name: 'Préparer un voyage' })
   await opener.focus()
   await page.keyboard.press('Enter')
-  const form = page.getByRole('region', { name: 'Faire place à l’attente' })
+  const form = page.getByRole('dialog', { name: 'Faire place à l’attente' })
   const destination = page.getByLabel('Destination')
   await expect(destination).toBeFocused()
   await expect(page.getByRole('status')).toContainText('Formulaire de préparation ouvert.')
@@ -43,8 +43,8 @@ test('countdown labels, controls and logo remain legible and tappable at support
     await page.goto('/')
     const geometry = await page.evaluate(() => {
       const logo = document.querySelector<HTMLButtonElement>('.wordmark')!
-      const smallText = [...document.querySelectorAll<HTMLElement>('.upcoming-trips .upcoming-date, .upcoming-trips .upcoming-big-number > span, .upcoming-trips .upcoming-trip-copy p, .upcoming-trips .upcoming-actions button, .upcoming-trips > .local-note')]
-      const targets = [...document.querySelectorAll<HTMLElement>('.upcoming-heading button, .upcoming-actions button')].map(element => {
+      const smallText = [...document.querySelectorAll<HTMLElement>('.upcoming-trips .upcoming-date, .upcoming-trips .upcoming-big-number > span, .upcoming-trips .upcoming-trip-copy p, .upcoming-trips .upcoming-actions button, .upcoming-trips .next-actions button, .upcoming-trips > .local-note')]
+      const targets = [...document.querySelectorAll<HTMLElement>('.upcoming-heading button, .upcoming-actions button, .next-actions button')].map(element => {
         const target = element.getBoundingClientRect()
         return { width: target.width, height: target.height }
       })
