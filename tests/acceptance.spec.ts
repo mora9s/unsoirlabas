@@ -91,7 +91,7 @@ test('bibliothèque classe les voyages selon une fin explicite et conserve les a
     { id: 'ending-today', destination: 'Bohol', departure: past, endDate: today },
   ])), { future: iso(30), past: iso(-30), today: iso(0) })
   await page.reload()
-  await expect(page.getByRole('heading', { name: /prochains départs/i })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /à venir et en cours/i })).toBeVisible()
   await expect(page.getByTestId('upcoming-trip')).toHaveCount(3)
   await expect(page.getByTestId('past-trip')).toHaveCount(1)
   await expect(page.getByTestId('past-trip')).toContainText('Lisbonne')
@@ -132,6 +132,47 @@ test('création accepte une date de fin facultative et rejette une fin antérieu
   await expect(page.getByTestId('upcoming-trip')).toContainText('Kyoto')
   const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('un-soir-la-bas-upcoming-v1') || '[]'))
   expect(stored.find((trip: { destination: string }) => trip.destination === 'Kyoto')).not.toHaveProperty('endDate')
+})
+
+test('voyages en cours et terminés gardent leur date de départ lors de la modification', async ({ page }) => {
+  const iso = (offset: number) => {
+    const date = new Date()
+    date.setDate(date.getDate() + offset)
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+  }
+  await page.goto('/')
+  await page.evaluate(({ departure, ended }) => localStorage.setItem('un-soir-la-bas-upcoming-v1', JSON.stringify([
+    { id: 'ongoing', destination: 'Népal', departure },
+    { id: 'completed', destination: 'Lisbonne', departure, endDate: ended },
+  ])), { departure: iso(-30), ended: iso(-10) })
+  await page.reload()
+  await page.getByRole('button', { name: 'Modifier Népal' }).click()
+  await page.getByLabel('Date de fin (facultative)').fill(iso(5))
+  await page.getByRole('button', { name: /enregistrer les modifications/i }).click()
+  await expect(page.getByTestId('upcoming-trip').filter({ hasText: 'Népal' })).toBeVisible()
+  const memory = page.getByTestId('past-trip').filter({ hasText: 'Lisbonne' })
+  await memory.getByRole('button', { name: 'Modifier Lisbonne' }).click()
+  await page.getByLabel('Destination').fill('Lisbonne revisitée')
+  await page.getByRole('button', { name: /enregistrer les modifications/i }).click()
+  await expect(page.getByTestId('past-trip').filter({ hasText: 'Lisbonne revisitée' })).toBeVisible()
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('un-soir-la-bas-upcoming-v1') || '[]'))
+  expect(stored.find((trip: { id: string }) => trip.id === 'ongoing')).toMatchObject({ departure: iso(-30), endDate: iso(5) })
+  expect(stored.find((trip: { id: string }) => trip.id === 'completed')).toMatchObject({ departure: iso(-30), endDate: iso(-10) })
+})
+
+test('un voyage sans date de fin se termine et se reprend explicitement sans perdre son carnet', async ({ page }) => {
+  const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1)
+  const departure = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`
+  await page.goto('/')
+  await page.evaluate(departure => localStorage.setItem('un-soir-la-bas-upcoming-v1', JSON.stringify([{ id: 'manual', destination: 'Népal', departure }])), departure)
+  await page.reload()
+  await page.getByRole('button', { name: 'Terminer Népal' }).click()
+  await expect(page.getByTestId('past-trip').filter({ hasText: 'Népal' })).toBeVisible()
+  await page.reload()
+  await page.getByRole('button', { name: 'Reprendre Népal' }).click()
+  await expect(page.getByTestId('upcoming-trip').filter({ hasText: 'Népal' })).toBeVisible()
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('un-soir-la-bas-upcoming-v1') || '[]'))
+  expect(stored[0]).not.toHaveProperty('completed')
 })
 
 test('bibliothèque reste lisible sans débordement à 320, 390 et 1440 px', async ({ page }) => {

@@ -46,8 +46,8 @@
 .coordinates { font-size: 9px; letter-spacing: 0.17em; }
 .hero-copy { position: absolute; top: 46%; left: 6.5%; transform: translateY(-42%); }
 .hero-copy > .eyebrow { margin-bottom: 22px; font-size: 9px; }
-.hero-copy h1 { font-size: clamp(72px, 9.4vw, 144px); line-height: 0.96; }
-.hero-copy h1 span { display: block; font-size: clamp(23px, 2.5vw, 37px); font-style: italic; letter-spacing: -0.02em; margin-top: 22px; }
+.hero-copy h2 { font-size: clamp(72px, 9.4vw, 144px); line-height: 0.96; }
+.hero-copy h2 span { display: block; font-size: clamp(23px, 2.5vw, 37px); font-style: italic; letter-spacing: -0.02em; margin-top: 22px; }
 .hero-copy .button { margin-top: 40px; min-width: 208px; }
 .hero-bottom { bottom: 28px; font-size: 10px; align-items: center; letter-spacing: 0.045em; }
 .hero-bottom > span:first-child { display: flex; gap: 18px; align-items: center; }
@@ -314,7 +314,7 @@
   .personal-studio .share-previews { grid-template-columns: minmax(0, 1fr); gap: 28px; max-width: 390px; margin-inline: auto; }
   .page-width { width: calc(100% - 72px); }
   .site-header { padding-inline: 32px; }
-  .hero-copy h1 { font-size: 100px; }
+  .hero-copy h2 { font-size: 100px; }
   .day-entry { grid-template-columns: 58px 1.1fr 1fr; gap: 28px; }
   .day-entry::before { left: 29px; }
   .day-copy h3 { font-size: 29px; }
@@ -351,8 +351,8 @@
   .coordinates { display: none; }
   .hero-copy { top: auto; left: 24px; right: 24px; bottom: 113px; transform: none; }
   .hero-copy > .eyebrow { font-size: 7px; letter-spacing: 0.12em; margin-bottom: 20px; max-width: 240px; }
-  .hero-copy h1 { font-size: clamp(52px, 14vw, 95px); letter-spacing: -0.06em; }
-  .hero-copy h1 span { max-width: 265px; font-size: 25px; line-height: 1.18; margin-top: 18px; letter-spacing: -0.03em; }
+  .hero-copy h2 { font-size: clamp(52px, 14vw, 95px); letter-spacing: -0.06em; }
+  .hero-copy h2 span { max-width: 265px; font-size: 25px; line-height: 1.18; margin-top: 18px; letter-spacing: -0.03em; }
   .hero-copy .button { margin-top: 29px; min-width: 0; font-size: 12px; padding: 13px 18px; min-height: 47px; }
   .hero-bottom { left: 24px; right: 24px; bottom: 26px; flex-direction: column; align-items: flex-start; gap: 12px; font-size: 8px; }
   .hero-bottom > span:first-child { gap: 13px; }

@@ -39,6 +39,7 @@ export default function UpcomingTrips({ openJournal, journals = [] }: { openJour
   const futureTrips = trips.filter(trip => !tripIsPast(trip, now))
   const pastTrips = trips.filter(trip => tripIsPast(trip, now))
   const next = futureTrips.find(trip => (daysUntil(trip.departure, now) ?? -1) >= 0)
+  const nextCover = journals.find(item => item.tripId === next?.id)?.chapters.map(chapter => coverOf(chapter)).find(Boolean)
 
   function startEdit(trip?: UpcomingTrip, opener?: HTMLButtonElement) {
     if (opener) openerRef.current = opener
@@ -66,8 +67,8 @@ export default function UpcomingTrips({ openJournal, journals = [] }: { openJour
     event.preventDefault()
     if (stored.error) return
     const name = destination.trim()
-    if (!name || name.length > 80 || !departure || departure < today || daysUntil(departure, now) === null) {
-      setMessage('Indiquez une destination et une date de départ valide, aujourd’hui ou plus tard.'); return
+    if (!name || name.length > 80 || !departure || daysUntil(departure, now) === null || (!editing && departure < today)) {
+      setMessage('Indiquez une destination et une date de départ valide, aujourd’hui ou plus tard pour un nouveau voyage.'); return
     }
     if (endDate && (daysUntil(endDate, now) === null || endDate < departure)) {
       setMessage('La date de fin doit être valide et ne peut pas précéder le départ.'); return
@@ -86,6 +87,16 @@ export default function UpcomingTrips({ openJournal, journals = [] }: { openJour
     if (save(updated)) closeForm(successMessage)
   }
 
+  function setCompleted(tripId: string, completed: boolean) {
+    save(stored.trips.map(trip => {
+      if (trip.id !== tripId) return trip
+      if (completed) return { ...trip, completed: true }
+      const reopened = { ...trip }
+      delete reopened.completed
+      return reopened
+    }))
+  }
+
   const archivedJournalIds = new Set(trips.map(trip => trip.id))
   const orphanJournals = journals.filter(journal => !archivedJournalIds.has(journal.tripId))
   const allPastCount = pastTrips.length + orphanJournals.length
@@ -99,9 +110,9 @@ export default function UpcomingTrips({ openJournal, journals = [] }: { openJour
     {stored.error && <p role="alert" className="error-message">{stored.error}</p>}
     {message && <p role="alert" className="error-message">{message}</p>}
     <section className="library-upcoming" aria-labelledby="future-title">
-      <div className="library-section-heading"><div><p className="eyebrow">À l’horizon</p><h2 id="future-title">Les prochains départs</h2></div><span>{futureTrips.length} voyage{futureTrips.length === 1 ? '' : 's'}</span></div>
+      <div className="library-section-heading"><div><p className="eyebrow">À l’horizon</p><h2 id="future-title">À venir et en cours</h2></div><span>{futureTrips.length} voyage{futureTrips.length === 1 ? '' : 's'}</span></div>
       {next ? <article className="next-departure" aria-label={`Prochain départ : ${next.destination}`}>
-        <div className="next-landscape" aria-hidden="true"><span className="landscape-sun"/><span className="landscape-ridge ridge-back"/><span className="landscape-ridge ridge-front"/></div>
+        <div className="next-landscape" aria-hidden="true">{nextCover ? <img src={nextCover.src} alt="" /> : <><span className="landscape-sun"/><span className="landscape-ridge ridge-back"/><span className="landscape-ridge ridge-front"/></>}</div>
         <div className="next-copy"><span className="eyebrow">Le prochain départ</span><h3>{next.destination}</h3><p className="upcoming-date">Départ le {dateLabel(next.departure)}{next.endDate ? ` · retour le ${dateLabel(next.endDate)}` : ''}</p><button className="text-button" onClick={() => openJournal(next)}>Ouvrir le carnet <span aria-hidden="true">→</span></button></div>
         <div className="next-count upcoming-big-number"><span>{daysUntil(next.departure, now) === 0 ? 'Aujourd’hui' : 'Encore'}</span><strong>{daysUntil(next.departure, now) === 0 ? 'J' : daysUntil(next.departure, now)}</strong><span>{daysUntil(next.departure, now) === 0 ? 'C’est le grand départ' : 'jours avant de partir'}</span></div>
       </article> : <div className="library-empty"><span className="eyebrow">L’horizon vous attend</span><p>Le prochain départ se prépare ici.</p><span>Ajoutez une destination pour commencer votre collection.</span></div>}
@@ -110,7 +121,7 @@ export default function UpcomingTrips({ openJournal, journals = [] }: { openJour
         return <article key={trip.id} data-testid="upcoming-trip" className="trip-card trip-card-future">
           <div className="trip-card-art" aria-hidden="true"><span>{trip.destination.slice(0, 1).toLocaleUpperCase('fr-FR')}</span><i/></div>
           <div className="trip-card-body"><span className="eyebrow">{remaining < 0 ? 'Voyage en cours · fin non renseignée' : remaining === 0 ? 'Départ aujourd’hui' : `J−${remaining}`}</span><h3>{trip.destination}</h3><div className="upcoming-trip-copy"><p>{dateLabel(trip.departure)}{trip.endDate ? ` — ${dateLabel(trip.endDate)}` : ''}</p></div>
-            <div className="trip-card-actions upcoming-actions"><button className="text-button" onClick={() => openJournal(trip)}>Carnet</button><button className="text-button" onClick={event => startEdit(trip, event.currentTarget)} disabled={!!stored.error} aria-label={`Modifier ${trip.destination}`}>Modifier</button><button className="text-button" onClick={() => save(stored.trips.filter(item => item.id !== trip.id))} disabled={!!stored.error} aria-label={`Retirer ${trip.destination}`}>Retirer</button></div>
+            <div className="trip-card-actions upcoming-actions"><button className="text-button" onClick={() => openJournal(trip)}>Carnet</button><button className="text-button" onClick={event => startEdit(trip, event.currentTarget)} disabled={!!stored.error} aria-label={`Modifier ${trip.destination}`}>Modifier</button>{remaining < 0 && <button className="text-button" onClick={() => setCompleted(trip.id, true)} disabled={!!stored.error} aria-label={`Terminer ${trip.destination}`}>Terminer</button>}<button className="text-button" onClick={() => save(stored.trips.filter(item => item.id !== trip.id))} disabled={!!stored.error} aria-label={`Retirer ${trip.destination}`}>Retirer</button></div>
           </div>
         </article>
       })}</div>}
@@ -123,7 +134,7 @@ export default function UpcomingTrips({ openJournal, journals = [] }: { openJour
           const cover = journal?.chapters.map(chapter => coverOf(chapter)).find(Boolean)
           return <article className="memory-card" data-testid="past-trip" key={trip.id}>
             <div className={`memory-cover ${cover ? '' : 'memory-cover-type'}`}>{cover ? <img src={cover.src} alt={`Couverture du carnet ${trip.destination} : ${cover.name}`} /> : <div><span>Carnet de voyage</span><strong>{trip.destination}</strong><small>{trip.endDate ? dateLabel(trip.endDate) : ''}</small></div>}</div>
-            <div className="memory-info"><span className="eyebrow">Souvenir · {journal?.chapters.length ?? 0} chapitre{journal?.chapters.length === 1 ? '' : 's'}</span><h3>{trip.destination}</h3><p>{dateLabel(trip.departure)}{trip.endDate ? ` — ${dateLabel(trip.endDate)}` : ''}</p><button className="text-button" onClick={() => openJournal(trip)}>Ouvrir le carnet →</button></div>
+            <div className="memory-info"><span className="eyebrow">Souvenir · {journal?.chapters.length ?? 0} chapitre{journal?.chapters.length === 1 ? '' : 's'}</span><h3>{trip.destination}</h3><p>{dateLabel(trip.departure)}{trip.endDate ? ` — ${dateLabel(trip.endDate)}` : ''}</p><button className="text-button" onClick={() => openJournal(trip)}>Ouvrir le carnet →</button><button className="text-button" onClick={event => startEdit(trip, event.currentTarget)} disabled={!!stored.error} aria-label={`Modifier ${trip.destination}`}>Modifier</button>{trip.completed && (!trip.endDate || trip.endDate >= today) && <button className="text-button" onClick={() => setCompleted(trip.id, false)} disabled={!!stored.error} aria-label={`Reprendre ${trip.destination}`}>Reprendre</button>}</div>
           </article>
         })}
         {orphanJournals.map(journal => {
@@ -136,12 +147,12 @@ export default function UpcomingTrips({ openJournal, journals = [] }: { openJour
         })}
       </div>}
     </section>
-    <p className="local-note library-note">Voyages, dates et carnets restent sur cet appareil. Les dates de fin sont facultatives ; seul un retour déjà passé classe un voyage parmi les souvenirs.</p>
+    <p className="local-note library-note">Voyages, dates et carnets restent sur cet appareil. La date de fin est facultative : après le départ, vous pouvez aussi terminer un voyage manuellement.</p>
     {open && <form className="upcoming-form" role="region" aria-labelledby="upcoming-form-title" onKeyDown={event => { if (event.key === 'Escape') closeForm('Préparation du voyage annulée.') }} onSubmit={submit}>
       <div><p className="eyebrow">Votre prochaine escale</p><h3 id="upcoming-form-title">{editing ? 'Changer le cap' : 'Faire place à l’attente'}</h3></div>
       <label>Destination<input ref={destinationRef} name="destination" value={destination} onChange={event => setDestination(event.target.value)} maxLength={80} required /></label>
       <label>Date de départ<input name="departure" type="date" value={departure} min={editing && departure < today ? departure : today} onChange={event => setDeparture(event.target.value)} required /></label>
-      <label>Date de fin (facultative)<input name="endDate" type="date" value={endDate} min={departure || today} onChange={event => setEndDate(event.target.value)} aria-describedby="end-date-help" /></label><p id="end-date-help" className="date-help">Sans date de fin, votre voyage ne sera jamais classé comme terminé automatiquement.</p>
+      <label>Date de fin (facultative)<input name="endDate" type="date" value={endDate} min={departure || today} onChange={event => setEndDate(event.target.value)} aria-describedby="end-date-help" /></label><p id="end-date-help" className="date-help">Sans date de fin, vous pourrez classer ce voyage parmi les souvenirs avec « Terminer » après le départ.</p>
       <div className="upcoming-form-actions"><button className="button" type="submit">{editing ? 'Enregistrer les modifications' : 'Ajouter au décompte'}</button><button className="text-button" type="button" onClick={() => closeForm('Modifications annulées.')}>Annuler</button></div>
     </form>}
   </section>

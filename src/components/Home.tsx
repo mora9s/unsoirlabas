@@ -8,6 +8,20 @@ import '../travel-library.css'
 export default function Home({ openDay, create, drafts, openDraft, editDraft, trip, onRestore, onOpenJournal, journals }: { openDay: (day: number) => void; create: () => void; drafts: Draft[]; openDraft: (draft: Draft) => void; editDraft: (draft: Draft) => void; trip: import('../journal').Trip; onRestore: (trip: import('../journal').Trip) => void; onOpenJournal: (trip: import('../upcoming-trips').UpcomingTrip) => void; journals: import('../trip-journals').PersonalJournal[] }) {
   return <>
     <UpcomingTrips openJournal={onOpenJournal} journals={journals} />
+    {drafts.length > 0 && <section className="saved-drafts page-width" aria-labelledby="drafts-title"><p className="eyebrow">Conservés sur cet appareil</p><h2 id="drafts-title">Vos nouvelles pages</h2>{drafts.map(draft => {
+      const cover = coverOf(draft)
+      return <article key={draft.id} className="personal-entry">
+        <div className={`personal-cover ${cover ? '' : 'cover-without-photo'}`}>
+          {cover ? <img src={cover.src} alt={`Couverture : ${cover.name}`} /> : <><Icon name="book" /><p>Il reste les mots.</p></>}
+        </div>
+        <div className="day-copy"><span className="status draft"><i />Brouillon personnel</span><h3>{draft.title}</h3><p>{storyExcerpt(draft.story)}</p>
+          <div className="personal-actions">
+            <button className="text-button" onClick={() => openDraft(draft)} aria-label={`Lire ${draft.title}`}>Lire ce chapitre<Icon name="arrow" /></button>
+            <button className="text-button" onClick={() => editDraft(draft)} aria-label={`Modifier ${draft.title}`}>Modifier la journée<Icon name="book" /></button>
+          </div>
+        </div>
+      </article>
+    })}</section>}
     <section className="demo-trip page-width" aria-labelledby="demo-trip-title">
       <p className="eyebrow">Voyage de démonstration · distinct de vos voyages</p>
       <h2 id="demo-trip-title">Un carnet pour découvrir le format.</h2>
@@ -19,7 +33,7 @@ export default function Home({ openDay, create, drafts, openDraft, editDraft, tr
       <div className="hero-top"><span className="eyebrow">Carnet de voyage · Asie du Sud-Est</span><span className="coordinates">11°10′ N — 119°24′ E</span></div>
       <div className="hero-copy">
         <p className="eyebrow">Loin du quotidien. Tout près de l’essentiel.</p>
-        <h1 id="trip-title">Philippines<span>18 jours entre îles et lumière</span></h1>
+        <h2 id="trip-title">Philippines<span>18 jours entre îles et lumière</span></h2>
         <button className="button button-light" onClick={() => openDay(3)} aria-label="Découvrir le jour 3">Ouvrir le carnet <Icon name="arrow" /></button>
       </div>
       <div className="hero-bottom"><span>Manille <i /> Palawan <i /> Bohol</span><span>18 jours <span className="divider">/</span> Mille façons de se souvenir</span></div>
@@ -41,20 +55,6 @@ export default function Home({ openDay, create, drafts, openDraft, editDraft, tr
       </div>
     </section>
     <Backup trip={trip} onRestore={onRestore} />
-    {drafts.length > 0 && <section className="saved-drafts page-width" aria-labelledby="drafts-title"><p className="eyebrow">Conservés sur cet appareil</p><h2 id="drafts-title">Vos nouvelles pages</h2>{drafts.map(draft => {
-      const cover = coverOf(draft)
-      return <article key={draft.id} className="personal-entry">
-        <div className={`personal-cover ${cover ? '' : 'cover-without-photo'}`}>
-          {cover ? <img src={cover.src} alt={`Couverture : ${cover.name}`} /> : <><Icon name="book" /><p>Il reste les mots.</p></>}
-        </div>
-        <div className="day-copy"><span className="status draft"><i />Brouillon personnel</span><h3>{draft.title}</h3><p>{storyExcerpt(draft.story)}</p>
-          <div className="personal-actions">
-            <button className="text-button" onClick={() => openDraft(draft)} aria-label={`Lire ${draft.title}`}>Lire ce chapitre<Icon name="arrow" /></button>
-            <button className="text-button" onClick={() => editDraft(draft)} aria-label={`Modifier ${draft.title}`}>Modifier la journée<Icon name="book" /></button>
-          </div>
-        </div>
-      </article>
-    })}</section>}
     <section className="invitation page-width"><span className="eyebrow">Le rituel du soir</span><h2>Et aujourd’hui,<br />qu’allez-vous <em>garder</em> ?</h2><p>Quelques photos. Vos mots. Une nouvelle page du voyage.</p><button className="button" onClick={create}>Raconter ma journée <Icon name="plus" /></button><span className="local-note">Votre carnet reste sur cet appareil.</span></section>
   </>
 }

@@ -10,6 +10,7 @@
 .library-section-heading > span { padding-bottom:7px; color:var(--muted); font-size:13px; white-space:nowrap; }
 .next-departure { position:relative; isolation:isolate; overflow:hidden; display:grid; grid-template-columns:minmax(0,1fr) minmax(180px,.34fr); min-height:260px; color:#fff9e9; background:#254c46; }
 .next-landscape { position:absolute; z-index:-1; inset:0 22% 0 0; overflow:hidden; background:linear-gradient(155deg,#577a74 0%,#92a99a 51%,#d0ba8b 52%,#e6d4a5 100%); }
+.next-landscape img { display:block; width:100%; height:100%; object-fit:contain; background:#244b45; opacity:.64; }
 .landscape-sun { position:absolute; top:13%; right:21%; width:72px; aspect-ratio:1; border-radius:50%; background:#f0dba8; opacity:.9; }
 .landscape-ridge { position:absolute; bottom:-22%; width:95%; height:70%; border-radius:50% 50% 0 0; transform:rotate(-10deg); }
 .ridge-back { left:-12%; background:#51736b; }
@@ -41,7 +42,7 @@
 .trip-card-actions .text-button { font-size:13px; }
 .memory-card { min-width:0; border:1px solid var(--line); background:#fbfaf5; }
 .memory-cover { display:grid; width:100%; aspect-ratio:1.35; place-items:center; overflow:hidden; background:#e8e7df; }
-.memory-cover img { display:block; width:100%; height:100%; object-fit:cover; }
+.memory-cover img { display:block; width:100%; height:100%; object-fit:contain; }
 .memory-cover-type { padding:20px; background:#e5e6da; }
 .memory-cover-type > div { display:flex; width:min(100%,235px); aspect-ratio:.77; flex-direction:column; align-items:center; justify-content:center; gap:16px; padding:22px; border:1px solid #98a08d; color:#354d43; text-align:center; background:linear-gradient(145deg,#edf0e7,#dce3d5); box-shadow:5px 6px 0 #c7cebf; }
 .memory-cover-type span,.memory-cover-type small { font-size:10px; letter-spacing:.12em; text-transform:uppercase; }

@@ -1,25 +1,26 @@
 import { createId } from './id'
 
 export const upcomingKey = 'un-soir-la-bas-upcoming-v1'
-export type UpcomingTrip = { id: string; destination: string; departure: string; endDate?: string }
+export type UpcomingTrip = { id: string; destination: string; departure: string; endDate?: string; completed?: true }
 
 export function validateUpcomingTrips(value: unknown): value is UpcomingTrip[] {
   return Array.isArray(value) && value.length <= 12 && value.every(item => {
     if (!item || typeof item !== 'object' || Array.isArray(item)) return false
     const trip = item as Record<string, unknown>
     const keys = Object.keys(trip)
-    if (keys.some(key => !['id', 'destination', 'departure', 'endDate'].includes(key)) ||
+    if (keys.some(key => !['id', 'destination', 'departure', 'endDate', 'completed'].includes(key)) ||
       !['id', 'destination', 'departure'].every(key => Object.prototype.hasOwnProperty.call(trip, key)) ||
-      (keys.length !== 3 && keys.length !== 4)) return false
+      keys.length < 3 || keys.length > 5) return false
     if (typeof trip.id !== 'string' || !trip.id || trip.id.length > 160 ||
       typeof trip.destination !== 'string' || !trip.destination.trim() || trip.destination.length > 80 ||
       typeof trip.departure !== 'string' || !dateParts(trip.departure)) return false
-    return !Object.prototype.hasOwnProperty.call(trip, 'endDate') || (typeof trip.endDate === 'string' && Boolean(dateParts(trip.endDate)) && trip.endDate >= trip.departure)
+    return (!Object.prototype.hasOwnProperty.call(trip, 'endDate') || (typeof trip.endDate === 'string' && Boolean(dateParts(trip.endDate)) && trip.endDate >= trip.departure)) &&
+      (!Object.prototype.hasOwnProperty.call(trip, 'completed') || trip.completed === true)
   }) && new Set(value.map(item => item.id)).size === value.length
 }
 
 export function tripIsPast(trip: UpcomingTrip, now: Date): boolean {
-  return Boolean(trip.endDate && trip.endDate < calendarDate(now))
+  return Boolean(trip.completed || (trip.endDate && trip.endDate < calendarDate(now)))
 }
 
 export function calendarDate(date: Date): string {
