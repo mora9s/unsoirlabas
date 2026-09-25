@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import type { RefObject } from 'react'
 import type { PlanStop } from '../upcoming-trips'
 import type { Draft } from '../journal'
-import { exportJourneyFilm, filmDuration, filmMime } from '../journey-film'
+import { exportJourneyFilm, filmDuration, filmMime, defaultScene } from '../journey-film'
+import type { FilmScene } from '../journey-film'
+import FilmSceneEditor from './FilmSceneEditor'
 import type { FilmBridge } from '../journey-film'
 
 export default function FilmExport({ title, stops, chapters, frame, ready, onBusy }: { title: string; stops: PlanStop[]; chapters: Draft[]; frame: RefObject<HTMLIFrameElement | null>; ready: boolean; onBusy: (busy: boolean) => void }) {
@@ -11,6 +13,12 @@ export default function FilmExport({ title, stops, chapters, frame, ready, onBus
   const [format, setFormat] = useState<'landscape' | 'portrait'>('landscape')
   const [seconds, setSeconds] = useState(6)
   const [illustrated, setIllustrated] = useState(false)
+  const [scenes,setScenes]=useState<Record<string,FilmScene>>({})
+  const [music,setMusic]=useState<File>()
+  const musicPreview=useRef<HTMLAudioElement>(null)
+  const [volume,setVolume]=useState(.35)
+  useEffect(()=>{if(!music)return;const url=URL.createObjectURL(music);if(musicPreview.current)musicPreview.current.src=url;return ()=>URL.revokeObjectURL(url)},[music])
+  useEffect(()=>{if(musicPreview.current)musicPreview.current.volume=volume},[volume,music])
   const [busy, setBusy] = useState(false)
   const [progress, setProgress] = useState(0)
   const [message, setMessage] = useState('')
@@ -20,9 +28,10 @@ export default function FilmExport({ title, stops, chapters, frame, ready, onBus
   const alive = useRef(true)
   useEffect(() => { alive.current = true; return () => { alive.current = false; request.current?.abort(); if (objectUrl.current) URL.revokeObjectURL(objectUrl.current) } }, [])
   const total = filmDuration(stops.length,seconds)
-  const available = filmMime() !== null
+  const available = filmMime(Boolean(music)) !== null
   async function start() {
     if (busy) return
+    musicPreview.current?.pause()
     const bridge = (frame.current?.contentWindow as (Window & { journalFilm?: FilmBridge }) | null)?.journalFilm
     if (!bridge) { setMessage('Le globe n’est pas encore prêt. Patientez puis réessayez.'); return }
     if (document.hidden) { setMessage('Gardez cet onglet visible pour créer le film.'); return }
@@ -31,7 +40,7 @@ export default function FilmExport({ title, stops, chapters, frame, ready, onBus
     if (objectUrl.current) URL.revokeObjectURL(objectUrl.current)
     objectUrl.current = null; setResult(null)
     try {
-      const film = await exportJourneyFilm(bridge,stops,chapters,{title:filmTitle.trim() || title,format,seconds,illustrated},controller.signal,(value, text) => { if (alive.current) { setProgress(value); setMessage(text) } })
+      const film = await exportJourneyFilm(bridge,stops,chapters,{title:filmTitle.trim() || title,format,seconds,illustrated,scenes,music,volume},controller.signal,(value, text) => { if (alive.current) { setProgress(value); setMessage(text) } })
       if (!alive.current || controller.signal.aborted) return
       const url = URL.createObjectURL(film.blob); objectUrl.current = url
       const name = `${(filmTitle.trim() || title).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9_-]+/g,'-').slice(0,70) || 'mon-voyage'}.${film.extension}`
@@ -54,7 +63,13 @@ export default function FilmExport({ title, stops, chapters, frame, ready, onBus
         <label>Rythme du film<select value={seconds} onChange={event => setSeconds(Number(event.target.value))}><option value={6}>Dynamique · 6 s par trajet</option><option value={12}>Contemplatif · 12 s par trajet</option><option value={18}>Prenez le temps · 18 s par trajet</option></select></label>
         <label className="film-checkbox"><input type="checkbox" checked={illustrated} onChange={event => setIllustrated(event.target.checked)} /><span>Illustrer toutes les liaisons sans calcul routier</span></label>
       </fieldset>
-      <p className="film-note">Environ {Math.floor(total / 60)} min {String(total % 60).padStart(2,'0')} s · jusqu’à trois photos par escale · sans musique. La création prend la durée du film : gardez cet onglet visible. Aucun fichier n’est envoyé à un serveur.</p>
+      <fieldset disabled={busy} className="film-montage"><legend>Personnaliser les arrivées</legend>
+        <p>Réglages conservés pendant cette visite du lecteur. Quatre secondes de photos par arrivée, réparties entre les images choisies.</p>
+        {stops.slice(1).map(stop=>{const chapter=chapters.find(c=>c.id===stop.chapterId);return <FilmSceneEditor key={stop.id} place={stop.place} chapter={chapter} scene={scenes[stop.id] ?? defaultScene(chapter)} format={format} change={scene=>setScenes(current=>({...current,[stop.id]:scene}))}/>})}
+        <label>Musique du film (facultative)<input type="file" accept="audio/*" onChange={event=>{const file=event.target.files?.[0];event.target.value='';if(file && file.size>30*1024*1024){setMessage('Choisissez une musique de moins de 30 Mo.');return};setMusic(file);setMessage('')}}/></label>
+        {music && <><p>{music.name}</p><audio ref={musicPreview} controls aria-label="Écouter la musique choisie"/><label>Volume de la musique<input type="range" min="0" max="100" value={Math.round(volume*100)} onChange={event=>setVolume(Number(event.target.value)/100)}/></label><button className="text-button" type="button" onClick={()=>setMusic(undefined)}>Retirer la musique</button><p>La musique démarre au début, se répète si nécessaire et se termine en fondu. Utilisez un morceau que vous pouvez partager.</p></>}
+      </fieldset>
+      <p className="film-note">Environ {Math.floor(total / 60)} min {String(total % 60).padStart(2,'0')} s · jusqu’à trois photos par escale · {music?'avec musique':'sans musique'}. La création prend la durée du film : gardez cet onglet visible. Aucun fichier n’est envoyé à un serveur.</p>
       {total > 300 && <p role="alert">Le film dépasse 5 minutes. Choisissez un rythme plus court.</p>}
       {busy ? <div className="film-progress"><progress max={100} value={progress} aria-label="Création du film" /><span>{progress} %</span><button className="text-button" onClick={() => request.current?.abort()}>Annuler la création</button></div> : <button className="button" disabled={!available || !ready || total > 300} onClick={start}>{result ? 'Créer une nouvelle version' : 'Créer la vidéo'}</button>}
       {message && <p role="status" className="film-message">{message}</p>}

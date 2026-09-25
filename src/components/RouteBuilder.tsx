@@ -12,12 +12,14 @@ type Point = { lat: number; lon: number }
 type Found = Point & { name: string; context: string }
 const blank = () => ({ name: '', date: '', transport: '' as TransportMode | '', chapterId: '' })
 
-export default function RouteBuilder({ stops, chapters, save }: { stops: PlanStop[]; chapters: Draft[]; save: (update: (stops: PlanStop[]) => PlanStop[]) => boolean }) {
+export default function RouteBuilder({ stops, chapters, save, tripId }: { tripId?: string; stops: PlanStop[]; chapters: Draft[]; save: (update: (stops: PlanStop[]) => PlanStop[]) => boolean }) {
   const target = useRef<HTMLDivElement>(null)
   const map = useRef<L.Map | null>(null)
   const layer = useRef<L.LayerGroup | null>(null)
   const tiles = useRef<L.TileLayer | null>(null)
   const selectRef = useRef<(id: string) => void>(() => {})
+  const [day, setDay] = useState('*')
+  const visible = stops.filter(stop => day === '*' || (stop.date ?? '') === day)
   const [selected, setSelected] = useState<string | null>(null)
   const [point, setPoint] = useState<Point | null>(null)
   const [fields, setFields] = useState(blank)
@@ -31,8 +33,8 @@ export default function RouteBuilder({ stops, chapters, save }: { stops: PlanSto
   const initialStops = useRef(stops)
   const chosenIndex = stops.findIndex(s => s.id === selected)
   const first = selected ? chosenIndex === 0 : stops.length === 0
-  const longitudeOrigin = routeLongitudeOrigin(stops.flatMap(stop => stop.point ? [stop.point.lon] : []))
-  function fit(points = stops) {
+  const longitudeOrigin = routeLongitudeOrigin(visible.flatMap(stop => stop.point ? [stop.point.lon] : []))
+  function fit(points = visible) {
     const located = points.filter(s => s.point)
     if (!located.length) { map.current?.setView([25, 20], 2, { animate: false }); return }
     const origin = routeLongitudeOrigin(located.map(stop => stop.point!.lon))
@@ -76,17 +78,18 @@ export default function RouteBuilder({ stops, chapters, save }: { stops: PlanSto
       node.on('dragend', () => { if (id) selectRef.current(id); const next = node.getLatLng().wrap(); setPoint({ lat: Number(next.lat.toFixed(6)), lon: Number(next.lng.toFixed(6)) }); setMessage('Position déplacée. Enregistrez pour conserver ce changement.') })
     }
     stops.forEach((stop, index) => {
+      if (day !== '*' && (stop.date ?? '') !== day) return
       const p = stop.id === selected && point ? point : stop.point
       if (p) marker(p, String(index + 1), `Étape ${index + 1} : ${stop.place}`, stop.id)
       const previous = stops[index - 1]?.point
-      if (previous && stop.point) {
+      if (previous && stop.point && (day === '*' || (stops[index - 1]?.date ?? '') === day)) {
         const start = nearLongitude(previous.lon, longitudeOrigin)
         const lon = nearLongitude(stop.point.lon, start)
         L.polyline([[previous.lat, start], [stop.point.lat, lon]], { color: '#26666a', weight: 2, dashArray: '5 8', interactive: false }).addTo(group)
       }
     })
     if (!selected && point) marker(point, '+', 'Nouvelle position')
-  }, [stops, selected, point, longitudeOrigin])
+  }, [stops, selected, point, longitudeOrigin, day])
   async function search() {
     request.current?.abort(); const controller = new AbortController(); request.current = controller
     setBusy(true); setFound([]); setMessage('')
@@ -101,7 +104,7 @@ export default function RouteBuilder({ stops, chapters, save }: { stops: PlanSto
     } catch { if (request.current === controller) setMessage('Recherche indisponible. Vous pouvez choisir un point sur la carte ou utiliser les coordonnées dans la liste des étapes.') }
     finally { clearTimeout(timeout); if (request.current === controller) setBusy(false) }
   }
-  function reset() { setSelected(null); setPoint(null); setFields(blank()); setMessage(''); setFound([]) }
+  function reset() { setSelected(null); setPoint(null); setFields({...blank(),date:day==='*'?'':day}); setMessage(''); setFound([]) }
   function persist() {
     if (!point || !fields.name.trim() || (!first && !fields.transport)) { setMessage('Choisissez une position, un nom et le transport pour y arriver.'); return }
     const stop: PlanStop = { ...(selected ? stops.find(s => s.id === selected) : {}), id: selected ?? createId(), place: fields.name.trim(), point }
@@ -117,7 +120,9 @@ export default function RouteBuilder({ stops, chapters, save }: { stops: PlanSto
     if (save(() => after)) { setUndo({ before: stops, after }); reset(); setMessage('Étape retirée. Vous pouvez annuler ce retrait.') }
   }
   return <section className="route-builder" aria-label="Construire le parcours sur la carte">
-    <div className="route-builder-heading"><div><p className="eyebrow">Le parcours</p><h2>Une escale, puis la suivante.</h2></div><button className="text-button" onClick={() => fit()}>Tout voir sur la carte</button></div>
+    <div className="route-builder-heading"><div><p className="eyebrow">Le parcours</p><h2>Une escale, puis la suivante.</h2></div><button className="text-button" onClick={() => fit()}>{day==='*'?'Tout voir sur la carte':'Cadrer cette journée'}</button></div>
+    <label className="route-day-filter">Journée sur la carte<select value={day} onChange={event => { const value=event.target.value;setDay(value);reset();setFields({...blank(),date:value==='*'?'':value});fit(stops.filter(s=>value==='*'||(s.date??'')===value)) }}><option value="*">Tout le voyage</option>{[...new Set(stops.flatMap(s=>s.date?[s.date]:[]))].sort().map(date=><option key={date} value={date}>{date}</option>)}<option value="">À programmer</option></select></label>
+    <p className="route-map-note">{visible.length} étape(s) affichée(s). Les numéros et l’ordre du voyage sont conservés.</p>
     <div className="route-builder-grid"><div className="route-map-column">
       <form className="route-search" onSubmit={event => { event.preventDefault(); void search() }}><label>Chercher une ville ou un lieu<input value={query} maxLength={160} onChange={event => { request.current?.abort(); request.current = null; setBusy(false); setFound([]); setQuery(event.target.value) }} placeholder="Un aéroport, une ville, un hôtel…" /></label><button className="button" disabled={busy || !query.trim()}>{busy ? 'Recherche…' : 'Rechercher'}</button></form>
       {found.length > 0 && <ul className="route-results">{found.map((p, i) => <li key={i}><button onClick={() => { setPoint({ lat: p.lat, lon: p.lon }); setFields(f => ({ ...f, name: p.name.slice(0,160) })); setFound([]); map.current?.setView([p.lat,nearLongitude(p.lon, longitudeOrigin)], 12, { animate: false }) }}>{p.name}<small>{p.context}</small></button></li>)}</ul>}
@@ -134,11 +139,12 @@ export default function RouteBuilder({ stops, chapters, save }: { stops: PlanSto
         <label>Chapitre à l’arrivée<select value={fields.chapterId} onChange={event => setFields(f => ({ ...f, chapterId: event.target.value }))}><option value="">Associer plus tard</option>{chapters.map(c => <option value={c.id} key={c.id}>{c.title}</option>)}</select></label>
         <button className="button" disabled={!point || (!selected && stops.length >= 30)}>{selected ? 'Enregistrer cette escale' : 'Ajouter cette escale'}</button>
       </form>
+      {selected && (() => {const stop=stops.find(s=>s.id===selected);const chapter=chapters.find(c=>c.id===stop?.chapterId);return <aside className="route-practical" aria-label="Fiche de l’escale">{stop?.time && <p>{stop.time}</p>}{stop?.address && <p>{stop.address}</p>}{stop?.booking && <p>Réservation : {stop.booking}</p>}{stop?.notes && <p>{stop.notes}</p>}{chapter && <><div className="route-memory-photos">{chapter.media.slice(0,3).map(photo=><img key={photo.id} src={photo.src} alt={photo.name}/>)}</div>{tripId && <a href={`#journey/${encodeURIComponent(tripId)}/${encodeURIComponent(chapter.id)}`}>Lire les souvenirs de cette escale →</a>}</>}</aside>})()}
       {selected && <button className="text-button" onClick={remove}>Retirer cette escale</button>}
       {message && <p role="status" className="route-message">{message}</p>}
       {undo && <button className="text-button" onClick={() => { if (JSON.stringify(stops) !== JSON.stringify(undo.after)) { setMessage('Le parcours a changé depuis ce retrait. Annulation indisponible.'); setUndo(null); return }; if (save(() => undo.before)) { setUndo(null); setMessage('Étape rétablie.') } }}>Annuler le retrait</button>}
     </div></div>
-    <ol className="route-stop-strip">{stops.map((stop, index) => <li key={stop.id}><button aria-pressed={selected === stop.id} onClick={() => select(stop.id)}><span>{index + 1}</span><strong>{stop.place}</strong><small>{!stop.point ? 'À situer' : index === 0 ? 'Départ' : stop.transport ? transportModes[stop.transport] : 'Transport à choisir'}</small></button></li>)}</ol>
+    <ol className="route-stop-strip">{stops.map((stop, index) => (day === '*' || (stop.date ?? '') === day) && <li key={stop.id}><button aria-pressed={selected === stop.id} onClick={() => select(stop.id)}><span>{index + 1}</span><strong>{stop.place}</strong><small>{!stop.point ? 'À situer' : index === 0 ? 'Départ' : stop.transport ? transportModes[stop.transport] : 'Transport à choisir'}</small></button></li>)}</ol>
     <p className="route-map-note">La recherche de lieux utilise Photon / OpenStreetMap. Après avoir changé l’ordre des étapes, vérifiez le transport vers chacune.</p>
   </section>
 }

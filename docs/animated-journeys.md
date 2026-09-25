@@ -27,15 +27,23 @@ Les détails satellite dépendent d’Esri. Le globe de base est local ; les lie
 
 Le panneau **Créer mon film** exporte maintenant tout le voyage, avec un titre, les liaisons et les photos des chapitres. Format horizontal 1280 × 720 ou vertical 720 × 1280 ; 6, 12 ou 18 secondes par liaison, quatre secondes à chaque arrivée, cinq secondes d’introduction/conclusion. MP4 si disponible, sinon WebM. Le fichier est prévisualisable et téléchargeable, puis partageable via le partage natif lorsque le navigateur le propose.
 
-L’encodage MediaRecorder s’effectue en temps réel dans l’onglet visible, sans musique. La limite est de cinq minutes et 200 Mo. Annulation, perte de contexte 3D, changement d’onglet, suspension prolongée et erreurs d’encodage ne proposent pas de fichier partiel. Les itinéraires et photos sont préparés avant le démarrage ; une erreur routière bloque l’export, sauf choix explicite de l’option « Illustrer toutes les liaisons ». La navigation des carnets et leurs sauvegardes restent utilisables sans WebGL.
+L’encodage MediaRecorder s’effectue en temps réel dans l’onglet visible, avec une musique locale facultative. La limite est de cinq minutes et 200 Mo. Annulation, perte de contexte 3D, changement d’onglet, suspension prolongée et erreurs d’encodage ne proposent pas de fichier partiel. Les itinéraires et photos sont préparés avant le démarrage ; une erreur routière bloque l’export, sauf choix explicite de l’option « Illustrer toutes les liaisons ». La navigation des carnets et leurs sauvegardes restent utilisables sans WebGL.
 
 ## Construction sur la carte
+
+Le filtre « Journée sur la carte » affiche les escales d’une date ou celles à programmer. Les numéros restent ceux du parcours complet ; aucune liaison artificielle ne relie deux escales séparées par une étape masquée. Choisir une date recadre la carte et préremplit la date des nouvelles escales. Sélectionner un repère ouvre ses informations pratiques et jusqu’à trois photos, avec un accès au chapitre du carnet.
 
 Le plan affiche une carte Leaflet chargée à la demande avec le module de préparation. Rechercher via Photon, choisir un résultat ou cliquer sur la carte, nommer le lieu, choisir son transport et éventuellement sa date et son chapitre, puis enregistrer. Les repères se déplacent à la souris ou au toucher ; l’enregistrement reste explicite. La liste et les champs GPS existants fournissent une alternative au pointage. Les retraits depuis la carte sont annulables tant que le parcours n’a pas changé.
 
 Le fond utilise les tuiles standard OpenStreetMap à la demande, avec attribution et sans préchargement ni cache hors connexion spécifique. Les pointillés sont des liaisons illustrées, pas des routes calculées. Aucun service payant ni clé API n’est ajouté.
 
 Le cadrage regroupe les escales qui traversent le méridien 180° (par exemple Fidji–Samoa), sans modifier leurs coordonnées enregistrées. Un chargement incomplet du fond de carte affiche un bouton de reprise ; les étapes restent conservées. Les tests couvrent ce cadrage sur ordinateur et téléphone, ainsi qu’une panne partielle de tuiles suivie d’une reprise avec images de test. L’accès réel aux tuiles reste à vérifier hors du navigateur de test, dont le proxy refuse actuellement ces connexions.
+
+## Montage du film
+
+Chaque arrivée propose une sélection de zéro à trois photos du chapitre associé, leur ordre, une légende de 120 caractères et un cadrage photo entière ou remplissage centré. L’aperçu avant export utilise le même dessin que la vidéo, en horizontal ou vertical. Les choix durent pendant la visite du lecteur ; ils ne modifient pas le carnet et ne sont pas conservés après fermeture de la page. Les quatre secondes d’arrivée sont partagées entre les photos retenues.
+
+Une musique locale facultative (30 Mo maximum, durée décodée de dix minutes maximum) est intégrée par Web Audio à la piste vidéo. Volume réglable, boucle si nécessaire, fondu d’entrée d’une seconde et sortie de deux secondes. Le MP4 avec AAC est choisi lorsqu’il est accepté, sinon WebM avec Opus. Une musique illisible bloque l’export avec un message ; l’annulation et la fin ferment le contexte audio. Aucune donnée n’est transmise à un service de montage.
 
 ## Programme quotidien et sauvegardes
 

@@ -48,6 +48,51 @@ for (const width of [1280, 390]) test(`les escales du Pacifique restent dans le 
   expect(await page.evaluate(() => localStorage.getItem('un-soir-la-bas-upcoming-v1'))).toBe(saved)
 })
 
+test('la carte filtre les journées et ouvre la fiche sans modifier le parcours',async({page})=>{
+  await seed(page,true)
+  await page.evaluate(()=>{const trips=JSON.parse(localStorage.getItem('un-soir-la-bas-upcoming-v1')!);trips[0].plan.stops[0].date='2027-04-12';Object.assign(trips[0].plan.stops[1],{date:'2027-04-13',address:'Port de Cebu',booking:'ABC-42'});localStorage.setItem('un-soir-la-bas-upcoming-v1',JSON.stringify(trips))})
+  const before=await page.evaluate(()=>localStorage.getItem('un-soir-la-bas-upcoming-v1'))
+  await page.goto('/#plan/studio')
+  await page.getByRole('combobox',{name:'Journée sur la carte'}).selectOption('2027-04-13')
+  await expect(page.locator('.route-pin')).toHaveCount(1)
+  await expect(page.locator('.route-pin')).toContainText('2')
+  await page.locator('.route-pin').click()
+  await expect(page.getByRole('complementary',{name:'Fiche de l’escale'})).toContainText('Port de Cebu')
+  await expect(page.locator('.route-memory-photos img')).toHaveCount(1)
+  await page.getByRole('combobox',{name:'Journée sur la carte'}).selectOption('*')
+  await expect(page.locator('.route-pin')).toHaveCount(2)
+  expect(await page.evaluate(()=>localStorage.getItem('un-soir-la-bas-upcoming-v1'))).toBe(before)
+})
+
+test('montage personnalisé et musique produisent une vidéo avec piste audio',async({page},testInfo)=>{
+  test.setTimeout(90000)
+  await seed(page,true)
+  await page.evaluate(()=>{const data=JSON.parse(localStorage.getItem('un-soir-la-bas-journals-v1')!);const c=data.journals[0].chapters[0];c.media.push({...c.media[0],id:'second',name:'Deuxième photo'});localStorage.setItem('un-soir-la-bas-journals-v1',JSON.stringify(data))})
+  const before=await page.evaluate(()=>localStorage.getItem('un-soir-la-bas-journals-v1'))
+  await page.goto('/#motion/studio');await page.getByRole('button',{name:'Créer mon film'}).click()
+  await page.getByText('Montage à Cebu · 2 photo(s)',{exact:true}).click()
+  await page.getByRole('button',{name:'Avancer la photo 2 à Cebu'}).click()
+  await expect(page.locator('.film-photo-order li').first()).toContainText('Deuxième photo')
+  await page.getByLabel('Inclure Le lagon',{exact:true}).uncheck()
+  await page.getByLabel('Légende à Cebu',{exact:true}).fill('Nos plus beaux souvenirs')
+  await page.getByRole('combobox',{name:'Cadrage à Cebu'}).selectOption('cover')
+  await expect.poll(()=>page.locator('.film-scene-preview').evaluate((c:HTMLCanvasElement)=>c.width)).toBe(1280)
+  // Short local tone, looped by the exporter; no external music dependency.
+  const samples=8000, wav=Buffer.alloc(44+samples*2)
+  wav.write('RIFF');wav.writeUInt32LE(wav.length-8,4);wav.write('WAVEfmt ',8);wav.writeUInt32LE(16,16);wav.writeUInt16LE(1,20);wav.writeUInt16LE(1,22);wav.writeUInt32LE(8000,24);wav.writeUInt32LE(16000,28);wav.writeUInt16LE(2,32);wav.writeUInt16LE(16,34);wav.write('data',36);wav.writeUInt32LE(samples*2,40)
+  for(let i=0;i<samples;i++)wav.writeInt16LE(Math.round(Math.sin(i*2*Math.PI*440/8000)*6000),44+i*2)
+  await page.getByLabel('Musique du film (facultative)').setInputFiles({name:'test-tone.wav',mimeType:'audio/wav',buffer:wav})
+  await expect(page.getByRole('button',{name:'Créer la vidéo',exact:true})).toBeEnabled({timeout:20000})
+  await page.getByRole('button',{name:'Créer la vidéo',exact:true}).click()
+  await expect(page.getByRole('link',{name:'Télécharger le film'})).toBeVisible({timeout:60000})
+  const video=page.getByLabel('Aperçu du film exporté')
+  await video.evaluate(async(v:HTMLVideoElement)=>{v.muted=true;await v.play()})
+  await expect.poll(()=>video.evaluate((v:HTMLVideoElement & {captureStream:()=>MediaStream})=>v.captureStream().getAudioTracks().length)).toBe(1)
+  await video.evaluate((v:HTMLVideoElement)=>{v.pause();v.currentTime=11})
+  await page.screenshot({path:testInfo.outputPath('film-personnalise.png'),fullPage:true})
+  expect(await page.evaluate(()=>localStorage.getItem('un-soir-la-bas-journals-v1'))).toBe(before)
+})
+
 test('un fond de carte partiellement chargé propose une reprise sans toucher aux étapes', async ({page}) => {
   await seed(page,true)
   const png = await page.evaluate(() => document.createElement('canvas').toDataURL().split(',')[1])
@@ -67,6 +112,17 @@ test('un fond de carte partiellement chargé propose une reprise sans toucher au
   await expect.poll(() => page.locator('img.leaflet-tile').evaluateAll(images => images.length > 0 && images.every(img => (img as HTMLImageElement).complete && (img as HTMLImageElement).naturalWidth > 0))).toBe(true)
   await expect(button).toHaveCount(0)
   expect(await page.evaluate(() => localStorage.getItem('un-soir-la-bas-upcoming-v1'))).toBe(saved)
+})
+
+test('une musique illisible bloque le film et rend les commandes disponibles',async({page})=>{
+  await seed(page,true);await page.goto('/#motion/studio')
+  await page.getByRole('button',{name:'Créer mon film'}).click()
+  await page.getByLabel('Musique du film (facultative)').setInputFiles({name:'invalide.mp3',mimeType:'audio/mpeg',buffer:Buffer.from('not an audio file')})
+  await expect(page.getByRole('button',{name:'Créer la vidéo',exact:true})).toBeEnabled({timeout:20000})
+  await page.getByRole('button',{name:'Créer la vidéo',exact:true}).click()
+  await expect(page.locator('.film-message')).toContainText('Cette musique est illisible')
+  await expect(page.getByRole('link',{name:'Télécharger le film'})).toHaveCount(0)
+  await expect(page.getByRole('button',{name:'Retirer la musique'})).toBeEnabled()
 })
 
 test('programme quotidien persistant et informations conservées après édition sur la carte',async({page})=>{
@@ -155,8 +211,11 @@ test('carte et réglages vidéo lisibles sur téléphone',async({page})=>{
   await page.screenshot({path:test.info().outputPath('route-mobile.png'),fullPage:true})
   expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1)
   await page.goto('/#motion/studio'); await page.getByRole('button',{name:'Créer mon film'}).click()
+  await page.getByText('Montage à Cebu · 1 photo(s)',{exact:true}).click()
+  await page.getByRole('combobox',{name:'Format du film'}).selectOption('portrait')
   await expect(page.getByLabel('Format du film')).toBeVisible()
   expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1)
+  await page.locator('.film-montage').screenshot({path:test.info().outputPath('montage-mobile.png')})
 })
 
 test('copie de lecture autonome, photos hors ligne et textes jamais exécutés',async({page,browser},testInfo)=>{
