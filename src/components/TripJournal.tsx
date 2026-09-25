@@ -1,3 +1,4 @@
+import ReadingCopy from './ReadingCopy'
 import type { PersonalJournal } from '../trip-journals'
 import type { Draft } from '../journal'
 
@@ -12,5 +13,6 @@ export default function TripJournal({ journal, open, create, edit, openMotion }:
       <div>{chapter.media[0] && <img src={(chapter.media.find(item => item.id === chapter.coverId) ?? chapter.media[0]).src} alt="" />}<span className="eyebrow">Chapitre personnel</span><h2>{chapter.title}</h2><p>{chapter.story.replace(/\s+/g, ' ').slice(0, 180)}</p></div>
       <div className="personal-actions"><button className="text-button" onClick={() => open(chapter)}>Lire</button><button className="text-button" onClick={() => edit(chapter)}>Modifier</button></div>
     </article>)}</div>}
+    <ReadingCopy journal={journal} />
   </section>
 }

@@ -22,7 +22,7 @@ test('un voyage devient un espace de préparation durable et adressable', async 
   await page.getByLabel('Notes de préparation').blur()
   await page.reload()
   await expect(page.getByText('Voir les jardins')).toBeVisible()
-  await expect(page.getByText('Arashiyama', { exact: true })).toBeVisible()
+  await expect(page.locator('.planner-panel').getByText('Arashiyama', { exact: true })).toBeVisible()
   await expect(page.getByLabel('Notes de préparation')).toHaveValue('Réserver le train.')
   const trips = await page.evaluate(() => JSON.parse(localStorage.getItem('un-soir-la-bas-upcoming-v1') || '[]'))
   expect(trips).toHaveLength(1)

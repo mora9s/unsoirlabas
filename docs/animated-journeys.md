@@ -25,8 +25,22 @@ Recherche explicite via [Photon](https://photon.komoot.io/), avec sélection d�
 
 Les détails satellite dépendent d’Esri. Le globe de base est local ; les lieux recherchés, coordonnées de calcul et zones de tuiles demandées sont transmis aux services concernés. Les photos et textes ne le sont pas. Les attributions sont visibles dans le rendu et sous le lecteur.
 
-L’export vidéo reste hors de cette première intégration. Les boutons d’enregistrement de l’ancien studio ne sont pas importés. La navigation des carnets et leurs sauvegardes restent utilisables sans WebGL.
+Le panneau **Créer mon film** exporte maintenant tout le voyage, avec un titre, les liaisons et les photos des chapitres. Format horizontal 1280 × 720 ou vertical 720 × 1280 ; 6, 12 ou 18 secondes par liaison, quatre secondes à chaque arrivée, cinq secondes d’introduction/conclusion. MP4 si disponible, sinon WebM. Le fichier est prévisualisable et téléchargeable, puis partageable via le partage natif lorsque le navigateur le propose.
+
+L’encodage MediaRecorder s’effectue en temps réel dans l’onglet visible, sans musique. La limite est de cinq minutes et 200 Mo. Annulation, perte de contexte 3D, changement d’onglet, suspension prolongée et erreurs d’encodage ne proposent pas de fichier partiel. Les itinéraires et photos sont préparés avant le démarrage ; une erreur routière bloque l’export, sauf choix explicite de l’option « Illustrer toutes les liaisons ». La navigation des carnets et leurs sauvegardes restent utilisables sans WebGL.
+
+## Construction sur la carte
+
+Le plan affiche une carte Leaflet chargée à la demande avec le module de préparation. Rechercher via Photon, choisir un résultat ou cliquer sur la carte, nommer le lieu, choisir son transport et éventuellement sa date et son chapitre, puis enregistrer. Les repères se déplacent à la souris ou au toucher ; l’enregistrement reste explicite. La liste et les champs GPS existants fournissent une alternative au pointage. Les retraits depuis la carte sont annulables tant que le parcours n’a pas changé.
+
+Le fond utilise les tuiles standard OpenStreetMap à la demande, avec attribution et sans préchargement ni cache hors connexion spécifique. Les pointillés sont des liaisons illustrées, pas des routes calculées. Aucun service payant ni clé API n’est ajouté.
+
+## Copie de lecture
+
+Chaque carnet personnel propose **Télécharger la copie de lecture** : un fichier HTML autonome contenant ses chapitres, leurs photos, un sommaire et la liste des escales. Il se lit sans connexion et peut être envoyé comme fichier aux proches. Ce n’est ni un lien hébergé, ni une synchronisation, ni une sauvegarde réimportable ; le ZIP reste le format de restauration.
+
+Les textes sont échappés ; seules les images PNG/JPEG/WebP intégrées sont acceptées. Le document exporté interdit scripts, formulaires et connexions externes via sa CSP. Il ne contient aucun script ni référence à un service distant. Limite : 25 Mo.
 
 ## Vérification
 
-`npm run build`, `npm run lint` et tests Playwright : globe réel dans Chromium, progression et enchaînement complet, photos et lien du chapitre, saisie GPS et persistance, train et mouvements réduits, panne de routage avec repli explicite, étapes incomplètes et archive ZIP contenant les positions/transports/associations.
+`npm run build`, `npm run lint` et tests Playwright : globe réel dans Chromium, progression et enchaînement complet, photos et lien du chapitre, saisie GPS et persistance, train et mouvements réduits, panne de routage avec repli explicite, étapes incomplètes et archive ZIP contenant les positions/transports/associations. Le studio est également testé par recherche de lieu, ajout sur carte, retrait/annulation, encodage et décodage de vraies vidéos aux deux formats, annulation d’export, affichage mobile et ouverture hors connexion de la copie HTML avec texte hostile rendu inerte.

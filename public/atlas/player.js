@@ -3,7 +3,7 @@ import { RouteService, isGround } from './routing.js';
 import { MODES, validateJourney } from './core.js';
 
 const send = data => parent.postMessage({ source: 'atlas-player', ...data }, location.origin);
-let renderer, controller, revision = 0, currentId, overview = false;
+let renderer, controller, revision = 0, currentId, overview = false, filming = false;
 const service = new RouteService();
 function report(error) { send({ type: 'error', id: currentId, message: error.message || String(error) }); }
 try {
@@ -17,11 +17,12 @@ try {
     const image = new Image(); image.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(new XMLSerializer().serializeToString(svg)); icons[mode] = image;
   }
   renderer.setIcons(icons);
-  const resize = () => { renderer.resize(innerWidth, innerHeight); if (overview) drawOverview(); };
+  const resize = () => { if (filming) return; renderer.resize(innerWidth, innerHeight); if (overview) drawOverview(); };
   new ResizeObserver(resize).observe(document.body); resize();
   addEventListener('message', async event => {
     if (event.origin !== location.origin || event.source !== parent || event.data?.source !== 'travel-journal') return;
     const data = event.data;
+    if (filming) return;
     if (data.type === 'seek') { if (data.id === currentId && Number.isFinite(data.progress) && !overview) renderer.draw(Math.max(0, Math.min(1, data.progress))); return; }
     if (data.type !== 'configure' && data.type !== 'overview') return;
     controller?.abort(); controller = new AbortController(); const active = controller, version = ++revision; currentId = data.id;
@@ -36,7 +37,30 @@ try {
       send({ type: 'ready', id: currentId, description });
     } catch (error) { if (version === revision && !active.signal.aborted) report(error); }
   });
-  if (await renderer.ready) send({ type: 'boot' });
+  if (await renderer.ready) {
+    // Only the same-origin journal can access this canvas bridge. No media leaves the browser.
+    window.journalFilm = {
+      begin(width, height) {
+        if (filming) throw new Error('Un export est déjà en cours.');
+        if (![[1280,720],[720,1280]].some(([w,h]) => w === width && h === height)) throw new Error('Format vidéo invalide.');
+        controller?.abort(); revision++; filming = true; overview = false;
+        renderer.resize(width, height, 1);
+      },
+      async prepare(input, signal) {
+        const journey = validateJourney({ ...input, duration: 12, format: 'landscape' });
+        if (isGround(journey.mode) && !journey.illustrated) journey.route = await service.get(journey, { signal });
+        if (signal.aborted) throw new DOMException('Export annulé', 'AbortError');
+        return journey;
+      },
+      configure(journey) { renderer.configure(journey); },
+      draw(canvas, progress) {
+        if (renderer.renderer.getContext().isContextLost()) throw new Error('Le rendu 3D a été interrompu. Relancez le lecteur.');
+        renderer.draw(progress); renderer.composite(canvas);
+      },
+      end() { filming = false; renderer.resize(innerWidth, innerHeight); },
+    };
+    send({ type: 'boot' });
+  }
 } catch (error) { report(error); }
 
 let overviewPoints = [];

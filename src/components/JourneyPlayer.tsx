@@ -1,3 +1,4 @@
+import FilmExport from './FilmExport'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { readUpcoming, transportModes } from '../upcoming-trips'
 import { readJournals } from '../trip-journals'
@@ -20,6 +21,8 @@ export default function JourneyPlayer({ id, back, plan }: { id: string; back: ()
   const [error, setError] = useState('')
   const [description, setDescription] = useState('')
   const [illustrated, setIllustrated] = useState(false)
+  const [exporting, setExporting] = useState(false)
+  const [reload, setReload] = useState(0)
   const [duration, setDuration] = useState(12)
   const [reduced, setReduced] = useState(() => matchMedia('(prefers-reduced-motion: reduce)').matches)
   const iframe = useRef<HTMLIFrameElement>(null)
@@ -68,7 +71,7 @@ export default function JourneyPlayer({ id, back, plan }: { id: string; back: ()
     const cancel = (event: MessageEvent) => { if (event.origin === location.origin && event.source === iframe.current?.contentWindow && event.data?.source === 'atlas-player' && event.data.id === key && ['ready','error'].includes(event.data.type)) clearTimeout(timeout) }
     window.addEventListener('message', cancel)
     return () => { clearTimeout(timeout); window.removeEventListener('message', cancel) }
-  }, [boot, valid, from, to, tab, illustrated, stops])
+  }, [boot, valid, from, to, tab, illustrated, stops, reload])
   useEffect(() => {
     if (boot || !valid) return
     const timer = window.setTimeout(() => setError('Le globe ne peut pas démarrer. Vérifiez que votre navigateur autorise la 3D, puis réessayez.'), 15000)
@@ -103,9 +106,10 @@ export default function JourneyPlayer({ id, back, plan }: { id: string; back: ()
     {demo && <p className="local-note">Exemple de démonstration · aucune étape ajoutée à vos voyages personnels.</p>}
     {(stored.error || journals.error) && <p role="alert" className="error-message">{stored.error || journals.error}</p>}
     {!valid ? <div className="journey-empty"><span aria-hidden="true">↗</span><h2>Reliez vos prochaines histoires.</h2><p>Ajoutez au moins deux étapes, situez-les sur la carte et choisissez le transport entre chacune.</p>{stops.length >= 2 && <p>{missing > 0 ? `${missing} lieu(x) à situer. ` : ''}{transportsMissing > 0 ? `${transportsMissing} transport(s) à choisir.` : ''}</p>}<button className="button" onClick={plan}>Préparer le parcours →</button></div> : <>
-      <div className="journey-tabs" role="group" aria-label="Vue du voyage"><button aria-pressed={tab === 'motion'} onClick={() => { sequence.current = false; setPlaying(false); setTab('motion') }}>Voyage animé</button><button aria-pressed={tab === 'map'} onClick={() => { sequence.current = false; setPlaying(false); setTab('map') }}>Carte des étapes</button></div>
+      <fieldset disabled={exporting} className="journey-control-group"><legend className="visually-hidden">Lecture du voyage</legend><div className="journey-tabs" role="group" aria-label="Vue du voyage"><button aria-pressed={tab === 'motion'} onClick={() => { sequence.current = false; setPlaying(false); setTab('motion') }}>Voyage animé</button><button aria-pressed={tab === 'map'} onClick={() => { sequence.current = false; setPlaying(false); setTab('map') }}>Carte des étapes</button></div>
       <div className="journey-layout"><div className="journey-screen-column">
         <div className="journey-screen" ref={container}>
+          {exporting && <div className="journey-overlay film-render-overlay">Votre film prend forme…<small>Les commandes de lecture reprendront à la fin de l’export.</small></div>}
           <iframe ref={iframe} src={`${import.meta.env.BASE_URL}atlas/player.html`} title="Globe du voyage" tabIndex={-1} />
           {!ready && !error && <p className="journey-overlay" role="status">{boot ? 'Préparation du parcours…' : 'Ouverture du globe…'}</p>}
           {error && <div className="journey-overlay" role="alert"><p>{error}</p>{boot && tab === 'motion' && (to?.transport === 'car' || to?.transport === 'walk') && !illustrated && <button className="button button-light" onClick={() => setIllustrated(true)}>Utiliser une liaison illustrée</button>}</div>}
@@ -120,6 +124,7 @@ export default function JourneyPlayer({ id, back, plan }: { id: string; back: ()
           {reduced && <p>Animations réduites : explorez le trajet avec le curseur ou passez directement à l’arrivée.</p>}
         </div>}
       </div><aside className="journey-itinerary" aria-label="Les étapes du voyage"><p className="eyebrow">{stops.length} étapes · votre itinéraire</p><ol>{stops.map((stop, index) => <li key={stop.id} className={index === leg + 1 ? 'selected' : ''}><span className="stop-number">{index + 1}</span><div><strong>{stop.place}</strong>{stop.date && <small>{stop.date}</small>}{index > 0 ? <button aria-current={index === leg + 1 ? 'step' : undefined} onClick={() => { setTab('motion'); select(index - 1) }}>{icons[stop.transport!]} {transportModes[stop.transport!]} · Voir le trajet</button> : <small>Le départ</small>}</div></li>)}</ol></aside></div>
+      </fieldset><FilmExport title={trip?.destination ?? "Mon voyage"} stops={stops} chapters={chapters} frame={iframe} ready={ready} onBusy={busy => { setExporting(busy); setPlaying(false); sequence.current = false; if (!busy) setReload(value => value + 1) }} />
       <p className="journey-credits">Globe : Three Globe · Images détaillées : Esri et contributeurs. <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap</a> · <a href="https://www.openstreetmap.org/fixthemap" target="_blank" rel="noreferrer">Corriger la carte</a>. Les recherches et coordonnées nécessaires aux itinéraires sont transmises aux services cartographiques ; vos photos et récits restent sur cet appareil.</p>
     </>}
   </section>
