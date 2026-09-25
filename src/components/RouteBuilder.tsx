@@ -6,6 +6,7 @@ import { createId } from '../id'
 import { transportModes } from '../upcoming-trips'
 import type { PlanStop, TransportMode } from '../upcoming-trips'
 import type { Draft } from '../journal'
+import { nearLongitude, routeLongitudeOrigin } from '../route-geography'
 
 type Point = { lat: number; lon: number }
 type Found = Point & { name: string; context: string }
@@ -15,6 +16,7 @@ export default function RouteBuilder({ stops, chapters, save }: { stops: PlanSto
   const target = useRef<HTMLDivElement>(null)
   const map = useRef<L.Map | null>(null)
   const layer = useRef<L.LayerGroup | null>(null)
+  const tiles = useRef<L.TileLayer | null>(null)
   const selectRef = useRef<(id: string) => void>(() => {})
   const [selected, setSelected] = useState<string | null>(null)
   const [point, setPoint] = useState<Point | null>(null)
@@ -29,36 +31,46 @@ export default function RouteBuilder({ stops, chapters, save }: { stops: PlanSto
   const initialStops = useRef(stops)
   const chosenIndex = stops.findIndex(s => s.id === selected)
   const first = selected ? chosenIndex === 0 : stops.length === 0
+  const longitudeOrigin = routeLongitudeOrigin(stops.flatMap(stop => stop.point ? [stop.point.lon] : []))
   function fit(points = stops) {
     const located = points.filter(s => s.point)
     if (!located.length) { map.current?.setView([25, 20], 2, { animate: false }); return }
-    const origin = located[0].point!.lon
-    const bounds = L.latLngBounds(located.map(s => [s.point!.lat, origin + ((s.point!.lon - origin + 540) % 360) - 180] as L.LatLngTuple))
+    const origin = routeLongitudeOrigin(located.map(stop => stop.point!.lon))
+    const bounds = L.latLngBounds(located.map(s => [s.point!.lat, nearLongitude(s.point!.lon, origin)] as L.LatLngTuple))
     map.current?.fitBounds(bounds, { padding: [35, 35], maxZoom: 12, animate: false })
   }
   function select(id: string) {
     const stop = stops.find(s => s.id === id)
     if (!stop) return
     setSelected(id); setPoint(stop.point ?? null); setFields({ name: stop.place, date: stop.date ?? '', transport: stop.transport ?? '', chapterId: stop.chapterId ?? '' }); setMessage('')
-    if (stop.point) map.current?.setView([stop.point.lat, stop.point.lon], Math.max(map.current.getZoom(), 9), { animate: false })
+    if (stop.point) map.current?.setView([stop.point.lat, nearLongitude(stop.point.lon, longitudeOrigin)], Math.max(map.current.getZoom(), 9), { animate: false })
   }
   useEffect(() => { selectRef.current = select })
   useEffect(() => {
     if (!target.current) return
     const instance = L.map(target.current, { scrollWheelZoom: false, worldCopyJump: true, minZoom: 1, maxZoom: 19, zoomAnimation: false, fadeAnimation: false }).setView([25,20], 2)
     map.current = instance; layer.current = L.layerGroup().addTo(instance)
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' }).on('tileerror', () => setTileError(true)).on('tileload', () => setTileError(false)).addTo(instance)
+    const tileLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' })
+    let timeout: ReturnType<typeof setTimeout>
+    tileLayer.on('loading', () => { clearTimeout(timeout); timeout = setTimeout(() => setTileError(true),12000) })
+    tileLayer.on('tileerror', () => setTileError(true))
+    tileLayer.on('load', () => {
+      clearTimeout(timeout)
+      const images = Array.from(tileLayer.getContainer()?.querySelectorAll<HTMLImageElement>('img.leaflet-tile') ?? [])
+      setTileError(!images.length || images.some(image => !image.complete || !image.naturalWidth))
+    })
+    tiles.current = tileLayer.addTo(instance)
     instance.on('click', (event: L.LeafletMouseEvent) => { const p = event.latlng.wrap(); setPoint({ lat: Number(p.lat.toFixed(6)), lon: Number(p.lng.toFixed(6)) }); setMessage('Position choisie. Nommez le lieu puis enregistrez l’étape.') })
     fit(initialStops.current)
     const observer = new ResizeObserver(() => instance.invalidateSize()); observer.observe(target.current)
-    return () => { observer.disconnect(); instance.remove(); map.current = null; request.current?.abort() }
+    return () => { clearTimeout(timeout); observer.disconnect(); instance.remove(); map.current = null; tiles.current = null; request.current?.abort() }
   }, [])
   useEffect(() => {
     const group = layer.current
     if (!group) return
     group.clearLayers()
     const marker = (p: Point, text: string, name: string, id?: string) => {
-      const node = L.marker([p.lat, p.lon], { draggable: true, title: name, alt: name, icon: L.divIcon({ className: `route-pin ${id === selected || !id ? 'chosen' : ''}`, html: `<span>${text}</span>`, iconSize: [32,32], iconAnchor: [16,16] }) }).addTo(group)
+      const node = L.marker([p.lat, nearLongitude(p.lon, longitudeOrigin)], { draggable: true, title: name, alt: name, icon: L.divIcon({ className: `route-pin ${id === selected || !id ? 'chosen' : ''}`, html: `<span>${text}</span>`, iconSize: [32,32], iconAnchor: [16,16] }) }).addTo(group)
       const tooltip = document.createElement('span'); tooltip.textContent = name; node.bindTooltip(tooltip)
       node.on('click', () => { if (id) selectRef.current(id) })
       node.on('dragend', () => { if (id) selectRef.current(id); const next = node.getLatLng().wrap(); setPoint({ lat: Number(next.lat.toFixed(6)), lon: Number(next.lng.toFixed(6)) }); setMessage('Position déplacée. Enregistrez pour conserver ce changement.') })
@@ -68,12 +80,13 @@ export default function RouteBuilder({ stops, chapters, save }: { stops: PlanSto
       if (p) marker(p, String(index + 1), `Étape ${index + 1} : ${stop.place}`, stop.id)
       const previous = stops[index - 1]?.point
       if (previous && stop.point) {
-        const lon = previous.lon + ((stop.point.lon - previous.lon + 540) % 360) - 180
-        L.polyline([[previous.lat, previous.lon], [stop.point.lat, lon]], { color: '#26666a', weight: 2, dashArray: '5 8', interactive: false }).addTo(group)
+        const start = nearLongitude(previous.lon, longitudeOrigin)
+        const lon = nearLongitude(stop.point.lon, start)
+        L.polyline([[previous.lat, start], [stop.point.lat, lon]], { color: '#26666a', weight: 2, dashArray: '5 8', interactive: false }).addTo(group)
       }
     })
     if (!selected && point) marker(point, '+', 'Nouvelle position')
-  }, [stops, selected, point])
+  }, [stops, selected, point, longitudeOrigin])
   async function search() {
     request.current?.abort(); const controller = new AbortController(); request.current = controller
     setBusy(true); setFound([]); setMessage('')
@@ -103,10 +116,10 @@ export default function RouteBuilder({ stops, chapters, save }: { stops: PlanSto
     <div className="route-builder-heading"><div><p className="eyebrow">Le parcours</p><h2>Une escale, puis la suivante.</h2></div><button className="text-button" onClick={() => fit()}>Tout voir sur la carte</button></div>
     <div className="route-builder-grid"><div className="route-map-column">
       <form className="route-search" onSubmit={event => { event.preventDefault(); void search() }}><label>Chercher une ville ou un lieu<input value={query} maxLength={160} onChange={event => { request.current?.abort(); request.current = null; setBusy(false); setFound([]); setQuery(event.target.value) }} placeholder="Un aéroport, une ville, un hôtel…" /></label><button className="button" disabled={busy || !query.trim()}>{busy ? 'Recherche…' : 'Rechercher'}</button></form>
-      {found.length > 0 && <ul className="route-results">{found.map((p, i) => <li key={i}><button onClick={() => { setPoint({ lat: p.lat, lon: p.lon }); setFields(f => ({ ...f, name: p.name.slice(0,160) })); setFound([]); map.current?.setView([p.lat,p.lon], 12, { animate: false }) }}>{p.name}<small>{p.context}</small></button></li>)}</ul>}
+      {found.length > 0 && <ul className="route-results">{found.map((p, i) => <li key={i}><button onClick={() => { setPoint({ lat: p.lat, lon: p.lon }); setFields(f => ({ ...f, name: p.name.slice(0,160) })); setFound([]); map.current?.setView([p.lat,nearLongitude(p.lon, longitudeOrigin)], 12, { animate: false }) }}>{p.name}<small>{p.context}</small></button></li>)}</ul>}
       <div ref={target} className="route-map" aria-label="Carte interactive des étapes" />
       <p className="route-map-note">Cliquez sur la carte pour choisir un lieu ; déplacez un repère pour ajuster sa position. Pointillés : liaisons illustrées, sans calcul d’itinéraire.</p>
-      {tileError && <p role="status">Fond de carte momentanément indisponible. Vos étapes sont conservées.</p>}
+      {tileError && <div className="route-map-error"><p role="status">Le fond de carte ne se charge pas complètement. Vérifiez la connexion ; vos étapes sont conservées.</p><button className="text-button" onClick={() => { setTileError(false); tiles.current?.redraw() }}>Réessayer le fond de carte</button></div>}
     </div><div className="route-editor">
       <div className="route-editor-heading"><h3>{selected ? 'Modifier cette escale' : stops.length ? 'La prochaine escale' : 'Le point de départ'}</h3>{selected && <button className="text-button" onClick={reset}>Nouvelle escale</button>}</div>
       <form onSubmit={event => { event.preventDefault(); persist() }}>

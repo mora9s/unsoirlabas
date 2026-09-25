@@ -35,6 +35,8 @@ Le plan affiche une carte Leaflet chargée à la demande avec le module de prép
 
 Le fond utilise les tuiles standard OpenStreetMap à la demande, avec attribution et sans préchargement ni cache hors connexion spécifique. Les pointillés sont des liaisons illustrées, pas des routes calculées. Aucun service payant ni clé API n’est ajouté.
 
+Le cadrage regroupe les escales qui traversent le méridien 180° (par exemple Fidji–Samoa), sans modifier leurs coordonnées enregistrées. Un chargement incomplet du fond de carte affiche un bouton de reprise ; les étapes restent conservées. Les tests couvrent ce cadrage sur ordinateur et téléphone, ainsi qu’une panne partielle de tuiles suivie d’une reprise avec images de test. L’accès réel aux tuiles reste à vérifier hors du navigateur de test, dont le proxy refuse actuellement ces connexions.
+
 ## Copie de lecture
 
 Chaque carnet personnel propose **Télécharger la copie de lecture** : un fichier HTML autonome contenant ses chapitres, leurs photos, un sommaire et la liste des escales. Il se lit sans connexion et peut être envoyé comme fichier aux proches. Ce n’est ni un lien hébergé, ni une synchronisation, ni une sauvegarde réimportable ; le ZIP reste le format de restauration.

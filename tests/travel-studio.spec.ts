@@ -11,6 +11,56 @@ async function seed(page: import('@playwright/test').Page, populated = false) {
   },{populated,photo})
 }
 
+for (const width of [1280, 390]) test(`les escales du Pacifique restent dans le cadrage à ${width}px`, async ({page}) => {
+  await page.setViewportSize({width,height:844})
+  await seed(page)
+  await page.evaluate(() => {
+    const trips = JSON.parse(localStorage.getItem('un-soir-la-bas-upcoming-v1')!)
+    trips[0].plan.stops = [
+      {id:'fiji',place:'Fidji',point:{lat:-18.14,lon:178.45}},
+      {id:'samoa',place:'Samoa',point:{lat:-13.83,lon:-171.76},transport:'plane'},
+    ]
+    localStorage.setItem('un-soir-la-bas-upcoming-v1',JSON.stringify(trips))
+  })
+  const saved = await page.evaluate(() => localStorage.getItem('un-soir-la-bas-upcoming-v1'))
+  await page.goto('/#plan/studio')
+  await page.getByRole('button',{name:'Tout voir sur la carte'}).click()
+  await expect(page.locator('.route-pin')).toHaveCount(2)
+  const bounds = await page.locator('.route-map').boundingBox()
+  for (const pin of await page.locator('.route-pin').all()) {
+    const box = await pin.boundingBox()
+    expect(box!.x).toBeGreaterThanOrEqual(bounds!.x)
+    expect(box!.x + box!.width).toBeLessThanOrEqual(bounds!.x + bounds!.width)
+    expect(box!.y).toBeGreaterThanOrEqual(bounds!.y)
+    expect(box!.y + box!.height).toBeLessThanOrEqual(bounds!.y + bounds!.height)
+  }
+  await page.locator('.route-stop-strip button').nth(1).click()
+  await page.locator('.route-map').scrollIntoViewIfNeeded()
+  await expect(page.locator('.route-pin.chosen')).toBeInViewport()
+  expect(await page.evaluate(() => localStorage.getItem('un-soir-la-bas-upcoming-v1'))).toBe(saved)
+})
+
+test('un fond de carte partiellement chargé propose une reprise sans toucher aux étapes', async ({page}) => {
+  await seed(page,true)
+  const png = await page.evaluate(() => document.createElement('canvas').toDataURL().split(',')[1])
+  let retry = false, requests = 0
+  await page.route('https://tile.openstreetmap.org/**', route => {
+    requests++
+    return !retry && requests % 2 ? route.abort() : route.fulfill({contentType:'image/png',body:Buffer.from(png,'base64')})
+  })
+  const saved = await page.evaluate(() => localStorage.getItem('un-soir-la-bas-upcoming-v1'))
+  await page.goto('/#plan/studio')
+  const button = page.getByRole('button',{name:'Réessayer le fond de carte'})
+  await expect(button).toBeVisible()
+  await expect.poll(() => page.locator('img.leaflet-tile').evaluateAll(images => images.every(img => (img as HTMLImageElement).complete))).toBe(true)
+  await expect(button).toBeVisible()
+  retry = true
+  await button.click()
+  await expect.poll(() => page.locator('img.leaflet-tile').evaluateAll(images => images.length > 0 && images.every(img => (img as HTMLImageElement).complete && (img as HTMLImageElement).naturalWidth > 0))).toBe(true)
+  await expect(button).toHaveCount(0)
+  expect(await page.evaluate(() => localStorage.getItem('un-soir-la-bas-upcoming-v1'))).toBe(saved)
+})
+
 test('construit sur la carte, cherche, déplace et annule un retrait',async({page})=>{
   await page.route('https://photon.komoot.io/**',route=>route.fulfill({contentType:'application/json',body:JSON.stringify({features:[{geometry:{type:'Point',coordinates:[7.2661,43.7031]},properties:{name:'Nice',country:'France'}}]})}))
   await seed(page); await page.goto('/#plan/studio')
