@@ -39,6 +39,12 @@ Le cadrage regroupe les escales qui traversent le méridien 180° (par exemple F
 
 ## Programme quotidien et sauvegardes
 
+### Pendant le voyage
+
+La vue `#today/<voyage>` est accessible depuis la bibliothèque, la préparation et le carnet. Elle utilise la date locale de l’appareil, actualisée toutes les trente secondes, et permet de consulter une autre journée. Les escales datées sont triées par heure, les horaires libres viennent ensuite. Le prochain horaire saisi est mis en avant ; aucune durée de trajet ni disponibilité n’est déduite. Les réservations, notes et adresses restent locales.
+
+L’ajout rapide accepte un texte et jusqu’à trois photos par ajout, optimisées avec le même import que le carnet. Un brouillon séparé par voyage, date et escale est récupérable après rechargement. L’enregistrement relit les données courantes, ajoute au chapitre lié ou crée un chapitre daté, puis associe l’escale. Si l’écriture de l’association échoue, l’écriture du carnet est annulée ; la saisie reste disponible pour réessayer. Les limites existantes du carnet s’appliquent toujours. Sans escale, une nouvelle page datée est créée. Cette vue ne constitue pas un mode hors connexion installable : seuls les souvenirs et préparatifs sont stockés localement, pas l’application complète.
+
 La préparation regroupe les étapes par date, puis les étapes sans date dans « À programmer ». Chaque étape accepte un type (visite, hébergement, repas ou transport), une heure facultative, une adresse, une référence de réservation et des notes. Changer la date déplace la fiche entre les journées sans réordonner le parcours géographique. À partir de cinq étapes, une indication invite à prévoir les pauses ; elle n’est pas une estimation de durée. Les dates hors du voyage restent possibles et sont signalées.
 
 Le lien d’itinéraire transmet uniquement la destination à Google Maps, à la demande. Les informations pratiques sont facultatives, validées et incluses dans le ZIP ; l’édition cartographique les préserve. La copie HTML destinée au partage conserve son périmètre actuel et n’ajoute pas les références de réservation.
