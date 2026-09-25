@@ -2,7 +2,9 @@ import { createId } from './id'
 
 export const upcomingKey = 'un-soir-la-bas-upcoming-v1'
 export type PlanItem = { id: string; text: string }
-export type PlanStop = { id: string; place: string; date?: string }
+export const transportModes = { plane: 'Avion', train: 'Train', car: 'Voiture', walk: 'À pied', boat: 'Bateau' } as const
+export type TransportMode = keyof typeof transportModes
+export type PlanStop = { id: string; place: string; date?: string; point?: { lat: number; lon: number }; transport?: TransportMode; chapterId?: string }
 export type UpcomingTrip = { id: string; destination: string; departure: string; endDate?: string; completed?: true; plan?: { ideas: PlanItem[]; stops: PlanStop[]; notes: string } }
 
 function exact(value: unknown, required: string[], optional: string[] = []): value is Record<string, unknown> {
@@ -16,7 +18,10 @@ function validPlan(value: unknown): boolean {
   const id = (item: unknown) => typeof item === 'string' && item.length > 0 && item.length <= 160
   const text = (item: unknown) => typeof item === 'string' && item.trim().length > 0 && item.length <= 160
   return value.ideas.every(item => exact(item, ['id', 'text']) && id(item.id) && text(item.text)) &&
-    value.stops.every(item => exact(item, ['id', 'place'], ['date']) && id(item.id) && text(item.place) &&
+    value.stops.every(item => exact(item, ['id', 'place'], ['date', 'point', 'transport', 'chapterId']) && id(item.id) && text(item.place) &&
+      (!Object.prototype.hasOwnProperty.call(item, 'point') || (exact(item.point, ['lat', 'lon']) && typeof item.point.lat === 'number' && Number.isFinite(item.point.lat) && Math.abs(item.point.lat) <= 90 && typeof item.point.lon === 'number' && Number.isFinite(item.point.lon) && Math.abs(item.point.lon) <= 180)) &&
+      (!Object.prototype.hasOwnProperty.call(item, 'transport') || (typeof item.transport === 'string' && Object.prototype.hasOwnProperty.call(transportModes, item.transport))) &&
+      (!Object.prototype.hasOwnProperty.call(item, 'chapterId') || id(item.chapterId)) &&
       (!Object.prototype.hasOwnProperty.call(item, 'date') || (typeof item.date === 'string' && !!dateParts(item.date)))) &&
     new Set(value.ideas.map(item => item.id)).size === value.ideas.length && new Set(value.stops.map(item => item.id)).size === value.stops.length
 }

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import Home from './components/Home'
 import Demo from './components/Demo'
 import Chapter from './components/Chapter'
@@ -17,10 +17,12 @@ import type { ShareChoice } from './components/ShareChapterPicker'
 import type { Draft } from './journal'
 import './journal.css'
 
+const JourneyPlayer = lazy(() => import('./components/JourneyPlayer'))
+
 type View = string
 function currentView(): View {
   const hash = window.location.hash.slice(1)
-  if (/^(draft|share|share-trip|trip|plan|journey|journal-share|trip-create)\//.test(hash)) return hash
+  if (/^(draft|share|share-trip|trip|plan|motion|journey|journal-share|trip-create)\//.test(hash)) return hash
   const base = hash.split('/')[0]
   if (['create', 'share', 'share-demo', 'demo', 'tools', 'day-1', 'day-3', 'day-8'].includes(base)) return base
   return ['', 'carnet', 'main'].includes(hash) ? 'home' : 'missing'
@@ -93,7 +95,7 @@ export default function App() {
 
   const destinationTitle = tripCreateContext?.destination
   useEffect(() => {
-    const title = missing ? 'Cette page est introuvable' : draft ? `${sharing ? 'Partager — ' : ''}${draft.title}` : view === 'home' ? 'La bibliothèque des voyages' : view === 'demo' ? 'Démonstration Philippines' : view === 'tools' ? 'Outils du carnet' : view === 'create' ? 'Créer une journée' : sharing ? 'Studio de partage' : journalChapter ? `${journalChapter.title} — ${journal?.destination}` : tripCreating ? `Écrire — ${destinationTitle}` : journal ? `Carnet — ${journal.destination}` : view.startsWith('plan/') ? `Préparer — ${upcomingForJournal(journalTripId)?.destination ?? 'Voyage'}` : `Jour ${view.slice(4)} — Philippines`
+    const title = view.startsWith('motion/') ? `Voyage animé — ${journalTripId === 'demo' ? 'Cap sur les Philippines' : upcomingForJournal(journalTripId)?.destination ?? 'Voyage'}` : missing ? 'Cette page est introuvable' : draft ? `${sharing ? 'Partager — ' : ''}${draft.title}` : view === 'home' ? 'La bibliothèque des voyages' : view === 'demo' ? 'Démonstration Philippines' : view === 'tools' ? 'Outils du carnet' : view === 'create' ? 'Créer une journée' : sharing ? 'Studio de partage' : journalChapter ? `${journalChapter.title} — ${journal?.destination}` : tripCreating ? `Écrire — ${destinationTitle}` : journal ? `Carnet — ${journal.destination}` : view.startsWith('plan/') ? `Préparer — ${upcomingForJournal(journalTripId)?.destination ?? 'Voyage'}` : `Jour ${view.slice(4)} — Philippines`
     document.title = `${title} · Un soir là-bas`
     if (lastView.current !== view) {
       mainRef.current?.focus({ preventScroll: true })
@@ -169,7 +171,8 @@ export default function App() {
       )}
       {view === 'demo' && <Demo openDay={openDay} />}
       {view === 'tools' && <section className="tools-page page-width" aria-labelledby="tools-title"><p className="eyebrow">Réglages et conservation</p><h1 id="tools-title">Outils du carnet</h1><Backup trip={stored.trip} onRestore={trip => { setStored({ trip, error: '' }); setJournals(readJournals()) }} /></section>}
-      {view.startsWith('plan/') && <TripPlanner key={view} id={draftId(view) ?? ''} back={() => navigate('home')} openJournal={() => navigate(`trip/${encodeURIComponent(journalTripId)}`)} />}
+      {view.startsWith('motion/') && <Suspense fallback={<p className="page-width" role="status">Ouverture du voyage…</p>}><JourneyPlayer key={view} id={draftId(view) ?? ''} back={() => navigate(journalTripId === 'demo' ? 'demo' : `trip/${encodeURIComponent(journalTripId)}`)} plan={() => navigate(journalTripId === 'demo' ? 'home' : `plan/${encodeURIComponent(journalTripId)}`)} /></Suspense>}
+      {view.startsWith('plan/') && <TripPlanner key={view} id={draftId(view) ?? ''} openMotion={() => navigate(`motion/${encodeURIComponent(journalTripId)}`)} back={() => navigate('home')} openJournal={() => navigate(`trip/${encodeURIComponent(journalTripId)}`)} />}
       {view.startsWith('day') && (
         <Chapter
           dayNumber={Number(view.slice(4))}
@@ -178,7 +181,7 @@ export default function App() {
           share={() => navigate('share')}
         />
       )}
-      {view.startsWith('trip/') && journal && <TripJournal journal={journal} open={chapter => navigate(`journey/${encodeURIComponent(journal.tripId)}/${encodeURIComponent(chapter.id)}`)} create={() => createTripChapter(journal)} edit={chapter => editTripChapter(journal, chapter)} />}
+      {view.startsWith('trip/') && journal && <TripJournal openMotion={upcomingForJournal(journal.tripId) ? () => navigate(`motion/${encodeURIComponent(journal.tripId)}`) : undefined} journal={journal} open={chapter => navigate(`journey/${encodeURIComponent(journal.tripId)}/${encodeURIComponent(chapter.id)}`)} create={() => createTripChapter(journal)} edit={chapter => editTripChapter(journal, chapter)} />}
       {view.startsWith('journey/') && journal && journalChapter && <CustomChapter draft={journalChapter} home={() => navigate(`trip/${encodeURIComponent(journal.tripId)}`)} edit={() => editTripChapter(journal, journalChapter)} share={() => navigate(`journal-share/${encodeURIComponent(journal.tripId)}/${encodeURIComponent(journalChapter.id)}`)} />}
       {tripCreating && tripCreateContext && <Creator localStore={false} personalDestination={tripCreateContext.destination} recoveryScope={`trip:${tripCreateContext.id}:${tripEditDraft?.id ?? 'new'}`} key={tripEditDraft?.id ?? `trip-${tripCreateContext.id}-${newDraftNumber}`} initialDraft={tripEditDraft ?? editing} onSave={(_trip, saved) => {
         saveChapter(tripCreateContext.id, tripCreateContext.destination, tripCreateContext.departure, saved)
