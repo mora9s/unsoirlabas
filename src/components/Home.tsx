@@ -3,8 +3,9 @@ import type { Draft } from '../journal'
 import Backup from './Backup'
 import Icon from './Icon'
 import UpcomingTrips from './UpcomingTrips'
+import type { PersonalJournal } from '../trip-journals'
 
-export default function Home({ openDay, create, drafts, openDraft, editDraft, trip, onRestore, openTrip }: { openDay: (day: number) => void; create: () => void; drafts: Draft[]; openDraft: (draft: Draft) => void; editDraft: (draft: Draft) => void; trip: import('../journal').Trip; onRestore: (trip: import('../journal').Trip) => void; openTrip: (id: string) => void }) {
+export default function Home({ openDay, create, drafts, openDraft, editDraft, trip, onRestore, openTrip, journals, openJournal }: { openDay: (day: number) => void; create: () => void; drafts: Draft[]; openDraft: (draft: Draft) => void; editDraft: (draft: Draft) => void; trip: import('../journal').Trip; onRestore: (trip: import('../journal').Trip) => void; openTrip: (id: string) => void; journals: PersonalJournal[]; openJournal: (id: string) => void }) {
   return <>
     <section className="trip-hero" aria-labelledby="trip-title">
       <img className="hero-photo" src={asset('el-nido-big-lagoon.jpg')} alt="Le Big Lagoon d’El Nido, entre eau turquoise et falaises de calcaire" fetchPriority="high" />
@@ -19,6 +20,7 @@ export default function Home({ openDay, create, drafts, openDraft, editDraft, tr
       <div className="travel-seal" aria-hidden="true"><span>PRENDRE LE TEMPS</span><strong>18</strong><span>JOURS D’AILLEURS</span></div>
     </section>
     <UpcomingTrips openTrip={openTrip} />
+    {journals.length > 0 && <section className="saved-drafts page-width" aria-labelledby="journals-title"><p className="eyebrow">Vos voyages racontés</p><h2 id="journals-title">Les carnets à retrouver.</h2><div className="journal-home-list">{journals.map(item => <article key={item.tripId}><div><span className="eyebrow">Carnet personnel · {item.chapters.length} page{item.chapters.length > 1 ? 's' : ''}</span><h3>{item.destination}</h3></div><button className="text-button" onClick={() => openJournal(item.tripId)}>Ouvrir le carnet de {item.destination} →</button></article>)}</div></section>}
     <section className="intro page-width">
       <span className="eyebrow"><span className="tiny-sun" aria-hidden="true" /> Le bonheur de garder une trace</span>
       <p>Les journées passent.<br />Les <em>souvenirs</em> restent.</p>

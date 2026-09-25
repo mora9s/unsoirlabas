@@ -12,9 +12,9 @@ declare const __VOICE_PRIVATE_BUILD__: boolean
 
 type PickerLaunch = { url: string; open: () => void }
 
-export default function Creator({ initialDraft, onSave }: { initialDraft?: Draft; onSave: (trip: Trip, draft: Draft) => void }) {
+export default function Creator({ initialDraft, onSave, journalDestination, saveToJournal }: { initialDraft?: Draft; onSave: (trip: Trip, draft: Draft) => void; journalDestination?: string; saveToJournal?: (draft: Draft) => void }) {
   const [id] = useState(() => initialDraft?.id ?? createId())
-  const [title, setTitle] = useState(initialDraft?.title ?? 'Une nouvelle journée aux Philippines')
+  const [title, setTitle] = useState(initialDraft?.title ?? (journalDestination ? '' : 'Une nouvelle journée aux Philippines'))
   const [media, setMedia] = useState<Media[]>(initialDraft?.media ?? [])
   const [coverId, setCoverId] = useState(initialDraft?.coverId ?? '')
   const [memories, setMemories] = useState(initialDraft?.memories ?? '')
@@ -128,7 +128,7 @@ export default function Creator({ initialDraft, onSave }: { initialDraft?: Draft
       document.getElementById('memories')?.focus()
       return
     }
-    setStory(generateStory(memories, tone))
+    setStory(generateStory(memories, tone, !!journalDestination))
     setPreview(false)
     storyRef.current?.focus()
     setNotice('Votre proposition est prête. Relisez-la et faites-en votre histoire.')
@@ -150,23 +150,27 @@ export default function Creator({ initialDraft, onSave }: { initialDraft?: Draft
       setError('Le titre et le récit sont nécessaires pour enregistrer la journée.')
       return
     }
-    const current = readTrip()
-    if (current.error) { setError(current.error); return }
     const draft: Draft = { id, title: title.trim(), memories, tone, story: story.trim(), media, coverId: cover?.id ?? '', status: 'draft' }
-    const trip: Trip = { version: 1, drafts: [...current.trip.drafts.filter(item => item.id !== id), draft] }
     try {
-      localStorage.setItem(storageKey, JSON.stringify(trip))
-    } catch {
-      setError('L’enregistrement n’a pas abouti : le stockage est plein ou indisponible. Retirez quelques photos puis réessayez. Votre travail reste ouvert ici.')
-      return
+      if (saveToJournal) {
+        saveToJournal(draft)
+        onSave({ version: 1, drafts: [] }, draft)
+      } else {
+        const current = readTrip()
+        if (current.error) { setError(current.error); return }
+        const trip: Trip = { version: 1, drafts: [...current.trip.drafts.filter(item => item.id !== id), draft] }
+        localStorage.setItem(storageKey, JSON.stringify(trip))
+        onSave(trip, draft)
+      }
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'L’enregistrement n’a pas abouti : le stockage est plein ou indisponible. Votre travail reste ouvert ici.')
     }
-    onSave(trip, draft)
   }
 
   return <section className="creator page-width" data-testid="creator">
     <header className="workspace-heading"><p className="eyebrow">L’atelier du soir <span className="divider">/</span> Créer une journée</p><h1>Les instants passent.<br /><em>Écrivons la suite.</em></h1><p>Vos photos, vos mots. Dix minutes pour ne rien oublier.</p><span className="privacy-note"><Icon name="check" /> Vos choix sont copiés dans le carnet, jamais publiés.</span></header>
     <div className="creator-layout"><div className="media-workspace"><div className="step-heading"><span>01</span><div><h2>Les images du jour</h2><p>Choisissez celles qui racontent vraiment.</p></div></div>
-      <aside className="trip-source" aria-labelledby="trip-source-title"><p className="eyebrow">L’album commun</p><h3 id="trip-source-title">{tripAlbum.title}</h3><p>Les deux téléphones, le drone et les appareils photo s’y retrouvent. Ouvrez-le pour vérifier que les souvenirs du jour sont bien réunis.</p><a href={tripAlbum.url} target="_blank" rel="noopener noreferrer">Ouvrir l’album <span aria-hidden="true">↗</span></a></aside>
+      {!journalDestination && <aside className="trip-source" aria-labelledby="trip-source-title"><p className="eyebrow">L’album commun</p><h3 id="trip-source-title">{tripAlbum.title}</h3><p>Les deux téléphones, le drone et les appareils photo s’y retrouvent. Ouvrez-le pour vérifier que les souvenirs du jour sont bien réunis.</p><a href={tripAlbum.url} target="_blank" rel="noopener noreferrer">Ouvrir l’album <span aria-hidden="true">↗</span></a></aside>}
       <div className="google-import" aria-labelledby="google-import-title"><div><p className="eyebrow">Photos choisies, seulement</p><h3 id="google-import-title">Votre sélection Google Photos</h3><p>Choisissez les images de cette journée. Elles seront préparées localement pour le carnet, sans publication.</p></div><div className="google-import-actions"><button className="button button-outline" onClick={pickerBusy ? cancelGoogleImport : importFromGoogle} disabled={busy || (!picker.enabled && !pickerBusy)}>{pickerBusy ? 'Annuler l’import Google Photos' : 'Choisir dans Google Photos'}</button>{pickerLaunch && <a className="button" href={pickerLaunch.url} target="_blank" rel="noopener noreferrer" onClick={pickerLaunch.open}>Ouvrir Google Photos pour choisir</a>}{!picker.enabled && <p className="local-note">{picker.reason === 'insecure-context' ? 'La connexion Google nécessite l’adresse sécurisée. L’album et l’import depuis cet appareil restent disponibles ici.' : 'La connexion sécurisée Google Photos reste à activer. En attendant, ouvrez l’album puis importez depuis cet appareil.'}</p>}</div></div>
       <label className={`upload-zone ${busy ? 'is-busy' : ''}`}><Icon name="upload" /><strong>{busy ? 'Préparation des photos…' : 'Déposez vos souvenirs ici'}</strong><span>Choisir des photos sur cet appareil</span><small>JPEG, PNG, WebP, GIF, AVIF · 12 photos maximum<br />12 Mo par photo · optimisées pour le carnet</small><input type="file" multiple accept="image/jpeg,image/png,image/webp,image/gif,image/avif" aria-label="Importer des photos" onChange={upload} disabled={busy || pickerBusy} /></label>
       <div className="media-grid">{media.map((item, index) => <article className={`media-item ${cover?.id === item.id ? 'is-cover' : ''}`} data-testid="media-item" key={item.id}><div className="media-photo"><img src={item.src} alt={`Photo importée : ${item.name}`} /><span className="media-number">{String(index + 1).padStart(2, '0')}</span><button className="remove-media" onClick={() => remove(item)} aria-label={`Supprimer ${item.name}`}><Icon name="close" /></button></div><div className="media-controls"><button className="cover-button" aria-pressed={cover?.id === item.id} onClick={() => { setCoverId(item.id); changed() }}>{cover?.id === item.id ? <><Icon name="check" /> Couverture</> : 'Choisir en couverture'}</button><div><button aria-label={`Déplacer ${item.name} vers le précédent`} disabled={index === 0} onClick={() => move(index, -1)}><Icon name="left" /></button><button aria-label={`Déplacer ${item.name} vers le suivant`} disabled={index === media.length - 1} onClick={() => move(index, 1)}><Icon name="arrow" /></button></div></div></article>)}</div>
@@ -182,6 +186,6 @@ export default function Creator({ initialDraft, onSave }: { initialDraft?: Draft
       <div className="editor-actions"><button className="button button-outline" onClick={showPreview}>Prévisualiser <Icon name="book" /></button><span className="local-note">Rien n’est enregistré avant votre validation.</span></div>
     </div></div>
     <div className="feedback" role="status" aria-live="polite">{busy && <p>Préparation en cours…</p>}{pickerBusy && <p>Connexion à Google Photos en cours…</p>}{notice && <p className="success-message"><Icon name="check" />{notice}</p>}</div>{error && <p role="alert" className="error-message">{error}</p>}
-    {preview && <section className="day-preview" data-testid="day-preview" tabIndex={-1} ref={previewRef}><div className="preview-ribbon"><span className="eyebrow">03 / Votre nouvelle page</span><span className="status draft"><i />Brouillon</span></div>{cover && <img className="preview-cover" src={cover.src} alt={`Couverture : ${cover.name}`} />}<div className="preview-prose"><p className="eyebrow">Philippines · Carnet personnel</p><h2>{title}</h2>{story.split('\n').filter(Boolean).map((paragraph, index) => <p key={index}>{paragraph}</p>)}</div>{media.length > 1 && <div className="preview-album">{media.filter(item => item.id !== cover?.id).map(item => <img key={item.id} src={item.src} alt={`Souvenir : ${item.name}`} />)}</div>}<div className="save-bar"><span>Une page de plus.<br /><small>Enregistrée en brouillon, jamais publiée.</small></span><button className="button" onClick={save} disabled={busy || pickerBusy}>Ajouter au voyage <Icon name="plus" /></button></div></section>}
+    {preview && <section className="day-preview" data-testid="day-preview" tabIndex={-1} ref={previewRef}><div className="preview-ribbon"><span className="eyebrow">03 / Votre nouvelle page</span><span className="status draft"><i />Brouillon</span></div>{cover && <img className="preview-cover" src={cover.src} alt={`Couverture : ${cover.name}`} />}<div className="preview-prose"><p className="eyebrow">{journalDestination ?? 'Philippines'} · Carnet personnel</p><h2>{title}</h2>{story.split('\n').filter(Boolean).map((paragraph, index) => <p key={index}>{paragraph}</p>)}</div>{media.length > 1 && <div className="preview-album">{media.filter(item => item.id !== cover?.id).map(item => <img key={item.id} src={item.src} alt={`Souvenir : ${item.name}`} />)}</div>}<div className="save-bar"><span>Une page de plus.<br /><small>Enregistrée en brouillon, jamais publiée.</small></span><button className="button" onClick={save} disabled={busy || pickerBusy}>Ajouter au voyage <Icon name="plus" /></button></div></section>}
   </section>
 }

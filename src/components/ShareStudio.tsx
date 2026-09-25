@@ -39,7 +39,7 @@ function drawText(context: CanvasRenderingContext2D, text: string, y: number, si
   visible.forEach((line, index) => context.fillText(line, 80, y + index * size * 1.2))
 }
 
-export default function ShareStudio({ draft }: { draft?: Draft }) {
+export default function ShareStudio({ draft, backHref }: { draft?: Draft; backHref?: string }) {
   const cover = draft ? coverOf(draft) : undefined
   const imageSrc = draft ? cover?.src : asset('el-nido-big-lagoon.jpg')
   const excerpt = draft ? storyExcerpt(draft.story) : ''
@@ -139,7 +139,7 @@ export default function ShareStudio({ draft }: { draft?: Draft }) {
     }
   }
 
-  return <section className={`share-studio page-width ${draft ? 'personal-studio' : ''}`} data-testid="share-studio"><header className="workspace-heading"><p className="eyebrow">Le studio de partage <span className="divider">/</span> {draft ? 'Carnet personnel' : 'Jour 03'}</p><h1>Un peu d’ici.<br /><em>À partager là-bas.</em></h1><p>Le chapitre reste dans le carnet. Emportez-en un fragment.</p>{draft && <a className="text-button" href={`#draft/${encodeURIComponent(draft.id)}`}>Retour à cette journée<Icon name="left" /></a>}</header>
+  return <section className={`share-studio page-width ${draft ? 'personal-studio' : ''}`} data-testid="share-studio"><header className="workspace-heading"><p className="eyebrow">Le studio de partage <span className="divider">/</span> {draft ? 'Carnet personnel' : 'Jour 03'}</p><h1>Un peu d’ici.<br /><em>À partager là-bas.</em></h1><p>Le chapitre reste dans le carnet. Emportez-en un fragment.</p>{draft && <a className="text-button" href={backHref ?? `#draft/${encodeURIComponent(draft.id)}`}>Retour à cette journée<Icon name="left" /></a>}</header>
     <div className="share-layout"><div className="share-visuals"><div className="format-heading"><span className="eyebrow">Deux façons de raconter</span><span>{draft ? 'Votre journée, vos mots' : 'El Nido · Palawan'}</span></div><div className="share-previews">{(['story', 'post'] as const).map(type => <div className={`format-option ${format === type ? 'active-format' : ''}`} key={type}><button className="format-select" aria-pressed={format === type} onClick={() => { setFormat(type); setNotice('') }}>{type === 'story' ? 'Story' : 'Publication / carrousel'} <span>{type === 'story' ? '9:16' : '4:5'}</span></button><div className={`social-card ${type}`} data-testid={`${type}-preview`}>
       {imageSrc && <img src={imageSrc} alt={draft ? `Couverture : ${cover?.name}` : `Aperçu ${type === 'story' ? 'Story verticale' : 'publication 4:5'} : le Big Lagoon à El Nido`} />}
       <div className="social-shade" /><span className="social-kicker">{draft ? 'CARNET PERSONNEL' : 'PHILIPPINES / JOUR 03'}</span><div className="social-copy"><p>{draft ? draft.title : <>Le bonheur<br /><em>à fleur d’eau.</em></>}</p><span>{draft ? excerpt : 'EL NIDO · PALAWAN'}</span><div>un soir là-bas</div></div></div><p className="format-size">{type === 'story' ? '1080 × 1920 px' : '1080 × 1350 px'} · PNG</p></div>)}</div><p className="local-note">Une carte image, prête à utiliser seule ou dans votre propre carrousel.</p></div>

@@ -6,7 +6,7 @@ import type { UpcomingTrip } from '../upcoming-trips'
 
 const emptyPlan = () => ({ ideas: [], stops: [], notes: '' }) as NonNullable<UpcomingTrip['plan']>
 
-export default function TripPlanner({ id, back }: { id: string; back: () => void }) {
+export default function TripPlanner({ id, back, openJournal }: { id: string; back: () => void; openJournal: () => void }) {
   const [stored, setStored] = useState(readUpcoming)
   const [idea, setIdea] = useState('')
   const [place, setPlace] = useState('')
@@ -63,7 +63,7 @@ export default function TripPlanner({ id, back }: { id: string; back: () => void
     {stored.error && <p role="alert" className="error-message">{stored.error}</p>}
     {message && <p role="alert" className="error-message">{message}</p>}
     {!trip ? <div className="planner-empty"><p className="eyebrow">Le voyage</p><h1 id="planner-title">Ce voyage est introuvable</h1><p>Il n’est plus enregistré dans ce navigateur. Vos autres voyages restent accessibles depuis l’accueil.</p><button className="button" onClick={back}>Retour au carnet</button></div> : <>
-      <header className="planner-hero"><p className="eyebrow">Votre prochaine histoire</p><h1 id="planner-title">{trip.destination}</h1><p>Départ le {new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long' }).format(new Date(`${trip.departure}T12:00:00`))} · {Math.max(0, daysUntil(trip.departure, new Date()) ?? 0)} jours avant le départ</p><span>La préparation reste privée, sur cet appareil, jusqu’à sa sauvegarde dans une archive.</span></header>
+      <header className="planner-hero"><p className="eyebrow">Votre prochaine histoire</p><h1 id="planner-title">{trip.destination}</h1><p>Départ le {new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long' }).format(new Date(`${trip.departure}T12:00:00`))} · {Math.max(0, daysUntil(trip.departure, new Date()) ?? 0)} jours avant le départ</p><button className="button button-light" onClick={openJournal}>Ouvrir le carnet de {trip.destination} →</button><span>La préparation reste privée, sur cet appareil, jusqu’à sa sauvegarde dans une archive.</span></header>
       <div className="planner-grid">
         <section className="planner-panel" aria-labelledby="ideas-title"><p className="eyebrow">01 · L’inspiration</p><h2 id="ideas-title">Ce qui vous attire.</h2><p>Gardez des envies sans décider encore du programme.</p>
           <ul>{plan.ideas.map(item => <li key={item.id}><span>{item.text}</span><button className="text-button" aria-label={`Retirer l’envie ${item.text}`} onClick={() => save(current => ({ ...current, ideas: current.ideas.filter(idea => idea.id !== item.id) }))}>Retirer</button></li>)}</ul>

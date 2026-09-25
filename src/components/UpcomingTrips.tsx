@@ -54,6 +54,7 @@ export default function UpcomingTrips({ openTrip }: { openTrip: (id: string) => 
       }
       localStorage.setItem(upcomingKey, JSON.stringify(tripsToSave))
       setStored({ trips: tripsToSave, error: '' })
+      window.dispatchEvent(new Event('upcoming-trips-updated'))
       setMessage('')
       return true
     } catch {

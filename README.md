@@ -31,7 +31,12 @@ le build doit donc précéder les tests. La configuration fournie utilise Chrome
   visibles comme souvenirs, sans décompte négatif.
 - Cliquer sur le prochain départ ouvre `/#trip/<id>` : envies, étapes ordonnables
   avec dates facultatives et notes. Le parcours reste privé et se recharge sur le
-  même appareil. Ce n’est pas encore un carnet par voyage ni un outil de réservation.
+  même appareil. **Ouvrir le carnet** donne accès aux journées de ce voyage ;
+  `/#journal/<id>` retrouve ces pages même après retrait du décompte.
+- `/#journey/<id>/<chapitre>` : lecture d’une journée personnelle, édition du même
+  chapitre et préparation d’un partage ; le carnet Philippines de démonstration
+  et ses anciens brouillons restent séparés. Les étapes projetées ne deviennent
+  jamais des souvenirs vécus automatiquement.
 - `/#day-3` : récit d’El Nido, ouverture photographique, six images, moments,
   vidéo et navigation vers Manille et Bohol.
 - `/#create` : import multiple, couverture, réorganisation, suppression, écriture,
@@ -53,19 +58,23 @@ les limites, la confidentialité et les prérequis de compte réel sont détaill
 Depuis l’accueil, **Sauvegarder dans Drive** prépare une archive ZIP versionnée et
 portable. Sur les appareils qui proposent le partage de fichiers, la feuille de
 partage permet de choisir Drive ; sinon l’archive est téléchargée, y compris sur
-un réseau local ou hors ligne, pour être déposée manuellement dans
-`Voyages / Philippines / Sauvegardes`. L’application ne prétend jamais avoir
+un réseau local ou hors ligne, pour être déposée manuellement dans votre dossier
+de sauvegardes des voyages sur Drive. L’application ne prétend jamais avoir
 chargé le fichier dans Drive.
 
 L’archive contient les chapitres personnels, leur ordre et leurs identifiants,
 les récits et les photos sélectionnées/redimensionnées du carnet, ainsi que les
-voyages à venir et leurs préparatifs (envies, étapes, notes). Les originaux
+voyages à venir, leurs préparatifs (envies, étapes, notes) et les carnets personnels
+par voyage avec leurs photos. Les originaux
 de l’appareil ou de Drive, les chapitres de démonstration, les comptes Drive et
 les modifications non enregistrées n’y figurent pas. **Importer depuis Drive**
 ouvre le sélecteur de fichiers (où Drive peut être choisi), vérifie l’archive puis
 affiche un aperçu avant une restauration qui remplace le carnet local et les
-voyages à venir si l’archive les contient : il n’y a pas encore de fusion. Les
-anciennes archives dépourvues de préparatifs conservent les voyages locaux.
+voyages et carnets personnels si l’archive les contient : il n’y a pas encore de
+fusion. Les anciennes archives dépourvues de ces collections conservent leurs
+équivalents locaux. Avant d’écraser des données déjà présentes, la restauration
+propose une copie ZIP de sécurité et exige la confirmation que le fichier a été
+conservé ; si les données changent entre-temps, il faut refaire cette copie.
 Une synchronisation OAuth directe demanderait un client Web
 public, des origines HTTPS autorisées et une validation dédiée ; aucun identifiant
 OAuth n’est embarqué dans ce prototype.

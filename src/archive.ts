@@ -5,6 +5,8 @@ import type { Draft, Trip } from './journal'
 import { validateTrip } from './journal'
 import type { UpcomingTrip } from './upcoming-trips'
 import { validateUpcoming } from './upcoming-trips'
+import type { Journals, PersonalJournal } from './trip-journals'
+import { validateJournals } from './trip-journals'
 
 export const archiveFormat = 'les-jours-au-large-journal'
 export const archiveVersion = 1
@@ -20,6 +22,7 @@ const MAX_MEDIA_BYTES = 5 * 1024 * 1024
 
 type ArchiveMedia = { id: string; name: string; mime: string; path: string; bytes: number; sha256: string }
 type ArchiveDraft = Omit<Draft, 'media'> & { media: ArchiveMedia[] }
+type ArchivePersonalJournal = Omit<PersonalJournal, 'chapters'> & { chapters: ArchiveDraft[] }
 type ArchiveProduct = 'Un soir là-bas' | 'Les jours au large'
 const compatibleProducts: readonly ArchiveProduct[] = ['Un soir là-bas', 'Les jours au large']
 type Manifest = {
@@ -33,9 +36,10 @@ type Manifest = {
   bytes: number
   journal: { version: 1; drafts: ArchiveDraft[] }
   upcoming?: { path: 'upcoming.json'; bytes: number; sha256: string }
+  personalJournals?: { path: 'personal-journals.json'; bytes: number; sha256: string }
 }
 
-type Preview = { trip: Trip; upcoming?: UpcomingTrip[]; createdAt: string; records: number; media: number; bytes: number }
+type Preview = { trip: Trip; upcoming?: UpcomingTrip[]; personalJournals?: Journals; createdAt: string; records: number; media: number; bytes: number }
 
 function fail(message: string): never { throw new Error(message) }
 function exactObject(value: unknown, keys: readonly string[]): value is Record<string, unknown> {
@@ -71,6 +75,7 @@ async function digest(bytes: Uint8Array) {
 function exactPaths(manifest: Manifest) {
   const paths = new Set(['manifest.json'])
   if (manifest.upcoming) paths.add(manifest.upcoming.path)
+  if (manifest.personalJournals) paths.add(manifest.personalJournals.path)
   for (const draft of manifest.journal.drafts) for (const media of draft.media) {
     if (paths.has(media.path)) fail('L’archive contient des chemins dupliqués.')
     paths.add(media.path)
@@ -78,14 +83,16 @@ function exactPaths(manifest: Manifest) {
   return paths
 }
 function validPath(path: string) {
-  return /^media\/[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+\.(jpg|png|webp)$/.test(path) && !path.includes('..')
+  return /^(?:media\/[a-zA-Z0-9_-]+|personal\/[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+)\/[a-zA-Z0-9_-]+\.(?:jpg|png|webp)$/.test(path)
 }
 function parseManifest(value: unknown): Manifest {
   if (!value || typeof value !== 'object' || Array.isArray(value)) fail('Le manifeste contient des champs inconnus ou incomplets.')
   const legacyKeys = ['product', 'format', 'version', 'tripId', 'createdAt', 'records', 'media', 'bytes', 'journal']
-  if (!(exactObject(value, legacyKeys) || exactObject(value, [...legacyKeys, 'upcoming']))) fail('Le manifeste contient des champs inconnus ou incomplets.')
+  const allowed = [...legacyKeys, ...(Object.prototype.hasOwnProperty.call(value, 'upcoming') ? ['upcoming'] : []), ...(Object.prototype.hasOwnProperty.call(value, 'personalJournals') ? ['personalJournals'] : [])]
+  if (!exactObject(value, allowed)) fail('Le manifeste contient des champs inconnus ou incomplets.')
   const manifest = value as Manifest
   if (Object.prototype.hasOwnProperty.call(manifest, 'upcoming') && (!manifest.upcoming || !exactObject(manifest.upcoming, ['path', 'bytes', 'sha256']) || manifest.upcoming.path !== 'upcoming.json' || !Number.isSafeInteger(manifest.upcoming.bytes) || manifest.upcoming.bytes < 0 || !/^[a-f0-9]{64}$/.test(manifest.upcoming.sha256))) fail('La collection des prochains voyages est invalide.')
+  if (Object.prototype.hasOwnProperty.call(manifest, 'personalJournals') && (!manifest.personalJournals || !exactObject(manifest.personalJournals, ['path', 'bytes', 'sha256']) || manifest.personalJournals.path !== 'personal-journals.json' || !Number.isSafeInteger(manifest.personalJournals.bytes) || manifest.personalJournals.bytes < 0 || !/^[a-f0-9]{64}$/.test(manifest.personalJournals.sha256))) fail('La collection des carnets personnels est invalide.')
   if (!compatibleProducts.includes(manifest.product) || manifest.format !== archiveFormat || manifest.version !== archiveVersion || manifest.tripId !== tripId) fail('Cette sauvegarde n’est pas compatible avec ce carnet.')
   if (typeof manifest.createdAt !== 'string' || Number.isNaN(Date.parse(manifest.createdAt)) || !exactObject(manifest.journal, ['version', 'drafts']) || manifest.journal.version !== 1 || !Array.isArray(manifest.journal.drafts)) fail('Le manifeste de sauvegarde est invalide.')
   if (manifest.journal.drafts.length > MAX_RECORDS) fail('Cette sauvegarde contient trop de chapitres.')
@@ -136,9 +143,10 @@ function preflightZip(bytes: Uint8Array) {
   if (cursor !== directoryOffset + directorySize) fail('Cette archive ZIP ne peut pas être ouverte.')
 }
 
-export async function createArchive(trip: Trip, upcoming: UpcomingTrip[], createdAt = new Date().toISOString()): Promise<Blob> {
+export async function createArchive(trip: Trip, upcoming: UpcomingTrip[], createdAt = new Date().toISOString(), personalJournals?: Journals): Promise<Blob> {
   if (!validateTrip(trip)) fail('Le carnet local ne peut pas être sauvegardé.')
   if (!validateUpcoming(upcoming)) fail('Les prochains voyages locaux ne peuvent pas être sauvegardés.')
+  if (personalJournals !== undefined && !validateJournals(personalJournals)) fail('Les carnets personnels locaux ne peuvent pas être sauvegardés.')
   const upcomingBytes = encoder.encode(JSON.stringify(upcoming))
   const files: Record<string, Uint8Array> = { 'upcoming.json': upcomingBytes }
   let mediaCount = 0
@@ -162,7 +170,38 @@ export async function createArchive(trip: Trip, upcoming: UpcomingTrip[], create
     const { media: _media, ...record } = draft
     drafts.push({ ...record, media })
   }
-  const manifest: Manifest = { product: 'Un soir là-bas', format: archiveFormat, version: archiveVersion, tripId, createdAt, records: drafts.length, media: mediaCount, bytes: payloadBytes, journal: { version: 1, drafts }, upcoming: { path: 'upcoming.json', bytes: upcomingBytes.byteLength, sha256: await digest(upcomingBytes) } }
+  let personalDescriptor: Manifest['personalJournals']
+  if (personalJournals !== undefined) {
+    const archived: ArchivePersonalJournal[] = []
+    for (let journalIndex = 0; journalIndex < personalJournals.journals.length; journalIndex += 1) {
+      const journal = personalJournals.journals[journalIndex]
+      const chapters: ArchiveDraft[] = []
+      for (let chapterIndex = 0; chapterIndex < journal.chapters.length; chapterIndex += 1) {
+        const chapter = journal.chapters[chapterIndex]
+        const media: ArchiveMedia[] = []
+        for (let mediaIndex = 0; mediaIndex < chapter.media.length; mediaIndex += 1) {
+          const item = chapter.media[mediaIndex]
+          const decoded = dataUrlBytes(item.src)
+          if (decoded.bytes.byteLength > MAX_MEDIA_BYTES) fail(`« ${item.name} » est trop volumineuse pour cette sauvegarde.`)
+          const path = `personal/${String(journalIndex + 1).padStart(3, '0')}-${safeSegment(journal.tripId)}/${String(chapterIndex + 1).padStart(3, '0')}-${safeSegment(chapter.id)}/${String(mediaIndex + 1).padStart(3, '0')}-${safeSegment(item.id)}.${extension(decoded.mime)}`
+          if (files[path]) fail('Deux médias produisent le même chemin de sauvegarde.')
+          files[path] = decoded.bytes
+          payloadBytes += decoded.bytes.byteLength
+          mediaCount += 1
+          if (mediaCount > MAX_MEDIA || payloadBytes > MAX_EXPANDED_BYTES) fail('Les carnets sont trop volumineux pour une sauvegarde portable.')
+          media.push({ id: item.id, name: item.name, mime: decoded.mime, path, bytes: decoded.bytes.byteLength, sha256: await digest(decoded.bytes) })
+        }
+        const { media: _media, ...record } = chapter
+        chapters.push({ ...record, media })
+      }
+      archived.push({ tripId: journal.tripId, destination: journal.destination, departure: journal.departure, chapters })
+    }
+    const payload = { version: 1 as const, journals: archived }
+    const bytes = encoder.encode(JSON.stringify(payload))
+    files['personal-journals.json'] = bytes
+    personalDescriptor = { path: 'personal-journals.json', bytes: bytes.byteLength, sha256: await digest(bytes) }
+  }
+  const manifest: Manifest = { product: 'Un soir là-bas', format: archiveFormat, version: archiveVersion, tripId, createdAt, records: drafts.length, media: mediaCount, bytes: payloadBytes, journal: { version: 1, drafts }, upcoming: { path: 'upcoming.json', bytes: upcomingBytes.byteLength, sha256: await digest(upcomingBytes) }, ...(personalDescriptor ? { personalJournals: personalDescriptor } : {}) }
   files['manifest.json'] = encoder.encode(JSON.stringify(manifest, null, 2))
   const archive = new Blob([zipSync(files, { level: 0 })], { type: 'application/zip' })
   if (archive.size > MAX_ARCHIVE_BYTES) fail('Le carnet dépasse 25 Mo et ne peut pas être restauré sur un autre appareil dans ce format.')
@@ -187,7 +226,7 @@ export async function previewArchive(file: File): Promise<Preview> {
   let manifest: Manifest
   try { manifest = parseManifest(JSON.parse(decoder.decode(manifestBytes))) } catch (error) { fail(error instanceof Error ? error.message : 'Le manifeste de sauvegarde est invalide.') }
   const expected = exactPaths(manifest)
-  if (expected.size !== entries.length || entries.some(([path]) => !expected.has(path))) fail('Cette archive contient des fichiers inattendus ou manquants.')
+  const personalPaths = new Set<string>()
   let upcoming: UpcomingTrip[] | undefined
   if (manifest.upcoming) {
     const bytes = contents[manifest.upcoming.path]
@@ -198,10 +237,50 @@ export async function previewArchive(file: File): Promise<Preview> {
       upcoming = parsed
     } catch (error) { fail(error instanceof Error ? error.message : 'La collection des prochains voyages est invalide.') }
   }
-  const drafts: Draft[] = []
-  const ids = new Set<string>()
+  let personalJournals: Journals | undefined
   let mediaCount = 0
   let payloadBytes = 0
+  if (manifest.personalJournals) {
+    const bytes = contents[manifest.personalJournals.path]
+    if (!bytes || bytes.byteLength !== manifest.personalJournals.bytes || await digest(bytes) !== manifest.personalJournals.sha256) fail('Les carnets personnels de l’archive ont été modifiés ou sont incomplets.')
+    let parsed: unknown
+    try { parsed = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes)) } catch { fail('Les carnets personnels de l’archive sont invalides.') }
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed) || !exactObject(parsed, ['version', 'journals']) || parsed.version !== 1 || !Array.isArray(parsed.journals) || parsed.journals.length > 12) fail('Les carnets personnels de l’archive sont invalides.')
+    const restored = []
+    const journalIds = new Set<string>()
+    for (const journal of parsed.journals) {
+      if (!journal || typeof journal !== 'object' || Array.isArray(journal) || !exactObject(journal, ['tripId', 'destination', 'departure', 'chapters']) || !Array.isArray(journal.chapters) || typeof journal.tripId !== 'string' || journalIds.has(journal.tripId)) fail('Un carnet personnel de l’archive est invalide.')
+      journalIds.add(journal.tripId)
+      const chapters: Draft[] = []
+      const chapterIds = new Set<string>()
+      for (const chapter of journal.chapters) {
+        if (!chapter || typeof chapter !== 'object' || Array.isArray(chapter) || !exactObject(chapter, ['id', 'title', 'memories', 'tone', 'story', 'coverId', 'status', 'media']) || typeof chapter.id !== 'string' || chapterIds.has(chapter.id) || !Array.isArray(chapter.media)) fail('Un chapitre personnel de l’archive est invalide.')
+        chapterIds.add(chapter.id)
+        const media = []
+        const mediaIds = new Set<string>()
+        for (const asset of chapter.media) {
+          if (!asset || typeof asset !== 'object' || Array.isArray(asset) || !exactObject(asset, ['id', 'name', 'mime', 'path', 'bytes', 'sha256']) || typeof asset.id !== 'string' || mediaIds.has(asset.id) || typeof asset.name !== 'string' || typeof asset.path !== 'string' || !validPath(asset.path) || !['image/jpeg', 'image/png', 'image/webp'].includes(String(asset.mime)) || typeof asset.bytes !== 'number' || !Number.isSafeInteger(asset.bytes) || asset.bytes < 0 || !/^[a-f0-9]{64}$/.test(String(asset.sha256))) fail('Un média personnel de l’archive est invalide.')
+          mediaIds.add(asset.id)
+          if (personalPaths.has(asset.path)) fail('L’archive contient des chemins dupliqués.')
+          personalPaths.add(asset.path)
+          const data = contents[asset.path]
+          if (!data || data.byteLength > MAX_MEDIA_BYTES || data.byteLength !== asset.bytes || !matchesMime(String(asset.mime), data) || await digest(data) !== asset.sha256 || !asset.path.endsWith(`.${extension(String(asset.mime))}`)) fail('Un média personnel de l’archive a été modifié ou est incomplet.')
+          payloadBytes += data.byteLength
+          mediaCount += 1
+          if (mediaCount > MAX_MEDIA) fail('Cette archive contient trop de médias.')
+          media.push({ id: asset.id, name: asset.name, src: bytesDataUrl(String(asset.mime), data) })
+        }
+        const { media: _archiveMedia, ...draft } = chapter
+        chapters.push({ ...draft, media } as Draft)
+      }
+      restored.push({ tripId: journal.tripId, destination: journal.destination, departure: journal.departure, chapters })
+    }
+    const result: unknown = { version: 1, journals: restored }
+    if (!validateJournals(result)) fail('Les carnets personnels de l’archive sont invalides.')
+    personalJournals = result
+  }
+  const drafts: Draft[] = []
+  const ids = new Set<string>()
   for (const archiveDraft of manifest.journal.drafts) {
     if (typeof archiveDraft.id !== 'string' || ids.has(archiveDraft.id)) fail('Cette archive contient des identifiants dupliqués.')
     ids.add(archiveDraft.id)
@@ -223,11 +302,16 @@ export async function previewArchive(file: File): Promise<Preview> {
     drafts.push({ ...record, media } as Draft)
   }
   const trip: Trip = { version: 1, drafts }
+  for (const path of personalPaths) {
+    if (expected.has(path)) fail('L’archive contient des chemins dupliqués.')
+    expected.add(path)
+  }
+  if (expected.size !== entries.length || entries.some(([path]) => !expected.has(path))) fail('Cette archive contient des fichiers inattendus ou manquants.')
   if (!validateTrip(trip) || manifest.records !== drafts.length || manifest.media !== mediaCount || manifest.bytes !== payloadBytes) fail('Les données du carnet sont invalides ou incomplètes.')
-  return { trip, upcoming, createdAt: manifest.createdAt, records: manifest.records, media: manifest.media, bytes: manifest.bytes }
+  return { trip, upcoming, personalJournals, createdAt: manifest.createdAt, records: manifest.records, media: manifest.media, bytes: manifest.bytes }
 }
 
 export function archiveFilename(date = new Date()) {
   const pad = (value: number) => String(value).padStart(2, '0')
-  return `philippines-carnet-${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}-${pad(date.getHours())}${pad(date.getMinutes())}.zip`
+  return `un-soir-la-bas-voyages-${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}-${pad(date.getHours())}${pad(date.getMinutes())}.zip`
 }
