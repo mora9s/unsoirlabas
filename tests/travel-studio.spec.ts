@@ -1,6 +1,14 @@
 import { expect, test } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
+import { validateUpcomingTrips } from '../src/upcoming-trips'
+
+test('les informations pratiques invalides sont refusées avant import ou enregistrement', () => {
+  const trips = (extra: object) => [{id:'trip',destination:'Nice',departure:'2027-04-12',plan:{ideas:[],notes:'',stops:[{id:'stop',place:'Nice',...extra}]}}]
+  expect(validateUpcomingTrips(trips({}))).toBe(true)
+  expect(validateUpcomingTrips(trips({time:'23:59',kind:'stay',address:'Nice',booking:'ABC',notes:'Arrivée tardive'}))).toBe(true)
+  for (const extra of [{time:'24:00'},{time:'12:60'},{kind:'unknown'},{address:42},{booking:'x'.repeat(301)},{notes:'x'.repeat(2001)}]) expect(validateUpcomingTrips(trips(extra))).toBe(false)
+})
 
 async function seed(page: import('@playwright/test').Page, populated = false) {
   await page.goto('/')
@@ -59,6 +67,31 @@ test('un fond de carte partiellement chargé propose une reprise sans toucher au
   await expect.poll(() => page.locator('img.leaflet-tile').evaluateAll(images => images.length > 0 && images.every(img => (img as HTMLImageElement).complete && (img as HTMLImageElement).naturalWidth > 0))).toBe(true)
   await expect(button).toHaveCount(0)
   expect(await page.evaluate(() => localStorage.getItem('un-soir-la-bas-upcoming-v1'))).toBe(saved)
+})
+
+test('programme quotidien persistant et informations conservées après édition sur la carte',async({page})=>{
+  await page.setViewportSize({width:390,height:844})
+  await seed(page,true); await page.goto('/#plan/studio')
+  const daily=page.locator('.daily-plan')
+  await daily.getByLabel('Jour de Nice',{exact:true}).fill('2027-04-12')
+  await daily.getByRole('combobox',{name:'Type de Nice',exact:true}).selectOption('stay')
+  await daily.getByLabel('Heure prévue à Nice',{exact:true}).fill('16:30')
+  const card=daily.locator('article').filter({has:page.getByRole('heading',{name:'Nice',exact:true})})
+  await card.getByText('Informations pratiques').click()
+  await card.getByLabel('Adresse de Nice',{exact:true}).fill('12 rue du Port, Nice')
+  await card.getByLabel('Réservation à Nice',{exact:true}).fill('ABC-123')
+  await card.getByLabel('Notes pour Nice',{exact:true}).fill('Arrivée après 16 h')
+  await expect(card.getByRole('link',{name:'Ouvrir l’itinéraire'})).toHaveAttribute('href',/destination=12%20rue/)
+  await page.locator('.route-stop-strip button').first().click()
+  await page.getByRole('button',{name:'Enregistrer cette escale'}).click()
+  await page.reload()
+  await expect(daily.getByLabel('Heure prévue à Nice',{exact:true})).toHaveValue('16:30')
+  const stops=await page.evaluate(()=>JSON.parse(localStorage.getItem('un-soir-la-bas-upcoming-v1')!)[0].plan.stops)
+  expect(stops[0]).toMatchObject({date:'2027-04-12',kind:'stay',time:'16:30',address:'12 rue du Port, Nice',booking:'ABC-123',notes:'Arrivée après 16 h'})
+  await daily.getByLabel('Jour de Nice',{exact:true}).fill('2027-04-13')
+  await expect(daily.getByRole('region',{name:'2027-04-13'})).toContainText('Nice')
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1)
+  await daily.screenshot({path:test.info().outputPath('programme-mobile.png')})
 })
 
 test('construit sur la carte, cherche, déplace et annule un retrait',async({page})=>{

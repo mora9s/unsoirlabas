@@ -5,6 +5,7 @@ import { upcomingKey, validateUpcomingTrips } from '../upcoming-trips'
 import { journalsKey, validateJournals } from '../trip-journals'
 import type { Trip } from '../journal'
 import Icon from './Icon'
+import { backupFingerprint, backupStatus, recordBackup } from '../backup-status'
 
 type Notice = { kind: 'success' | 'error' | 'info'; text: string }
 
@@ -30,11 +31,28 @@ export default function Backup({ trip, onRestore }: { trip: Trip; onRestore: (tr
   const input = useRef<HTMLInputElement>(null)
   const previewTitle = useRef<HTMLHeadingElement>(null)
   const [busy, setBusy] = useState(false)
+  const [history, setHistory] = useState('')
   const [notice, setNotice] = useState<Notice>()
   const [staged, setStaged] = useState<Awaited<ReturnType<typeof previewArchive>>>()
   const [safetyDownloadRequested, setSafetyDownloadRequested] = useState(false)
   const [safetyConfirmed, setSafetyConfirmed] = useState(false)
   const safetySnapshot = useRef<[string | null, string | null, string | null] | null>(null)
+
+  useEffect(() => {
+    function refresh() {
+      try {
+        setHistory(backupStatus(backupFingerprint({
+          trip: storedValue(storageKey, trip, validateTrip),
+          upcomingTrips: storedValue(upcomingKey, [], validateUpcomingTrips),
+          personalJournals: storedValue(journalsKey, {version:1,journals:[]}, validateJournals),
+        })))
+      } catch { setHistory('Impossible de vérifier le suivi : les données locales doivent être contrôlées avant la sauvegarde.') }
+    }
+    refresh()
+    const events = ['storage','focus','backup-updated','upcoming-trips-updated','trip-journals-updated']
+    events.forEach(event => window.addEventListener(event,refresh))
+    return () => events.forEach(event => window.removeEventListener(event,refresh))
+  }, [trip])
 
   useEffect(() => {
     if (staged) window.requestAnimationFrame(() => previewTitle.current?.focus())
@@ -43,20 +61,28 @@ export default function Backup({ trip, onRestore }: { trip: Trip; onRestore: (tr
   async function backup(preferShare: boolean) {
     setBusy(true); setNotice(undefined)
     try {
-      const archive = await createArchive(trip)
+      const snapshot = {
+        trip: storedValue(storageKey, trip, validateTrip),
+        upcomingTrips: storedValue(upcomingKey, [], validateUpcomingTrips),
+        personalJournals: storedValue(journalsKey, {version:1,journals:[]}, validateJournals),
+      }
+      const fingerprint = backupFingerprint(snapshot)
+      const archive = await createArchive(snapshot.trip, new Date().toISOString(), snapshot)
       const filename = archiveFilename()
       const shareFile = new File([archive], filename, { type: 'application/zip' })
       const supported = preferShare && typeof navigator.share === 'function' && typeof navigator.canShare === 'function' && navigator.canShare({ files: [shareFile] })
       if (supported) {
         try {
           await navigator.share({ title: 'Sauvegarde des voyages', text: 'Archive personnelle du carnet Un soir là-bas.', files: [shareFile] })
+          recordBackup(fingerprint)
           setNotice({ kind: 'info', text: 'La feuille de partage a été ouverte. Choisissez Drive pour y déposer cette archive ; le carnet local reste la source de référence.' })
         } catch (error) {
           if ((error as DOMException).name === 'AbortError') setNotice({ kind: 'info', text: 'Partage annulé. Votre carnet local n’a pas été modifié.' })
-          else { download(archive, filename); setNotice({ kind: 'info', text: 'Le partage n’a pas abouti : l’archive a été téléchargée. Placez-la dans Drive si vous le souhaitez.' }) }
+          else { download(archive, filename); recordBackup(fingerprint); setNotice({ kind: 'info', text: 'Le partage n’a pas abouti : l’archive a été téléchargée. Placez-la dans Drive si vous le souhaitez.' }) }
         }
       } else {
         download(archive, filename)
+        recordBackup(fingerprint)
         setNotice({ kind: 'info', text: 'Archive téléchargée. Déposez-la dans Drive si vous le souhaitez.' })
       }
     } catch (error) { setNotice({ kind: 'error', text: error instanceof Error ? error.message : 'La sauvegarde n’a pas pu être préparée.' }) }
@@ -134,6 +160,7 @@ export default function Backup({ trip, onRestore }: { trip: Trip; onRestore: (tr
   return <section className="backup page-width" aria-labelledby="backup-title">
     <div className="backup-copy"><p className="eyebrow">Conserver le carnet</p><h2 id="backup-title">Une copie pour la route.</h2><p>Déposez l’archive dans Drive, dans le dossier de votre choix. Gardez-y vos originaux ; cette copie contient les photos sélectionnées et redimensionnées des carnets, vos récits et les préparatifs de vos voyages.</p></div>
     <div className="backup-actions">
+      <p className="local-note backup-history">{history}</p>
       <button className="button" onClick={() => backup(true)} disabled={busy}>Sauvegarder dans Drive <Icon name="arrow" /></button>
       <button className="text-button" onClick={() => input.current?.click()} disabled={busy}>Importer depuis Drive <Icon name="book" /></button>
       <input ref={input} className="visually-hidden" type="file" accept="application/zip,.zip" aria-label="Choisir une sauvegarde ZIP" onChange={event => stage(event.target.files?.[0])} />

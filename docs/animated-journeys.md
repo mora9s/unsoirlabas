@@ -37,7 +37,15 @@ Le fond utilise les tuiles standard OpenStreetMap à la demande, avec attributio
 
 Le cadrage regroupe les escales qui traversent le méridien 180° (par exemple Fidji–Samoa), sans modifier leurs coordonnées enregistrées. Un chargement incomplet du fond de carte affiche un bouton de reprise ; les étapes restent conservées. Les tests couvrent ce cadrage sur ordinateur et téléphone, ainsi qu’une panne partielle de tuiles suivie d’une reprise avec images de test. L’accès réel aux tuiles reste à vérifier hors du navigateur de test, dont le proxy refuse actuellement ces connexions.
 
-## Copie de lecture
+## Programme quotidien et sauvegardes
+
+La préparation regroupe les étapes par date, puis les étapes sans date dans « À programmer ». Chaque étape accepte un type (visite, hébergement, repas ou transport), une heure facultative, une adresse, une référence de réservation et des notes. Changer la date déplace la fiche entre les journées sans réordonner le parcours géographique. À partir de cinq étapes, une indication invite à prévoir les pauses ; elle n’est pas une estimation de durée. Les dates hors du voyage restent possibles et sont signalées.
+
+Le lien d’itinéraire transmet uniquement la destination à Google Maps, à la demande. Les informations pratiques sont facultatives, validées et incluses dans le ZIP ; l’édition cartographique les préserve. La copie HTML destinée au partage conserve son périmètre actuel et n’ajoute pas les références de réservation.
+
+Le panneau de sauvegarde mémorise la date et une empreinte SHA-256 des données réellement utilisées pour la dernière archive téléchargée ou partagée. Il signale les changements ultérieurs. Un partage annulé ne met pas ce suivi à jour. Ce suivi local ne garantit ni le stockage final du fichier, ni sa présence dans Drive ; cette limite est indiquée dans l’interface. Les archives précédentes restent importables.
+
+## Copie de lecture autonome
 
 Chaque carnet personnel propose **Télécharger la copie de lecture** : un fichier HTML autonome contenant ses chapitres, leurs photos, un sommaire et la liste des escales. Il se lit sans connexion et peut être envoyé comme fichier aux proches. Ce n’est ni un lien hébergé, ni une synchronisation, ni une sauvegarde réimportable ; le ZIP reste le format de restauration.
 

@@ -4,7 +4,7 @@ export const upcomingKey = 'un-soir-la-bas-upcoming-v1'
 export type PlanItem = { id: string; text: string }
 export const transportModes = { plane: 'Avion', train: 'Train', car: 'Voiture', walk: 'À pied', boat: 'Bateau' } as const
 export type TransportMode = keyof typeof transportModes
-export type PlanStop = { id: string; place: string; date?: string; point?: { lat: number; lon: number }; transport?: TransportMode; chapterId?: string }
+export type PlanStop = { id: string; place: string; date?: string; point?: { lat: number; lon: number }; transport?: TransportMode; chapterId?: string; address?: string; time?: string; booking?: string; notes?: string; kind?: 'visit' | 'stay' | 'meal' | 'transit' }
 export type UpcomingTrip = { id: string; destination: string; departure: string; endDate?: string; completed?: true; plan?: { ideas: PlanItem[]; stops: PlanStop[]; notes: string } }
 
 function exact(value: unknown, required: string[], optional: string[] = []): value is Record<string, unknown> {
@@ -18,7 +18,10 @@ function validPlan(value: unknown): boolean {
   const id = (item: unknown) => typeof item === 'string' && item.length > 0 && item.length <= 160
   const text = (item: unknown) => typeof item === 'string' && item.trim().length > 0 && item.length <= 160
   return value.ideas.every(item => exact(item, ['id', 'text']) && id(item.id) && text(item.text)) &&
-    value.stops.every(item => exact(item, ['id', 'place'], ['date', 'point', 'transport', 'chapterId']) && id(item.id) && text(item.place) &&
+    value.stops.every(item => exact(item, ['id', 'place'], ['date', 'point', 'transport', 'chapterId', 'address', 'time', 'booking', 'notes', 'kind']) && id(item.id) && text(item.place) &&
+      ['address', 'booking', 'notes'].every(key => !(key in item) || (typeof item[key] === 'string' && item[key].length <= (key === 'notes' ? 2000 : 300))) &&
+      (!('time' in item) || (typeof item.time === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(item.time))) &&
+      (!('kind' in item) || ['visit', 'stay', 'meal', 'transit'].includes(item.kind as string)) &&
       (!Object.prototype.hasOwnProperty.call(item, 'point') || (exact(item.point, ['lat', 'lon']) && typeof item.point.lat === 'number' && Number.isFinite(item.point.lat) && Math.abs(item.point.lat) <= 90 && typeof item.point.lon === 'number' && Number.isFinite(item.point.lon) && Math.abs(item.point.lon) <= 180)) &&
       (!Object.prototype.hasOwnProperty.call(item, 'transport') || (typeof item.transport === 'string' && Object.prototype.hasOwnProperty.call(transportModes, item.transport))) &&
       (!Object.prototype.hasOwnProperty.call(item, 'chapterId') || id(item.chapterId)) &&

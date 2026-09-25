@@ -104,7 +104,11 @@ export default function RouteBuilder({ stops, chapters, save }: { stops: PlanSto
   function reset() { setSelected(null); setPoint(null); setFields(blank()); setMessage(''); setFound([]) }
   function persist() {
     if (!point || !fields.name.trim() || (!first && !fields.transport)) { setMessage('Choisissez une position, un nom et le transport pour y arriver.'); return }
-    const stop: PlanStop = { id: selected ?? createId(), place: fields.name.trim(), point, ...(fields.date ? { date: fields.date } : {}), ...(fields.transport ? { transport: fields.transport } : {}), ...(fields.chapterId ? { chapterId: fields.chapterId } : {}) }
+    const stop: PlanStop = { ...(selected ? stops.find(s => s.id === selected) : {}), id: selected ?? createId(), place: fields.name.trim(), point }
+    delete stop.date; delete stop.transport; delete stop.chapterId
+    if (fields.date) stop.date = fields.date
+    if (fields.transport) stop.transport = fields.transport
+    if (fields.chapterId) stop.chapterId = fields.chapterId
     if (selected && chosenIndex < 0) { setMessage('Cette étape a été retirée. Choisissez une autre étape.'); return }
     if (save(current => selected ? current.map(s => s.id === selected ? stop : s) : [...current, stop])) { reset(); setMessage(selected ? 'Étape mise à jour.' : 'Étape ajoutée. Choisissez la prochaine escale.'); setUndo(null) }
   }

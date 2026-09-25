@@ -31,12 +31,21 @@ test('archive ZIP réelle, prévisualisation et restauration explicite', async (
     Object.defineProperty(navigator, 'canShare', { value: undefined, configurable: true })
   })
   await seed(page)
+  await expect(page.locator('.backup-history')).toContainText('Aucune archive préparée')
   const pending = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Sauvegarder dans Drive' }).click()
   const download = await pending
   expect(download.suggestedFilename()).toMatch(/^un-soir-la-bas-carnet-\d{4}-\d{2}-\d{2}-\d{4}\.zip$/)
   const path = testInfo.outputPath('carnet.zip')
   await download.saveAs(path)
+  await expect(page.locator('.backup-history')).toContainText('Aucun changement depuis cette archive')
+  await page.evaluate(() => {
+    const trips = JSON.parse(localStorage.getItem('un-soir-la-bas-upcoming-v1')!)
+    trips[0].destination='Kyoto et Osaka'
+    localStorage.setItem('un-soir-la-bas-upcoming-v1',JSON.stringify(trips))
+    window.dispatchEvent(new Event('upcoming-trips-updated'))
+  })
+  await expect(page.locator('.backup-history')).toContainText('Des changements ne figurent pas')
   const zip = unzipSync(await readFile(path))
   expect(Object.keys(zip).sort()).toEqual(expect.arrayContaining(['manifest.json', 'media/001-chapitre-source/001-photo-source.jpg']))
   const manifest = JSON.parse(new TextDecoder().decode(zip['manifest.json']))

@@ -57,7 +57,7 @@ test('la sauvegarde ZIP transporte le plan et la date de fin sans mélanger les 
   await page.addInitScript(() => { Object.defineProperty(navigator, 'share', { value: undefined, configurable: true }) })
   await page.goto('/')
   await page.evaluate(() => localStorage.setItem('un-soir-la-bas-upcoming-v1', JSON.stringify([
-    { id: 'kyoto', destination: 'Kyoto', departure: '2027-04-12', endDate: '2027-04-24', plan: { ideas: [], notes: '', stops: [{ id: 'tokyo', place: 'Tokyo', point: { lat: 35.68, lon: 139.69 } }, { id: 'kyoto-stop', place: 'Kyoto', point: { lat: 35.01, lon: 135.76 }, transport: 'train', chapterId: 'future-chapter' }] } },
+    { id: 'kyoto', destination: 'Kyoto', departure: '2027-04-12', endDate: '2027-04-24', plan: { ideas: [], notes: '', stops: [{ id: 'tokyo', place: 'Tokyo', point: { lat: 35.68, lon: 139.69 } }, { id: 'kyoto-stop', place: 'Kyoto', point: { lat: 35.01, lon: 135.76 }, transport: 'train', chapterId: 'future-chapter', date: '2027-04-13', time: '14:30', kind: 'stay', address: 'Kyoto station', booking: 'REF-42', notes: 'Déposer les bagages'  }] } },
     { id: 'lisbonne', destination: 'Lisbonne', departure: '2027-06-01' },
   ])))
   await page.goto('/#plan/kyoto')
@@ -83,7 +83,7 @@ test('la sauvegarde ZIP transporte le plan et la date de fin sans mélanger les 
   await restored.getByRole('button', { name: 'Restaurer ce carnet' }).click()
   const trips = await restored.evaluate(() => JSON.parse(localStorage.getItem('un-soir-la-bas-upcoming-v1') || '[]'))
   expect(trips).toHaveLength(2)
-  expect(trips.find((trip: { id: string }) => trip.id === 'kyoto')).toMatchObject({ endDate: '2027-04-24', plan: { ideas: [{ text: 'Les jardins' }], stops: [{ id: 'tokyo', place: 'Tokyo', point: { lat: 35.68, lon: 139.69 } }, { id: 'kyoto-stop', place: 'Kyoto', point: { lat: 35.01, lon: 135.76 }, transport: 'train', chapterId: 'future-chapter' }], notes: 'Train réservé' } })
+  expect(trips.find((trip: { id: string }) => trip.id === 'kyoto')).toMatchObject({ endDate: '2027-04-24', plan: { ideas: [{ text: 'Les jardins' }], stops: [{ id: 'tokyo', place: 'Tokyo', point: { lat: 35.68, lon: 139.69 } }, { id: 'kyoto-stop', place: 'Kyoto', point: { lat: 35.01, lon: 135.76 }, transport: 'train', chapterId: 'future-chapter', date: '2027-04-13', time: '14:30', kind: 'stay', address: 'Kyoto station', booking: 'REF-42', notes: 'Déposer les bagages'  }], notes: 'Train réservé' } })
   expect(trips.find((trip: { id: string }) => trip.id === 'lisbonne')).not.toHaveProperty('plan')
   await context.close()
 })
