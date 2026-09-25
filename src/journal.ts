@@ -69,7 +69,7 @@ export function readTrip(): { trip: Trip; error: string } {
   }
 }
 
-export function generateStory(memories: string, tone: string): string {
+export function generateStory(memories: string, tone: string, personalJourney = false): string {
   const openings: Record<string, string> = {
     Aventure: 'Aujourd’hui, aux Philippines, nous avons suivi notre envie d’explorer plutôt qu’un itinéraire tout tracé.',
     Contemplatif: 'Il y a des journées que l’on voudrait retenir un peu plus longtemps. Aux Philippines, celle-ci en fait partie.',
@@ -79,6 +79,11 @@ export function generateStory(memories: string, tone: string): string {
     Aventure: 'Ce soir, nous gardons le goût du départ et l’envie de recommencer. L’aventure tient aussi dans ces petits moments que l’on prend enfin le temps de raconter.',
     Contemplatif: 'En relisant ces mots, nous retrouvons le rythme de la journée. Rien à ajouter : seulement l’envie de laisser à ces souvenirs la place qu’ils méritent.',
     Spontané: 'Voilà ce que l’on veut emporter avec nous. Pas une journée parfaite sur le papier, mais la nôtre, avec ces instants qu’on se racontera encore au retour.',
+  }
+  if (personalJourney) {
+    openings.Aventure = 'Aujourd’hui, nous avons suivi notre envie d’explorer plutôt qu’un itinéraire tout tracé.'
+    openings.Contemplatif = 'Il y a des journées que l’on voudrait retenir un peu plus longtemps. Celle-ci en fait partie.'
+    openings.Spontané = 'On voulait garder une trace de cette journée avant que les petits détails ne nous échappent.'
   }
   const text = memories.trim()
   return `${openings[tone] ?? openings.Contemplatif}\n\n${text}${/[.!?…]$/.test(text) ? '' : '.'}\n\n${endings[tone] ?? endings.Contemplatif}`

@@ -36,6 +36,8 @@ export function readJournals(): { data: Journals; error: string } {
         const parsed: unknown = JSON.parse(old)
         if (validateTrip(parsed) && parsed.drafts.length) {
           const next = { version: 1 as const, journals: [...data.journals, { tripId: legacyId, destination: 'Philippines', departure: '', chapters: parsed.drafts }] }
+          // Keep the original journal readable even when the personal-journal cap is reached.
+          if (!validateJournals(next)) return { data, error: '' }
           localStorage.setItem(journalsKey, JSON.stringify(next))
           return { data: next, error: '' }
         }

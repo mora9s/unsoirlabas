@@ -34,14 +34,18 @@ test('archive ZIP réelle, prévisualisation et restauration explicite', async (
   const pending = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Sauvegarder dans Drive' }).click()
   const download = await pending
-  expect(download.suggestedFilename()).toMatch(/^philippines-carnet-\d{4}-\d{2}-\d{2}-\d{4}\.zip$/)
+  expect(download.suggestedFilename()).toMatch(/^un-soir-la-bas-carnet-\d{4}-\d{2}-\d{2}-\d{4}\.zip$/)
   const path = testInfo.outputPath('carnet.zip')
   await download.saveAs(path)
   const zip = unzipSync(await readFile(path))
   expect(Object.keys(zip).sort()).toEqual(expect.arrayContaining(['manifest.json', 'media/001-chapitre-source/001-photo-source.jpg']))
   const manifest = JSON.parse(new TextDecoder().decode(zip['manifest.json']))
-  expect(manifest).toMatchObject({ product: 'Un soir là-bas', format: 'les-jours-au-large-journal', version: 2, tripId: 'philippines-18-jours', records: 1, media: 1, upcoming: { version: 1, trips: upcoming } })
+  expect(manifest).toMatchObject({ product: 'Un soir là-bas', format: 'les-jours-au-large-journal', version: 2, tripId: 'philippines-18-jours', records: 1, media: 2, upcoming: { version: 1, trips: upcoming }, personalJournals: { path: 'personal-journals.json' } })
   expect(manifest.journal.drafts[0].media[0].name).toBe('café du matin.jpg')
+  const personalPath = 'personal/001-legacy-philippines-journal/001-chapitre-source/001-photo-source.jpg'
+  expect(Object.keys(zip)).toContain(personalPath)
+  const personalPayload = JSON.parse(new TextDecoder().decode(zip['personal-journals.json']))
+  expect(personalPayload.journals[0].chapters[0].media[0]).toMatchObject({ name: 'café du matin.jpg', path: personalPath, mime: 'image/jpeg', bytes: zip[personalPath].byteLength })
   const freshContext = await browser.newContext()
   const fresh = await freshContext.newPage()
   await fresh.goto('/')
@@ -53,16 +57,52 @@ test('archive ZIP réelle, prévisualisation et restauration explicite', async (
   expect(await fresh.evaluate(key => localStorage.getItem(key), upcomingKey)).toBeNull()
   await confirmSafetyCopy(fresh, testInfo.outputPath('fresh-safety.zip'))
   await fresh.getByRole('button', { name: 'Restaurer ce carnet' }).click()
-  await expect(fresh.getByRole('status')).toContainText('restaurés')
+  await expect(fresh.getByRole('status')).toContainText('restaurées sur cet appareil')
   const restored = await fresh.evaluate(key => JSON.parse(localStorage.getItem(key)!), key)
   expect(restored.drafts).toHaveLength(1)
   expect(restored.drafts[0]).toMatchObject({ id: 'chapitre-source', title: 'Le départ', memories: 'Un premier café.', tone: 'Spontané', story: 'Le premier matin.', coverId: 'photo-source', status: 'draft' })
   expect(restored.drafts[0].media).toEqual([{ id: 'photo-source', name: 'café du matin.jpg', src: photo }])
   expect(await fresh.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1)
   expect(await fresh.evaluate(key => JSON.parse(localStorage.getItem(key)!), upcomingKey)).toEqual(upcoming)
+  const restoredJournals = await fresh.evaluate(() => JSON.parse(localStorage.getItem('un-soir-la-bas-journals-v1')!))
+  expect(restoredJournals.journals[0].chapters[0].media).toEqual([{ id: 'photo-source', name: 'café du matin.jpg', src: photo }])
   await fresh.getByRole('button', { name: 'Le carnet', exact: true }).click()
   await expect(fresh.getByTestId('upcoming-trip')).toContainText('Kyoto')
   await freshContext.close()
+})
+
+test('restaure les photos personnelles intégrées aux anciennes archives v2', async ({ page }, testInfo) => {
+  await seed(page)
+  const pending = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Sauvegarder dans Drive' }).click()
+  const download = await pending
+  const generatedPath = testInfo.outputPath('modern.zip')
+  await download.saveAs(generatedPath)
+  const archive = unzipSync(await readFile(generatedPath))
+  const manifest = JSON.parse(new TextDecoder().decode(archive['manifest.json']))
+  const payload = JSON.parse(new TextDecoder().decode(archive[manifest.personalJournals.path]))
+  for (const journal of payload.journals) for (const chapter of journal.chapters) {
+    chapter.media = chapter.media.map((asset: { id: string; name: string; mime: string; path: string }) => ({
+      id: asset.id,
+      name: asset.name,
+      src: `data:${asset.mime};base64,${Buffer.from(archive[asset.path]).toString('base64')}`,
+    }))
+  }
+  manifest.personalJournals = payload
+  manifest.media = manifest.journal.drafts.reduce((count: number, chapter: { media: unknown[] }) => count + chapter.media.length, 0)
+  manifest.bytes = manifest.journal.drafts.reduce((count: number, chapter: { media: { bytes: number }[] }) => count + chapter.media.reduce((sum, asset) => sum + asset.bytes, 0), 0)
+  for (const path of Object.keys(archive)) if (path.startsWith('personal/') || path === 'personal-journals.json') delete archive[path]
+  archive['manifest.json'] = new TextEncoder().encode(JSON.stringify(manifest))
+  const legacyPath = testInfo.outputPath('v2-inline-personal.zip')
+  await writeFile(legacyPath, zipSync(archive))
+
+  await page.getByLabel('Choisir une sauvegarde ZIP').setInputFiles(legacyPath)
+  await expect(page.getByRole('heading', { name: 'Restaurer ce carnet ?' })).toBeVisible()
+  await confirmSafetyCopy(page, testInfo.outputPath('inline-safety.zip'))
+  await page.getByRole('button', { name: 'Restaurer ce carnet' }).click()
+  await expect(page.getByRole('status')).toContainText('restaurées sur cet appareil')
+  const restored = await page.evaluate(() => JSON.parse(localStorage.getItem('un-soir-la-bas-journals-v1')!))
+  expect(restored.journals[0].chapters[0].media).toEqual([{ id: 'photo-source', name: 'café du matin.jpg', src: photo }])
 })
 
 test('archive invalide ou annulée ne modifie jamais le stockage', async ({ page }, testInfo) => {
@@ -127,6 +167,9 @@ test('une archive historique sans voyages conserve les décomptes actuels', asyn
   manifest.version = 1
   delete manifest.upcoming
   delete manifest.personalJournals
+  for (const path of Object.keys(legacy)) if (path.startsWith('personal/') || path === 'personal-journals.json') delete legacy[path]
+  manifest.media = manifest.journal.drafts.reduce((count: number, draft: { media: unknown[] }) => count + draft.media.length, 0)
+  manifest.bytes = manifest.journal.drafts.reduce((count: number, draft: { media: { bytes: number }[] }) => count + draft.media.reduce((sum, media) => sum + media.bytes, 0), 0)
   legacy['manifest.json'] = new TextEncoder().encode(JSON.stringify(manifest))
   const path = testInfo.outputPath('legacy-v1.zip')
   await writeFile(path, zipSync(legacy))
@@ -134,12 +177,12 @@ test('une archive historique sans voyages conserve les décomptes actuels', asyn
   await page.evaluate(key => localStorage.setItem(key, JSON.stringify({ version: 1, journals: [{ tripId: 'unrelated-trip', destination: 'Oslo', departure: '', chapters: [] }] })), 'un-soir-la-bas-journals-v1')
   await page.getByLabel('Choisir une sauvegarde ZIP').setInputFiles(path)
   await expect(page.getByRole('heading', { name: 'Restaurer ce carnet ?' })).toBeVisible()
-  await expect(page.locator('.restore-preview')).toContainText('seront remplacés par aucun carnet multi-voyage')
+  await expect(page.locator('.restore-preview')).toContainText('Cette ancienne archive ne contient pas de carnets multi-voyage : ceux de cet appareil seront conservés.')
   await confirmSafetyCopy(page, testInfo.outputPath('legacy-safety.zip'))
   await page.getByRole('button', { name: 'Restaurer ce carnet' }).click()
   await expect(page.getByRole('status')).toContainText('restauré')
   expect(await page.evaluate(key => localStorage.getItem(key), upcomingKey)).toBe(JSON.stringify(upcoming))
-  expect(await page.evaluate(key => JSON.parse(localStorage.getItem(key)!).journals.map((item: { destination: string; chapters: { id: string }[] }) => [item.destination, item.chapters.map(chapter => chapter.id)]), 'un-soir-la-bas-journals-v1')).toEqual([['Philippines', ['chapitre-source']]])
+  expect(await page.evaluate(key => JSON.parse(localStorage.getItem(key)!).journals.map((item: { destination: string; chapters: { id: string }[] }) => [item.destination, item.chapters.map(chapter => chapter.id)]), 'un-soir-la-bas-journals-v1')).toEqual([['Oslo', []], ['Philippines', ['chapitre-source']]])
 })
 
 test('un échec quota sur le second stockage rétablit les deux valeurs exactes', async ({ page }, testInfo) => {
@@ -202,7 +245,8 @@ test('un remplacement prévisualise les différences et exige le téléchargemen
   const safetyManifest = JSON.parse(new TextDecoder().decode(safetyArchive['manifest.json']))
   expect(safetyManifest.journal.drafts[0].title).toBe('Version locale')
   expect(safetyManifest.upcoming.trips.map((item: { destination: string }) => item.destination)).toEqual(['Kyoto', 'Oslo'])
-  expect(safetyManifest.personalJournals.journals[0].destination).toBe('Oslo')
+  const safetyPersonal = JSON.parse(new TextDecoder().decode(safetyArchive[safetyManifest.personalJournals.path]))
+  expect(safetyPersonal.journals[0].destination).toBe('Oslo')
   await expect(page.getByRole('checkbox', { name: /je confirme que la copie de sécurité est téléchargée et vérifiée/i })).toBeVisible()
   await page.getByRole('checkbox', { name: /je confirme que la copie de sécurité est téléchargée et vérifiée/i }).check()
   await expect(restoreButton).toBeEnabled()
@@ -213,7 +257,7 @@ test('un remplacement prévisualise les différences et exige le téléchargemen
   await page.getByLabel('Choisir une sauvegarde ZIP').setInputFiles(incomingPath)
   await confirmSafetyCopy(page, testInfo.outputPath('second-safety.zip'))
   await page.getByRole('button', { name: 'Restaurer ce carnet' }).click()
-  await expect(page.locator('.backup-message[role="status"]')).toContainText('restaurés')
+  await expect(page.locator('.backup-message[role="status"]')).toContainText('restaurées sur cet appareil')
   expect(await page.evaluate(({ key, upcomingKey }) => [JSON.parse(localStorage.getItem(key)!).drafts[0].title, JSON.parse(localStorage.getItem(upcomingKey)!).map((item: { destination: string }) => item.destination), JSON.parse(localStorage.getItem('un-soir-la-bas-journals-v1')!).journals.map((item: { destination: string }) => item.destination)], { key, upcomingKey })).toEqual(['Le départ', ['Kyoto'], ['Philippines']])
 })
 

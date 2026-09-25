@@ -1,21 +1,40 @@
 import { createId } from './id'
 
 export const upcomingKey = 'un-soir-la-bas-upcoming-v1'
-export type UpcomingTrip = { id: string; destination: string; departure: string; endDate?: string; completed?: true }
+export type PlanItem = { id: string; text: string }
+export type PlanStop = { id: string; place: string; date?: string }
+export type UpcomingTrip = { id: string; destination: string; departure: string; endDate?: string; completed?: true; plan?: { ideas: PlanItem[]; stops: PlanStop[]; notes: string } }
+
+function exact(value: unknown, required: string[], optional: string[] = []): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value) &&
+    required.every(key => Object.prototype.hasOwnProperty.call(value, key)) &&
+    Object.keys(value).every(key => required.includes(key) || optional.includes(key))
+}
+function validPlan(value: unknown): boolean {
+  if (!exact(value, ['ideas', 'stops', 'notes']) || !Array.isArray(value.ideas) || !Array.isArray(value.stops) ||
+    value.ideas.length > 30 || value.stops.length > 30 || typeof value.notes !== 'string' || value.notes.length > 4000) return false
+  const id = (item: unknown) => typeof item === 'string' && item.length > 0 && item.length <= 160
+  const text = (item: unknown) => typeof item === 'string' && item.trim().length > 0 && item.length <= 160
+  return value.ideas.every(item => exact(item, ['id', 'text']) && id(item.id) && text(item.text)) &&
+    value.stops.every(item => exact(item, ['id', 'place'], ['date']) && id(item.id) && text(item.place) &&
+      (!Object.prototype.hasOwnProperty.call(item, 'date') || (typeof item.date === 'string' && !!dateParts(item.date)))) &&
+    new Set(value.ideas.map(item => item.id)).size === value.ideas.length && new Set(value.stops.map(item => item.id)).size === value.stops.length
+}
 
 export function validateUpcomingTrips(value: unknown): value is UpcomingTrip[] {
   return Array.isArray(value) && value.length <= 12 && value.every(item => {
     if (!item || typeof item !== 'object' || Array.isArray(item)) return false
     const trip = item as Record<string, unknown>
     const keys = Object.keys(trip)
-    if (keys.some(key => !['id', 'destination', 'departure', 'endDate', 'completed'].includes(key)) ||
+    if (keys.some(key => !['id', 'destination', 'departure', 'endDate', 'completed', 'plan'].includes(key)) ||
       !['id', 'destination', 'departure'].every(key => Object.prototype.hasOwnProperty.call(trip, key)) ||
-      keys.length < 3 || keys.length > 5) return false
+      keys.length < 3 || keys.length > 6) return false
     if (typeof trip.id !== 'string' || !trip.id || trip.id.length > 160 ||
       typeof trip.destination !== 'string' || !trip.destination.trim() || trip.destination.length > 80 ||
       typeof trip.departure !== 'string' || !dateParts(trip.departure)) return false
     return (!Object.prototype.hasOwnProperty.call(trip, 'endDate') || (typeof trip.endDate === 'string' && Boolean(dateParts(trip.endDate)) && trip.endDate >= trip.departure)) &&
-      (!Object.prototype.hasOwnProperty.call(trip, 'completed') || trip.completed === true)
+      (!Object.prototype.hasOwnProperty.call(trip, 'completed') || trip.completed === true) &&
+      (!Object.prototype.hasOwnProperty.call(trip, 'plan') || validPlan(trip.plan))
   }) && new Set(value.map(item => item.id)).size === value.length
 }
 

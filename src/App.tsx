@@ -12,6 +12,7 @@ import type { PersonalJournal } from './trip-journals'
 import TripJournal from './components/TripJournal'
 import ShareChapterPicker from './components/ShareChapterPicker'
 import Backup from './components/Backup'
+import TripPlanner from './components/TripPlanner'
 import type { ShareChoice } from './components/ShareChapterPicker'
 import type { Draft } from './journal'
 import './journal.css'
@@ -19,7 +20,7 @@ import './journal.css'
 type View = string
 function currentView(): View {
   const hash = window.location.hash.slice(1)
-  if (/^(draft|share|share-trip|trip|journey|journal-share|trip-create)\//.test(hash)) return hash
+  if (/^(draft|share|share-trip|trip|plan|journey|journal-share|trip-create)\//.test(hash)) return hash
   const base = hash.split('/')[0]
   if (['create', 'share', 'share-demo', 'demo', 'tools', 'day-1', 'day-3', 'day-8'].includes(base)) return base
   return ['', 'carnet', 'main'].includes(hash) ? 'home' : 'missing'
@@ -76,12 +77,14 @@ export default function App() {
       if (next === 'create' || next.startsWith('trip-create/')) setCreatorOpened(true)
     }
     const updateStorage = () => { setStored(readTrip()); setJournals(readJournals()) }
+    window.addEventListener('upcoming-trips-updated', updateStorage)
     window.addEventListener('trip-journals-updated', updateStorage)
     window.addEventListener('popstate', updateView)
     window.addEventListener('hashchange', updateView)
     window.addEventListener('storage', updateStorage)
     return () => {
       window.removeEventListener('trip-journals-updated', updateStorage)
+      window.removeEventListener('upcoming-trips-updated', updateStorage)
       window.removeEventListener('popstate', updateView)
       window.removeEventListener('hashchange', updateView)
       window.removeEventListener('storage', updateStorage)
@@ -158,11 +161,13 @@ export default function App() {
           openDraft={draft => navigate(`draft/${encodeURIComponent(draft.id)}`)}
           editDraft={editDraft}
           onOpenJournal={openUpcomingJournal}
+          openPlanner={id => navigate(`plan/${encodeURIComponent(id)}`)}
           journals={journals.data.journals}
         />
       )}
       {view === 'demo' && <Demo openDay={openDay} />}
       {view === 'tools' && <section className="tools-page page-width" aria-labelledby="tools-title"><p className="eyebrow">Réglages et conservation</p><h1 id="tools-title">Outils du carnet</h1><Backup trip={stored.trip} onRestore={trip => { setStored({ trip, error: '' }); setJournals(readJournals()) }} /></section>}
+      {view.startsWith('plan/') && <TripPlanner key={view} id={draftId(view) ?? ''} back={() => navigate('home')} openJournal={() => navigate(`trip/${encodeURIComponent(journalTripId)}`)} />}
       {view.startsWith('day') && (
         <Chapter
           dayNumber={Number(view.slice(4))}
@@ -173,7 +178,7 @@ export default function App() {
       )}
       {view.startsWith('trip/') && journal && <TripJournal journal={journal} open={chapter => navigate(`journey/${encodeURIComponent(journal.tripId)}/${encodeURIComponent(chapter.id)}`)} create={() => createTripChapter(journal)} edit={chapter => editTripChapter(journal, chapter)} />}
       {view.startsWith('journey/') && journal && journalChapter && <CustomChapter draft={journalChapter} home={() => navigate(`trip/${encodeURIComponent(journal.tripId)}`)} edit={() => editTripChapter(journal, journalChapter)} share={() => navigate(`journal-share/${encodeURIComponent(journal.tripId)}/${encodeURIComponent(journalChapter.id)}`)} />}
-      {tripCreating && tripCreateContext && <Creator localStore={false} recoveryScope={`trip:${tripCreateContext.id}:${tripEditDraft?.id ?? 'new'}`} key={tripEditDraft?.id ?? `trip-${tripCreateContext.id}-${newDraftNumber}`} initialDraft={tripEditDraft ?? editing} onSave={(_trip, saved) => {
+      {tripCreating && tripCreateContext && <Creator localStore={false} personalDestination={tripCreateContext.destination} recoveryScope={`trip:${tripCreateContext.id}:${tripEditDraft?.id ?? 'new'}`} key={tripEditDraft?.id ?? `trip-${tripCreateContext.id}-${newDraftNumber}`} initialDraft={tripEditDraft ?? editing} onSave={(_trip, saved) => {
         saveChapter(tripCreateContext.id, tripCreateContext.destination, tripCreateContext.departure, saved)
         setJournals(readJournals())
         setEditing(saved)

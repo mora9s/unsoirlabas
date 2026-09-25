@@ -62,21 +62,22 @@ les limites, la confidentialité et les prérequis de compte réel sont détaill
 Depuis l’accueil, **Sauvegarder dans Drive** prépare une archive ZIP versionnée et
 portable. Sur les appareils qui proposent le partage de fichiers, la feuille de
 partage permet de choisir Drive ; sinon l’archive est téléchargée, y compris sur
-un réseau local ou hors ligne, pour être déposée manuellement dans
-`Voyages / Philippines / Sauvegardes`. L’application ne prétend jamais avoir
+un réseau local ou hors ligne, pour être déposée manuellement dans Drive.
+L’application ne prétend jamais avoir
 chargé le fichier dans Drive.
 
 L’archive contient les chapitres personnels, leur ordre et leurs identifiants,
-les récits, les photos sélectionnées/redimensionnées du carnet et les décomptes
-à venir enregistrés sous `un-soir-la-bas-upcoming-v1`. Les archives de version 1
-restent importables ; elles ne contiennent pas de décomptes, donc leur restauration
-conserve ceux déjà présents sur l’appareil. Les originaux de l’appareil ou
+les récits, les photos sélectionnées/redimensionnées des carnets de chaque voyage,
+et les voyages enregistrés sous `un-soir-la-bas-upcoming-v1` avec leurs envies,
+étapes et notes de préparation. Les archives de version 1 restent importables ;
+les collections absentes de l’archive sont conservées sur l’appareil. Les originaux de l’appareil ou
 de Drive, les chapitres de démonstration, les comptes Drive et les modifications
 non enregistrées n’y figurent pas. L’audio du récit vocal stocké dans IndexedDB
 n’est pas exporté ni restauré. **Importer depuis Drive** ouvre le sélecteur de
 fichiers (où Drive peut être choisi), vérifie l’archive puis affiche un aperçu avant
-une restauration qui remplace le carnet et les décomptes locaux : il n’y a pas
-encore de fusion. Une synchronisation OAuth directe demanderait un client Web
+une restauration qui indique précisément les collections remplacées et exige
+une copie ZIP locale de sécurité si des données existantes seraient écrasées :
+il n’y a pas de fusion. Une synchronisation OAuth directe demanderait un client Web
 public, des origines HTTPS autorisées et une validation dédiée ; aucun identifiant
 OAuth n’est embarqué dans ce prototype.
 
@@ -92,6 +93,13 @@ Les voyages à venir sont conservés séparément, uniquement sur cet appareil, 
 d’heures restant) et se recalcule à l’ouverture, au retour dans l’onglet et chaque
 minute. Ils sont inclus dans les nouvelles archives version 2 ; aucun voyage
 de démonstration n’est inventé.
+
+Depuis la bibliothèque des voyages, **Planifier** ouvre la préparation du voyage
+concerné : envies, étapes réordonnables avec dates facultatives et notes privées.
+**Ouvrir le carnet** permet ensuite de créer ses journées dans ce voyage, sans
+mélanger ses chapitres avec ceux des autres destinations. Les chapitres Philippines
+historiques restent lisibles. Chaque ajout au plan est enregistré localement et
+inclus dans la prochaine archive ZIP ; rien n’est réservé ni synchronisé avec Drive.
 
 La génération du récit est déterministe : elle encadre les souvenirs saisis selon
 le ton choisi, sans inventer de lieux ni envoyer les données à une IA distante.

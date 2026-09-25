@@ -74,7 +74,7 @@ test('isolates recovery by trip and can explicitly discard without creating a sa
   await expect(page.getByRole('heading', { name: 'Reprendre votre chapitre ?' })).toBeVisible()
   await page.getByRole('button', { name: 'Abandonner ce brouillon' }).click()
   await expect(page.getByRole('heading', { name: 'Reprendre votre chapitre ?' })).toHaveCount(0)
-  await expect(page.getByLabel('Le titre de votre journée')).toHaveValue('Une nouvelle journée aux Philippines')
+  await expect(page.getByLabel('Le titre de votre journée')).toHaveValue('Une nouvelle journée à Tokyo')
   const saved = await page.evaluate(key => localStorage.getItem(key), journalsKey)
   expect(saved).toBeNull()
   const pending = await page.evaluate(key => JSON.parse(localStorage.getItem(key)!).drafts, recoveryKey)

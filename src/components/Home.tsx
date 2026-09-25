@@ -4,9 +4,9 @@ import Icon from './Icon'
 import UpcomingTrips from './UpcomingTrips'
 import '../travel-library.css'
 
-export default function Home({ openDay, openTools, create, drafts, openDraft, editDraft, onOpenJournal, journals }: { openDay: (day: number) => void; openTools: () => void; create: () => void; drafts: Draft[]; openDraft: (draft: Draft) => void; editDraft: (draft: Draft) => void; onOpenJournal: (trip: import('../upcoming-trips').UpcomingTrip) => void; journals: import('../trip-journals').PersonalJournal[] }) {
+export default function Home({ openDay, openTools, create, drafts, openDraft, editDraft, onOpenJournal, openPlanner, journals }: { openDay: (day: number) => void; openTools: () => void; create: () => void; drafts: Draft[]; openDraft: (draft: Draft) => void; editDraft: (draft: Draft) => void; onOpenJournal: (trip: import('../upcoming-trips').UpcomingTrip) => void; openPlanner: (id: string) => void; journals: import('../trip-journals').PersonalJournal[] }) {
   return <>
-    <UpcomingTrips openJournal={onOpenJournal} journals={journals} />
+    <UpcomingTrips openJournal={onOpenJournal} openPlanner={openPlanner} journals={journals} />
     <section className="home-pages page-width" aria-labelledby="home-pages-title">
       <header className="library-section-heading"><div><p className="eyebrow">Vos récits</p><h2 id="home-pages-title">Pages personnelles</h2></div><button className="button home-create" onClick={create}>Créer une journée <Icon name="plus" /></button></header>
       {drafts.length ? <div className="personal-memory-grid">{drafts.map(draft => {

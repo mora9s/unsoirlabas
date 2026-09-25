@@ -10,7 +10,7 @@ function dateLabel(date: string): string {
   return new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(year, month - 1, day))
 }
 
-export default function UpcomingTrips({ openJournal, journals = [] }: { openJournal: (trip: UpcomingTrip) => void; journals?: PersonalJournal[] }) {
+export default function UpcomingTrips({ openJournal, openPlanner, journals = [] }: { openJournal: (trip: UpcomingTrip) => void; openPlanner: (id: string) => void; journals?: PersonalJournal[] }) {
   const [stored, setStored] = useState(readUpcoming)
   const [now, setNow] = useState(() => new Date())
   const [open, setOpen] = useState(false)
@@ -65,6 +65,12 @@ export default function UpcomingTrips({ openJournal, journals = [] }: { openJour
   }
   function save(tripsToSave: UpcomingTrip[]): boolean {
     try {
+      const latest = readUpcoming()
+      if (latest.error || JSON.stringify(latest.trips) !== JSON.stringify(stored.trips)) {
+        setStored(latest)
+        setMessage('Les voyages ont changé dans un autre onglet. Vérifiez la liste puis recommencez.')
+        return false
+      }
       localStorage.setItem(upcomingKey, JSON.stringify(tripsToSave))
       setStored({ trips: tripsToSave, error: '' }); setMessage(''); window.dispatchEvent(new Event('upcoming-trips-updated'))
       return true
@@ -120,7 +126,7 @@ export default function UpcomingTrips({ openJournal, journals = [] }: { openJour
       <div className="library-section-heading"><div><p className="eyebrow">À l’horizon</p><h2 id="future-title">À venir et en cours</h2></div><span>{futureTrips.length} voyage{futureTrips.length === 1 ? '' : 's'}</span></div>
       {next ? <article className="next-departure" data-testid="upcoming-trip" aria-label={`Prochain départ : ${next.destination}`}>
         <div className="next-landscape" aria-hidden="true">{nextCover ? <img src={nextCover.src} alt="" /> : <><span className="landscape-sun"/><span className="landscape-ridge ridge-back"/><span className="landscape-ridge ridge-front"/></>}</div>
-        <div className="next-copy"><span className="eyebrow">Le prochain départ</span><h3>{next.destination}</h3><p className="upcoming-date">Départ le {dateLabel(next.departure)}{next.endDate ? ` · retour le ${dateLabel(next.endDate)}` : ''}</p><div className="next-actions"><button className="text-button" onClick={() => openJournal(next)}>Ouvrir le carnet <span aria-hidden="true">→</span></button><button className="text-button" onClick={event => startEdit(next, event.currentTarget)} disabled={!!stored.error} aria-label={`Modifier ${next.destination}`}>Modifier</button><button className="text-button" onClick={() => save(stored.trips.filter(item => item.id !== next.id))} disabled={!!stored.error} aria-label={`Retirer ${next.destination}`}>Retirer</button></div></div>
+        <div className="next-copy"><span className="eyebrow">Le prochain départ</span><h3>{next.destination}</h3><p className="upcoming-date">Départ le {dateLabel(next.departure)}{next.endDate ? ` · retour le ${dateLabel(next.endDate)}` : ''}</p><div className="next-actions"><button className="text-button" onClick={() => openPlanner(next.id)} aria-label={`Planifier ${next.destination}`}>Planifier <span aria-hidden="true">→</span></button><button className="text-button" onClick={() => openJournal(next)}>Ouvrir le carnet <span aria-hidden="true">→</span></button><button className="text-button" onClick={event => startEdit(next, event.currentTarget)} disabled={!!stored.error} aria-label={`Modifier ${next.destination}`}>Modifier</button><button className="text-button" onClick={() => save(stored.trips.filter(item => item.id !== next.id))} disabled={!!stored.error} aria-label={`Retirer ${next.destination}`}>Retirer</button></div></div>
         <div className="next-count upcoming-big-number"><span>{daysUntil(next.departure, now) === 0 ? 'Aujourd’hui' : 'Encore'}</span><strong>{daysUntil(next.departure, now) === 0 ? 'J' : daysUntil(next.departure, now)}</strong><span>{daysUntil(next.departure, now) === 0 ? 'C’est le grand départ' : 'jours avant de partir'}</span></div>
       </article> : <div className="library-empty"><span className="eyebrow">L’horizon vous attend</span><p>Le prochain départ se prépare ici.</p><span>Ajoutez une destination pour commencer votre collection.</span></div>}
       {compactTrips.length > 0 && <div className="trip-card-grid" aria-label="Autres voyages à venir">{compactTrips.map(trip => {
@@ -128,7 +134,7 @@ export default function UpcomingTrips({ openJournal, journals = [] }: { openJour
         return <article key={trip.id} data-testid="upcoming-trip" className="trip-card trip-card-future">
           <div className="trip-card-art" aria-hidden="true"><span>{trip.destination.slice(0, 1).toLocaleUpperCase('fr-FR')}</span><i/></div>
           <div className="trip-card-body"><span className="eyebrow">{remaining < 0 ? 'Voyage en cours · fin non renseignée' : remaining === 0 ? 'Départ aujourd’hui' : `J−${remaining}`}</span><h3>{trip.destination}</h3><div className="upcoming-trip-copy"><p>{dateLabel(trip.departure)}{trip.endDate ? ` — ${dateLabel(trip.endDate)}` : ''}</p></div>
-            <div className="trip-card-actions upcoming-actions"><button className="text-button" onClick={() => openJournal(trip)}>Carnet</button><button className="text-button" onClick={event => startEdit(trip, event.currentTarget)} disabled={!!stored.error} aria-label={`Modifier ${trip.destination}`}>Modifier</button>{remaining < 0 && <button className="text-button" onClick={() => setCompleted(trip.id, true)} disabled={!!stored.error} aria-label={`Terminer ${trip.destination}`}>Terminer</button>}<button className="text-button" onClick={() => save(stored.trips.filter(item => item.id !== trip.id))} disabled={!!stored.error} aria-label={`Retirer ${trip.destination}`}>Retirer</button></div>
+            <div className="trip-card-actions upcoming-actions"><button className="text-button" onClick={() => openPlanner(trip.id)} aria-label={`Planifier ${trip.destination}`}>Planifier</button><button className="text-button" onClick={() => openJournal(trip)}>Carnet</button><button className="text-button" onClick={event => startEdit(trip, event.currentTarget)} disabled={!!stored.error} aria-label={`Modifier ${trip.destination}`}>Modifier</button>{remaining < 0 && <button className="text-button" onClick={() => setCompleted(trip.id, true)} disabled={!!stored.error} aria-label={`Terminer ${trip.destination}`}>Terminer</button>}<button className="text-button" onClick={() => save(stored.trips.filter(item => item.id !== trip.id))} disabled={!!stored.error} aria-label={`Retirer ${trip.destination}`}>Retirer</button></div>
           </div>
         </article>
       })}</div>}
@@ -141,7 +147,7 @@ export default function UpcomingTrips({ openJournal, journals = [] }: { openJour
           const cover = journal?.chapters.map(chapter => coverOf(chapter)).find(Boolean)
           return <article className="memory-card" data-testid="past-trip" key={trip.id}>
             <div className={`memory-cover ${cover ? '' : 'memory-cover-type'}`}>{cover ? <img src={cover.src} alt={`Couverture du carnet ${trip.destination} : ${cover.name}`} /> : <div><span>Carnet de voyage</span><strong>{trip.destination}</strong><small>{trip.endDate ? dateLabel(trip.endDate) : ''}</small></div>}</div>
-            <div className="memory-info"><span className="eyebrow">Souvenir · {journal?.chapters.length ?? 0} chapitre{journal?.chapters.length === 1 ? '' : 's'}</span><h3>{trip.destination}</h3><p>{dateLabel(trip.departure)}{trip.endDate ? ` — ${dateLabel(trip.endDate)}` : ''}</p><button className="text-button" onClick={() => openJournal(trip)}>Ouvrir le carnet →</button><button className="text-button" onClick={event => startEdit(trip, event.currentTarget)} disabled={!!stored.error} aria-label={`Modifier ${trip.destination}`}>Modifier</button>{trip.completed && (!trip.endDate || trip.endDate >= today) && <button className="text-button" onClick={() => setCompleted(trip.id, false)} disabled={!!stored.error} aria-label={`Reprendre ${trip.destination}`}>Reprendre</button>}</div>
+            <div className="memory-info"><span className="eyebrow">Souvenir · {journal?.chapters.length ?? 0} chapitre{journal?.chapters.length === 1 ? '' : 's'}</span><h3>{trip.destination}</h3><p>{dateLabel(trip.departure)}{trip.endDate ? ` — ${dateLabel(trip.endDate)}` : ''}</p><button className="text-button" onClick={() => openPlanner(trip.id)} aria-label={`Préparation ${trip.destination}`}>Préparation →</button><button className="text-button" onClick={() => openJournal(trip)}>Ouvrir le carnet →</button><button className="text-button" onClick={event => startEdit(trip, event.currentTarget)} disabled={!!stored.error} aria-label={`Modifier ${trip.destination}`}>Modifier</button>{trip.completed && (!trip.endDate || trip.endDate >= today) && <button className="text-button" onClick={() => setCompleted(trip.id, false)} disabled={!!stored.error} aria-label={`Reprendre ${trip.destination}`}>Reprendre</button>}</div>
           </article>
         })}
         {orphanJournals.map(journal => {

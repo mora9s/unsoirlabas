@@ -49,7 +49,7 @@ export default function Backup({ trip, onRestore }: { trip: Trip; onRestore: (tr
       const supported = preferShare && typeof navigator.share === 'function' && typeof navigator.canShare === 'function' && navigator.canShare({ files: [shareFile] })
       if (supported) {
         try {
-          await navigator.share({ title: 'Sauvegarde du carnet Philippines', text: 'Archive personnelle du carnet Un soir là-bas.', files: [shareFile] })
+          await navigator.share({ title: 'Sauvegarde des voyages', text: 'Archive personnelle du carnet Un soir là-bas.', files: [shareFile] })
           setNotice({ kind: 'info', text: 'La feuille de partage a été ouverte. Choisissez Drive pour y déposer cette archive ; le carnet local reste la source de référence.' })
         } catch (error) {
           if ((error as DOMException).name === 'AbortError') setNotice({ kind: 'info', text: 'Partage annulé. Votre carnet local n’a pas été modifié.' })
@@ -57,7 +57,7 @@ export default function Backup({ trip, onRestore }: { trip: Trip; onRestore: (tr
         }
       } else {
         download(archive, filename)
-        setNotice({ kind: 'info', text: 'Archive téléchargée. Ajoutez-la au dossier Voyages / Philippines / Sauvegardes dans Drive si vous le souhaitez.' })
+        setNotice({ kind: 'info', text: 'Archive téléchargée. Déposez-la dans Drive si vous le souhaitez.' })
       }
     } catch (error) { setNotice({ kind: 'error', text: error instanceof Error ? error.message : 'La sauvegarde n’a pas pu être préparée.' }) }
     finally { setBusy(false) }
@@ -103,23 +103,22 @@ export default function Backup({ trip, onRestore }: { trip: Trip; onRestore: (tr
       previous.set(journalsKey, localStorage.getItem(journalsKey))
       const next = JSON.stringify(staged.trip)
       const nextUpcoming = staged.upcomingTrips === undefined ? undefined : JSON.stringify(staged.upcomingTrips)
-      const nextJournals = JSON.stringify(staged.personalJournals ?? { version: 1, journals: [] })
+      const nextJournals = staged.personalJournals === undefined ? undefined : JSON.stringify(staged.personalJournals)
       localStorage.setItem(storageKey, next)
       written.push(storageKey)
       if (nextUpcoming !== undefined) {
         localStorage.setItem(upcomingKey, nextUpcoming)
         written.push(upcomingKey)
       }
-      localStorage.setItem(journalsKey, nextJournals)
-      written.push(journalsKey)
+      if (nextJournals !== undefined) {
+        localStorage.setItem(journalsKey, nextJournals)
+        written.push(journalsKey)
+      }
       if (nextUpcoming !== undefined) window.dispatchEvent(new Event('upcoming-trips-updated'))
-      window.dispatchEvent(new Event('trip-journals-updated'))
+      if (nextJournals !== undefined) window.dispatchEvent(new Event('trip-journals-updated'))
       onRestore(staged.trip)
       setStaged(undefined)
-      setNotice({ kind: 'success', text: staged.personalJournals === undefined
-        ? 'Le carnet a été restauré. Les carnets multi-voyage absents de cette ancienne archive ont été remplacés ; les chapitres du carnet historique restauré pourront être migrés. '
-          + (staged.upcomingTrips === undefined ? 'Vos décomptes actuels ont été conservés.' : 'Les voyages à venir ont aussi été remplacés.')
-        : 'Le carnet, les voyages et les carnets personnels inclus ont été restaurés sur cet appareil. Les données locales non incluses ont été remplacées.' })
+      setNotice({ kind: 'success', text: 'Les collections présentes dans l’archive ont été restaurées sur cet appareil. Les voyages et carnets absents de l’archive ont été conservés.' })
     } catch {
       for (const key of written.reverse()) {
         try {
@@ -133,7 +132,7 @@ export default function Backup({ trip, onRestore }: { trip: Trip; onRestore: (tr
   }
 
   return <section className="backup page-width" aria-labelledby="backup-title">
-    <div className="backup-copy"><p className="eyebrow">Conserver le carnet</p><h2 id="backup-title">Une copie pour la route.</h2><p>Dans Drive, rangez l’archive dans <strong>Voyages / Philippines / Sauvegardes</strong>. Gardez-y vos originaux ; cette copie contient les photos sélectionnées et redimensionnées du carnet, vos récits et vos décomptes à venir.</p></div>
+    <div className="backup-copy"><p className="eyebrow">Conserver le carnet</p><h2 id="backup-title">Une copie pour la route.</h2><p>Déposez l’archive dans Drive, dans le dossier de votre choix. Gardez-y vos originaux ; cette copie contient les photos sélectionnées et redimensionnées des carnets, vos récits et les préparatifs de vos voyages.</p></div>
     <div className="backup-actions">
       <button className="button" onClick={() => backup(true)} disabled={busy}>Sauvegarder dans Drive <Icon name="arrow" /></button>
       <button className="text-button" onClick={() => input.current?.click()} disabled={busy}>Importer depuis Drive <Icon name="book" /></button>
@@ -143,8 +142,8 @@ export default function Backup({ trip, onRestore }: { trip: Trip; onRestore: (tr
     {notice && <p role={notice.kind === 'error' ? 'alert' : 'status'} aria-live="polite" className={notice.kind === 'error' ? 'error-message backup-message' : notice.kind === 'success' ? 'success-message backup-message' : 'backup-message'}>{notice.text}</p>}
     {staged && <section className="restore-preview" aria-labelledby="restore-title" aria-live="polite">
       <p className="eyebrow">Archive prête à relire</p><h3 id="restore-title" ref={previewTitle} tabIndex={-1}>Restaurer ce carnet ?</h3>
-      <p>Créée le {date(staged.createdAt)} · {staged.records} chapitre{staged.records > 1 ? 's' : ''} · {staged.media} photo{staged.media > 1 ? 's' : ''} du carnet principal · {staged.personalJournals ? `${staged.personalJournals.journals.length} carnet${staged.personalJournals.journals.length > 1 ? 's' : ''}, ${staged.personalJournals.journals.reduce((sum, item) => sum + item.chapters.length, 0)} chapitre${staged.personalJournals.journals.reduce((sum, item) => sum + item.chapters.length, 0) > 1 ? 's' : ''}, ${staged.personalJournals.journals.reduce((sum, item) => sum + item.chapters.reduce((photos, chapter) => photos + chapter.media.length, 0), 0)} photo${staged.personalJournals.journals.reduce((sum, item) => sum + item.chapters.reduce((photos, chapter) => photos + chapter.media.length, 0), 0) > 1 ? 's' : ''} personnelle${staged.personalJournals.journals.reduce((sum, item) => sum + item.chapters.reduce((photos, chapter) => photos + chapter.media.length, 0), 0) > 1 ? 's' : ''}` : 'ancienne archive : aucun carnet multi-voyage inclus'} · {size(staged.bytes)}</p>
-      <p><strong>{staged.personalJournals === undefined ? 'Cette archive historique ne contient pas de carnets multi-voyage : les carnets multi-voyage locaux seront remplacés par aucun carnet multi-voyage.' : 'Remplacement uniquement : aucune fusion automatique. Tout identifiant présent dans les deux versions sera remplacé par celui de l’archive.'}</strong> {staged.personalJournals === undefined ? 'Le carnet personnel historique restauré pourra ensuite être migré.' : ''} {staged.upcomingTrips === undefined ? 'Le carnet principal et les carnets personnels seront remplacés ; les décomptes seront conservés car cette ancienne archive n’en contient pas.' : 'Le carnet principal, les décomptes et les carnets personnels seront remplacés.'}</p>
+      <p>Créée le {date(staged.createdAt)} · {staged.records} chapitre{staged.records > 1 ? 's' : ''} · {staged.trip.drafts.reduce((sum, item) => sum + item.media.length, 0)} photo{staged.trip.drafts.reduce((sum, item) => sum + item.media.length, 0) > 1 ? 's' : ''} du carnet principal · {staged.personalJournals ? `${staged.personalJournals.journals.length} carnet${staged.personalJournals.journals.length > 1 ? 's' : ''}, ${staged.personalJournals.journals.reduce((sum, item) => sum + item.chapters.length, 0)} chapitre${staged.personalJournals.journals.reduce((sum, item) => sum + item.chapters.length, 0) > 1 ? 's' : ''}, ${staged.personalJournals.journals.reduce((sum, item) => sum + item.chapters.reduce((photos, chapter) => photos + chapter.media.length, 0), 0)} photo${staged.personalJournals.journals.reduce((sum, item) => sum + item.chapters.reduce((photos, chapter) => photos + chapter.media.length, 0), 0) > 1 ? 's' : ''} personnelle${staged.personalJournals.journals.reduce((sum, item) => sum + item.chapters.reduce((photos, chapter) => photos + chapter.media.length, 0), 0) > 1 ? 's' : ''}` : 'ancienne archive : aucun carnet multi-voyage inclus'} · {size(staged.bytes)}</p>
+      <p><strong>Remplacement uniquement pour les collections présentes dans l’archive ; aucune fusion automatique.</strong> {staged.personalJournals === undefined ? 'Cette ancienne archive ne contient pas de carnets multi-voyage : ceux de cet appareil seront conservés.' : 'Les carnets personnels de cet appareil seront remplacés par ceux de l’archive.'} {staged.upcomingTrips === undefined ? 'Les voyages à venir de cet appareil seront conservés.' : 'Les voyages à venir de cet appareil seront remplacés.'} Le carnet historique principal sera remplacé.</p>
       <div className="restore-differences">
         <h4>Différences avec les données actuelles</h4>
         {(() => {
@@ -152,18 +151,18 @@ export default function Backup({ trip, onRestore }: { trip: Trip; onRestore: (tr
             const currentUpcoming = storedValue(upcomingKey, [], validateUpcomingTrips)
             const currentJournals = storedValue(journalsKey, { version: 1, journals: [] }, validateJournals)
             const incomingUpcoming = staged.upcomingTrips ?? currentUpcoming
-            const incomingJournals = staged.personalJournals ?? { version: 1 as const, journals: [] }
+            const incomingJournals = staged.personalJournals ?? currentJournals
             const chapterIds = new Set(trip.drafts.map(item => item.id))
             const chapterCollisions = staged.trip.drafts.map(item => item.id).filter(id => chapterIds.has(id))
             const currentTripIds = new Set(currentUpcoming.map(item => item.id))
             const tripCollisions = (staged.upcomingTrips ?? []).map(item => item.id).filter(id => currentTripIds.has(id))
             const journalIds = new Set(currentJournals.journals.map(item => item.tripId))
-            const journalCollisions = incomingJournals.journals.map(item => item.tripId).filter(id => journalIds.has(id))
+            const journalCollisions = (staged.personalJournals?.journals ?? []).map(item => item.tripId).filter(id => journalIds.has(id))
             return <>
               <ul>
-                <li>Carnet principal : {trip.drafts.length} chapitre{trip.drafts.length === 1 ? '' : 's'} actuels ({trip.drafts.map(item => item.title || item.id).join(', ') || 'vide'}) → {staged.trip.drafts.length} dans l’archive ({staged.trip.drafts.map(item => item.title || item.id).join(', ') || 'vide'}), {staged.media} photo{staged.media === 1 ? '' : 's'} entrante{staged.media === 1 ? '' : 's'}.</li>
+                <li>Carnet principal : {trip.drafts.length} chapitre{trip.drafts.length === 1 ? '' : 's'} actuels ({trip.drafts.map(item => item.title || item.id).join(', ') || 'vide'}) → {staged.trip.drafts.length} dans l’archive ({staged.trip.drafts.map(item => item.title || item.id).join(', ') || 'vide'}), {staged.trip.drafts.reduce((sum, item) => sum + item.media.length, 0)} photo{staged.trip.drafts.reduce((sum, item) => sum + item.media.length, 0) === 1 ? '' : 's'} entrante{staged.trip.drafts.reduce((sum, item) => sum + item.media.length, 0) === 1 ? '' : 's'}.</li>
                 <li>Décomptes : {currentUpcoming.length} actuels ({currentUpcoming.map(item => item.destination).join(', ') || 'vide'}) → {incomingUpcoming.length} après restauration ({incomingUpcoming.map(item => item.destination).join(', ') || 'vide'}){staged.upcomingTrips === undefined ? ' — conservés par cette ancienne archive' : ''}.</li>
-                <li>Carnets personnels : {currentJournals.journals.length} actuels ({currentJournals.journals.map(item => item.destination).join(', ') || 'vide'}) → {incomingJournals.journals.length} dans l’archive ({incomingJournals.journals.map(item => item.destination).join(', ') || 'vide'}).</li>
+                <li>Carnets personnels : {currentJournals.journals.length} actuels ({currentJournals.journals.map(item => item.destination).join(', ') || 'vide'}) → {incomingJournals.journals.length} après restauration ({incomingJournals.journals.map(item => item.destination).join(', ') || 'vide'}){staged.personalJournals === undefined ? ' — conservés par cette ancienne archive' : ''}.</li>
               </ul>
               {chapterCollisions.length + tripCollisions.length + journalCollisions.length > 0 && <p role="alert"><strong>Identifiants en collision, remplacement uniquement :</strong> {chapterCollisions.length > 0 && <>chapitres {chapterCollisions.join(', ')}. </>}{tripCollisions.length > 0 && <>voyages {tripCollisions.join(', ')}. </>}{journalCollisions.length > 0 && <>carnets {journalCollisions.join(', ')}. </>}Aucun élément ne sera fusionné.</p>}
             </>
