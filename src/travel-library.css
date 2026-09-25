@@ -159,3 +159,26 @@
  .library-section-heading h2 { font-size:27px; }
  .library-section-heading > span { font-size:11px; }
 }
+/* Photo-led library and quiet, contextual controls. */
+.travel-library{padding-top:36px}.library-heading h1{font-size:clamp(38px,5vw,64px)}
+.next-departure{display:flex;align-items:end;min-height:440px;border-radius:18px}
+.next-landscape{inset:0}.next-landscape img{object-fit:cover;opacity:1}
+.next-departure:after{content:"";position:absolute;inset:0;background:linear-gradient(0deg,#0b2825f2, #0b282550 65%,#0b282522);z-index:-1}
+.next-copy{align-self:end;padding:40px;width:100%}.next-copy h3{font-size:clamp(40px,6vw,72px)}
+.departure-badge{position:absolute;top:24px;left:32px;padding:8px 14px;border-radius:30px;background:#173e39e8;font-size:14px}
+.next-actions{gap:16px}.next-actions .button{background:#fff8e9;color:#173e39;min-height:48px}
+.trip-actions-menu summary{cursor:pointer;min-height:44px;display:flex;align-items:center;gap:8px;font-size:14px}.trip-actions-menu summary:after{content:'⌄'}
+.trip-actions-menu[open]{padding:0 12px 12px;border:1px solid currentColor;border-radius:10px}.trip-actions-menu .text-button{display:block;min-height:44px;text-align:left}
+.trip-card-art{height:160px}.trip-card-art img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:2}
+.trip-card,.memory-card,.personal-memory-card{border-radius:14px;overflow:hidden}.memory-cover{padding:0}.memory-cover img,.personal-memory-card>img{object-fit:cover}
+.inspiration-card{display:grid;grid-template-columns:220px 1fr auto;gap:28px;padding:0 0 24px;overflow:hidden;border-bottom:1px solid var(--line);border-top:0}
+.inspiration-card>img{width:100%;height:200px;object-fit:cover;border-radius:14px}.inspiration-card h2{font:36px/1.1 var(--serif);margin:12px 0}.inspiration-card small{display:block;font-size:11px;margin-top:14px;color:var(--muted)}
+.trip-navigation{padding-block:16px;border-bottom:1px solid var(--line)}.trip-navigation>span{font:24px var(--serif)}.trip-navigation>div{display:flex;gap:8px;overflow:auto;padding-top:12px}.trip-navigation a{white-space:nowrap;min-height:44px;padding:12px 18px;text-decoration:none;border-radius:24px;color:var(--sea);font-size:14px}.trip-navigation a[aria-current]{background:var(--sea);color:white}
+.planner-organize,.film-personalize{margin:24px 0;padding:20px;border:1px solid var(--line);border-radius:12px}.planner-organize>summary,.film-personalize>summary,.offline-access summary{cursor:pointer;min-height:44px;align-content:center}
+.today-capture{position:sticky;top:12px;z-index:10;box-shadow:0 4px 20px #173e3920}.day-edit{border-top:1px solid var(--line);margin-top:12px}.daily-stop>p{font-size:14px;line-height:1.6}.daily-stop h4{margin-bottom:8px}
+[hidden]{display:none!important}a:focus-visible,summary:focus-visible,button:focus-visible{outline:3px solid #b66a38;outline-offset:4px}
+@media(max-width:760px){.next-departure{min-height:420px}.next-copy{padding:24px}.departure-badge{left:24px;top:20px}.inspiration-card{grid-template-columns:1fr;gap:16px}.inspiration-card>img{height:220px}.inspiration-card .button{justify-self:start}.trip-navigation a{padding:12px}.trip-card-art{height:130px}.next-actions{align-items:start;flex-direction:column}.trip-navigation{max-width:100%}}
+.day-photo{margin:0 -18px 16px}.day-photo img{width:100%;height:180px;object-fit:cover}.day-photo figcaption{padding:6px 12px;font-size:10px;line-height:1.4;color:var(--muted);overflow-wrap:anywhere}
+.day-selector{display:flex;gap:8px;overflow-x:auto;padding:12px 0;max-width:100%}.day-selector button{flex-shrink:0;min-height:44px;padding:12px 16px;border:1px solid var(--line);border-radius:24px}.day-selector button[aria-pressed=true]{background:var(--sea);color:white}.daily-day>.daily-stop{max-width:760px}.daily-day{max-width:900px}.day-photo img{height:260px}
+@media(max-width:760px){.travel-library{padding-top:20px}.library-heading{gap:14px;padding-bottom:20px}.library-heading h1{font-size:36px}.library-deck{font-size:14px}.library-upcoming{padding-top:22px}.library-section-heading{margin-bottom:16px}.library-section-heading .eyebrow{display:none}.library-section-heading h2{font-size:28px}.library-note{font-size:12px;line-height:1.5}.day-photo img{height:190px}.daily-day{padding:12px}.planner-hero h1{font-size:38px}}
+.planner-intro{padding:24px 0 12px}.planner-intro h1{font:400 clamp(30px,4vw,48px)/1.1 var(--serif);margin:10px 0}.planner-intro>p:last-child{font-size:14px;color:var(--muted)}

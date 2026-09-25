@@ -18,21 +18,22 @@ import type { ShareChoice } from './components/ShareChapterPicker'
 import type { Draft } from './journal'
 import './journal.css'
 
+const DiscoveryMap = lazy(() => import('./components/DiscoveryMap'))
 const VisayasShowcase = lazy(() => import('./components/VisayasShowcase'))
 const JourneyPlayer = lazy(() => import('./components/JourneyPlayer'))
 
 type View = string
 function currentView(): View {
   const hash = window.location.hash.slice(1)
-  if (/^(draft|share|share-trip|trip|plan|motion|journey|journal-share|trip-create|today)\//.test(hash)) return hash
+  if (/^(draft|share|share-trip|trip|plan|motion|journey|journal-share|trip-create|today|explore)\//.test(hash)) return hash
   const base = hash.split('/')[0]
-  if (['create', 'share', 'share-demo', 'demo', 'visayas', 'tools', 'day-1', 'day-3', 'day-8'].includes(base)) return base
+  if (['explore', 'create', 'share', 'share-demo', 'demo', 'visayas', 'tools', 'day-1', 'day-3', 'day-8'].includes(base)) return base
   return ['', 'carnet', 'main'].includes(hash) ? 'home' : 'missing'
 }
 
 function draftId(view: View): string | undefined {
   const parts = view.split('/')
-  if (parts.length !== 2 || !parts[1]) return undefined
+  if ((parts.length !== 2 && !(parts[0] === 'plan' && parts.length === 3 && parts[2] === 'map')) || !parts[1]) return undefined
   try { return decodeURIComponent(parts[1]) } catch { return undefined }
 }
 
@@ -97,7 +98,7 @@ export default function App() {
 
   const destinationTitle = tripCreateContext?.destination
   useEffect(() => {
-    const title = view.startsWith('today/') ? `Aujourd’hui — ${upcomingForJournal(journalTripId)?.destination ?? 'Voyage'}` : view.startsWith('motion/') ? `Voyage animé — ${journalTripId === 'visayas' ? '20 jours dans les Visayas' : journalTripId === 'demo' ? 'Cap sur les Philippines' : upcomingForJournal(journalTripId)?.destination ?? 'Voyage'}` : missing ? 'Cette page est introuvable' : draft ? `${sharing ? 'Partager — ' : ''}${draft.title}` : view === 'visayas' ? '20 jours dans les Visayas' : view === 'home' ? 'La bibliothèque des voyages' : view === 'demo' ? 'Démonstration Philippines' : view === 'tools' ? 'Outils du carnet' : view === 'create' ? 'Créer une journée' : sharing ? 'Studio de partage' : journalChapter ? `${journalChapter.title} — ${journal?.destination}` : tripCreating ? `Écrire — ${destinationTitle}` : journal ? `Carnet — ${journal.destination}` : view.startsWith('plan/') ? `Préparer — ${upcomingForJournal(journalTripId)?.destination ?? 'Voyage'}` : `Jour ${view.slice(4)} — Philippines`
+    const title = view.startsWith('explore') ? 'Explorer la carte' : view.startsWith('today/') ? `Aujourd’hui — ${upcomingForJournal(journalTripId)?.destination ?? 'Voyage'}` : view.startsWith('motion/') ? `Voyage animé — ${journalTripId === 'visayas' ? '20 jours dans les Visayas' : journalTripId === 'demo' ? 'Cap sur les Philippines' : upcomingForJournal(journalTripId)?.destination ?? 'Voyage'}` : missing ? 'Cette page est introuvable' : draft ? `${sharing ? 'Partager — ' : ''}${draft.title}` : view === 'visayas' ? '20 jours dans les Visayas' : view === 'home' ? 'La bibliothèque des voyages' : view === 'demo' ? 'Démonstration Philippines' : view === 'tools' ? 'Outils du carnet' : view === 'create' ? 'Créer une journée' : sharing ? 'Studio de partage' : journalChapter ? `${journalChapter.title} — ${journal?.destination}` : tripCreating ? `Écrire — ${destinationTitle}` : journal ? `Carnet — ${journal.destination}` : view.startsWith('plan/') ? `Préparer — ${upcomingForJournal(journalTripId)?.destination ?? 'Voyage'}` : `Jour ${view.slice(4)} — Philippines`
     document.title = `${title} · Un soir là-bas`
     if (lastView.current !== view) {
       mainRef.current?.focus({ preventScroll: true })
@@ -142,6 +143,9 @@ export default function App() {
     navigate(`trip-create/${encodeURIComponent(item.tripId)}/${encodeURIComponent(chapter.id)}`)
   }
 
+  const contextTrip = /^(plan|trip|today|motion|journey|trip-create|explore)\//.test(view) ? upcomingForJournal(journalTripId) : undefined
+  const contextId = encodeURIComponent(journalTripId)
+
   return <>
     <a className="skip-link" href="#main">Aller au contenu</a>
     <header className="site-header">
@@ -150,11 +154,15 @@ export default function App() {
         <span>un soir <em>là-bas</em><small>RACONTÉ SUR PLACE. PARTAGÉ EN DIX MINUTES.</small></span>
       </button>
       <nav aria-label="Navigation principale">
-        <button className={view === 'home' ? 'active' : ''} aria-current={view === 'home' ? 'page' : undefined} onClick={() => navigate('home')}><Icon name="book" /><span>Le carnet</span></button>
-        {view !== 'home' && <button className={view === 'create' ? 'active' : ''} aria-label="Créer une journée" aria-current={view === 'create' ? 'page' : undefined} onClick={newDay}><Icon name="plus" /><span>Créer</span></button>}
+        <button className={view === 'home' ? 'active' : ''} aria-current={view === 'home' ? 'page' : undefined} onClick={() => navigate('home')}><Icon name="book" /><span>Mes voyages</span></button>
+        {view !== 'home' && <button className={view === 'create' ? 'active' : ''} aria-label="Créer une journée" aria-current={view === 'create' ? 'page' : undefined} onClick={() => contextTrip ? navigate(`trip-create/${contextId}`) : newDay()}><Icon name="plus" /><span>Créer</span></button>}
+        <button onClick={() => navigate(contextTrip ? `explore/${contextId}` : 'explore')} aria-current={view.startsWith('explore') ? 'page' : undefined}><span>Carte</span></button>
         <button className={`share-nav ${sharing ? 'active' : ''}`} aria-current={sharing ? 'page' : undefined} onClick={() => navigate('share')}><Icon name="share" /><span>Partager</span></button>
       </nav>
     </header>
+    {contextTrip && <nav className="trip-navigation page-width" aria-label="Navigation du voyage"><span>{contextTrip.destination}</span><div>{[
+      ['Programme', `plan/${contextId}`], ['Carte', `explore/${contextId}`], ['Carnet', `trip/${contextId}`], ['Film', `motion/${contextId}`], ['Aujourd’hui', `today/${contextId}`],
+    ].map(([label,route]) => <a key={route} href={`#${route}`} aria-current={view === route ? 'page' : undefined}>{label}</a>)}</div></nav>}
     <main id="main" ref={mainRef} tabIndex={-1}>
       {journals.error && !stored.error && <p role="alert" className="error-message page-width">{journals.error}</p>}
       {stored.error && <p role="alert" className="error-message page-width">{stored.error}</p>}
@@ -171,12 +179,13 @@ export default function App() {
           journals={journals.data.journals}
         />
       )}
+      {(view === 'explore' || view.startsWith('explore/')) && <Suspense fallback={<p className="page-width" role="status">Ouverture de la carte…</p>}><DiscoveryMap key={view} id={draftId(view)} /></Suspense>}
       {view === 'visayas' && <Suspense fallback={<p className="page-width" role="status">Ouverture des Visayas…</p>}><VisayasShowcase /></Suspense>}
       {view === 'demo' && <Demo openDay={openDay} />}
       {view === 'tools' && <section className="tools-page page-width" aria-labelledby="tools-title"><p className="eyebrow">Réglages et conservation</p><h1 id="tools-title">Outils du carnet</h1><Backup trip={stored.trip} onRestore={trip => { setStored({ trip, error: '' }); setJournals(readJournals()) }} /></section>}
       {view.startsWith('motion/') && <Suspense fallback={<p className="page-width" role="status">Ouverture du voyage…</p>}><JourneyPlayer key={view} id={draftId(view) ?? ''} back={() => navigate(journalTripId === 'visayas' ? 'visayas' : journalTripId === 'demo' ? 'demo' : `trip/${encodeURIComponent(journalTripId)}`)} plan={() => navigate(journalTripId === 'visayas' ? 'visayas' : journalTripId === 'demo' ? 'home' : `plan/${encodeURIComponent(journalTripId)}`)} /></Suspense>}
       {view.startsWith('today/') && <Today key={view} id={draftId(view) ?? ''} plan={() => navigate(`plan/${encodeURIComponent(journalTripId)}`)} open={chapter => navigate(`journey/${encodeURIComponent(journalTripId)}/${encodeURIComponent(chapter)}`)} />}
-      {view.startsWith('plan/') && <TripPlanner key={view} id={draftId(view) ?? ''} openMotion={() => navigate(`motion/${encodeURIComponent(journalTripId)}`)} back={() => navigate('home')} openJournal={() => navigate(`trip/${encodeURIComponent(journalTripId)}`)} />}
+      {view.startsWith('plan/') && <TripPlanner key={journalTripId} panel={tripParts[2] === 'map' ? 'map' : 'programme'} id={draftId(view) ?? ''} openMotion={() => navigate(`motion/${encodeURIComponent(journalTripId)}`)} back={() => navigate('home')} openJournal={() => navigate(`trip/${encodeURIComponent(journalTripId)}`)} />}
       {view.startsWith('day') && (
         <Chapter
           dayNumber={Number(view.slice(4))}

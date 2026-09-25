@@ -61,12 +61,10 @@ test('demo et sauvegarde sont découverts par navigation dédiée, pas dans la b
   await page.getByRole('button', { name: 'Outils et sauvegarde du carnet' }).click()
   await expect(page).toHaveURL(/#tools$/)
   await expect(page.getByRole('button', { name: /sauvegarder dans drive/i })).toBeVisible()
-  await page.getByRole('button', { name: 'Le carnet', exact: true }).click()
-  await page.getByRole('button', { name: 'Découvrir le carnet de démonstration' }).click()
-  await expect(page).toHaveURL(/#demo$/)
-  await expect(page.getByTestId('day-card')).toHaveCount(3)
-  await page.getByRole('button', { name: /Voir le jour 3/ }).click()
-  await expect(page).toHaveURL(/#day-3$/)
+  await page.getByRole('button', { name: 'Mes voyages', exact: true }).click()
+  await page.getByRole('link', { name: 'Explorer cet exemple →' }).click()
+  await expect(page).toHaveURL(/#visayas$/)
+  await expect(page.getByRole('navigation', { name: 'Les vingt journées' }).getByRole('button')).toHaveCount(20)
 })
 
 test('les actions et dates de la bibliothèque restent lisibles sur téléphone', async ({ page }) => {

@@ -73,7 +73,7 @@ export default function Today({id,plan,open}: {id:string;plan:()=>void;open:(id:
     <p className="eyebrow">Votre compagnon de route</p><h1>{date===calendarDate(now) ? 'Aujourd’hui' : 'Votre journée'}{trip ? ` · ${trip.destination}` : ''}</h1>
     {stored.error && <p role="alert">{stored.error}</p>}
     {!trip ? <p>Ce voyage est introuvable sur cet appareil.</p> : <>
-      <OfflineAccess />
+      <OfflineAccess /><a className="button today-capture" href="#quick-memory" onClick={e=>{e.preventDefault();document.getElementById('quick-memory')?.scrollIntoView({behavior:'instant'});document.querySelector<HTMLTextAreaElement>('.quick-memory textarea')?.focus({preventScroll:true})}}>＋ Ajouter un souvenir</a>
       <label className="today-date">Journée affichée<input type="date" value={date} onChange={event=>{setChosenDate(event.target.value);setStopId('')}} /></label>
       {chosenDate && <button className="text-button" onClick={()=>{setChosenDate('');setStopId('')}}>Revenir à aujourd’hui</button>}
       <p className="local-note">Dates et heures selon l’horloge de votre appareil. Les horaires sont ceux que vous avez saisis.</p>
@@ -85,7 +85,7 @@ export default function Today({id,plan,open}: {id:string;plan:()=>void;open:(id:
         {stop.address && <p>{stop.address}</p>}{stop.booking && <p>Réservation : {stop.booking}</p>}{stop.notes && <p style={{whiteSpace:'pre-wrap'}}>{stop.notes}</p>}
         {(stop.point || stop.address?.trim()) && <a className="text-button" target="_blank" rel="noopener noreferrer" href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(stop.address?.trim() || `${stop.point!.lat},${stop.point!.lon}`)}`}>Ouvrir l’itinéraire ↗</a>}
       </article>)}</div>
-      <label className="today-date">Associer le souvenir à<select value={selected} onChange={e=>setStopId(e.target.value)}>{stops.length ? stops.map(s=><option key={s.id} value={s.id}>{s.place}</option>) : <option value="">La journée du {date}</option>}</select></label>
+      <div id="quick-memory" /><label className="today-date">Associer le souvenir à<select value={selected} onChange={e=>setStopId(e.target.value)}>{stops.length ? stops.map(s=><option key={s.id} value={s.id}>{s.place}</option>) : <option value="">La journée du {date}</option>}</select></label>
       <QuickMemory key={`${date}:${selected}`} tripId={id} date={date} stopId={selected} open={open}/>
       <p className="local-note">Vos souvenirs restent sur cet appareil. Pensez à télécharger une sauvegarde depuis les outils du carnet. Les liens d’itinéraire nécessitent une connexion et transmettent la destination à Google Maps.</p>
     </>}
