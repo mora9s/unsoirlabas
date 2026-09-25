@@ -91,8 +91,9 @@ export default function App() {
     }
   }, [])
 
+  const destinationTitle = tripCreateContext?.destination
   useEffect(() => {
-    const title = missing ? 'Cette page est introuvable' : draft ? `${sharing ? 'Partager — ' : ''}${draft.title}` : view === 'home' ? 'La bibliothèque des voyages' : view === 'demo' ? 'Démonstration Philippines' : view === 'tools' ? 'Outils du carnet' : view === 'create' ? 'Créer une journée' : sharing ? 'Studio de partage' : `Jour ${view.slice(4)} — Philippines`
+    const title = missing ? 'Cette page est introuvable' : draft ? `${sharing ? 'Partager — ' : ''}${draft.title}` : view === 'home' ? 'La bibliothèque des voyages' : view === 'demo' ? 'Démonstration Philippines' : view === 'tools' ? 'Outils du carnet' : view === 'create' ? 'Créer une journée' : sharing ? 'Studio de partage' : journalChapter ? `${journalChapter.title} — ${journal?.destination}` : tripCreating ? `Écrire — ${destinationTitle}` : journal ? `Carnet — ${journal.destination}` : view.startsWith('plan/') ? `Préparer — ${upcomingForJournal(journalTripId)?.destination ?? 'Voyage'}` : `Jour ${view.slice(4)} — Philippines`
     document.title = `${title} · Un soir là-bas`
     if (lastView.current !== view) {
       mainRef.current?.focus({ preventScroll: true })
@@ -101,7 +102,7 @@ export default function App() {
       else window.scrollTo({ top: 0, behavior: 'instant' })
       lastView.current = view
     }
-  }, [view, draft, missing, sharing])
+  }, [view, draft, missing, sharing, journalChapter, journal, tripCreating, destinationTitle, journalTripId])
 
   function navigate(next: View) {
     setSavedId(undefined)
@@ -151,6 +152,7 @@ export default function App() {
       </nav>
     </header>
     <main id="main" ref={mainRef} tabIndex={-1}>
+      {journals.error && !stored.error && <p role="alert" className="error-message page-width">{journals.error}</p>}
       {stored.error && <p role="alert" className="error-message page-width">{stored.error}</p>}
       {view === 'home' && (
         <Home
@@ -184,7 +186,7 @@ export default function App() {
         setEditing(saved)
         navigate(`journey/${encodeURIComponent(tripCreateContext.id)}/${encodeURIComponent(saved.id)}`)
       }} />}
-      {journalSharing && journalChapter && <ShareStudio key={`trip-${journalTripId}-${journalChapter.id}`} draft={journalChapter} />}
+      {journalSharing && journalChapter && <ShareStudio key={`trip-${journalTripId}-${journalChapter.id}`} draft={journalChapter} returnHref={`#journey/${encodeURIComponent(journalTripId)}/${encodeURIComponent(journalChapter.id)}`} />}
       {missing && <section className="workspace-heading page-width recovery-page">
         <p className="eyebrow">Le carnet personnel</p><h1>Cette page est introuvable</h1>
         <p>Ce chapitre n’est pas disponible dans ce navigateur. Les journées personnelles restent sur l’appareil où elles ont été enregistrées.</p>
@@ -218,10 +220,10 @@ export default function App() {
     </main>
     <footer className="site-footer page-width">
       <div className="footer-brand">
-        les jours <em>au large</em><p>Des îles, des histoires, et nous au milieu.</p>
+        un soir <em>là-bas</em><p>Vos voyages, vos images, vos histoires.</p>
       </div>
       <div>
-        <span>Philippines — le journal vivant</span>
+        <span>La bibliothèque de vos voyages</span>
         <small>Prototype local · rien n’est publié en ligne<br />Chapitres de démonstration : fonds Wikimedia fourni.<br />Journées personnelles : vos photos et vos mots.</small>
       </div>
       <button

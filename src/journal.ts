@@ -1,3 +1,4 @@
+import { readJournals, legacyId } from './trip-journals'
 import { createId } from './id'
 
 export const asset = (name: string) => `/assets/${name}`
@@ -58,12 +59,13 @@ export function storyExcerpt(story: string, limit = 160): string {
 export function readTrip(): { trip: Trip; error: string } {
   try {
     const raw = localStorage.getItem(storageKey)
-    if (raw === null) return { trip: { version: 1, drafts: [] }, error: '' }
-    const value: unknown = JSON.parse(raw)
+    const value: unknown = raw === null ? { version: 1, drafts: [] } : JSON.parse(raw)
     if (!validateTrip(value)) {
       throw new Error('Format non reconnu')
     }
-    return { trip: value, error: '' }
+    const journals = readJournals()
+    const canonical = journals.data.journals.find(item => item.tripId === legacyId)
+    return { trip: canonical ? { version: 1, drafts: canonical.chapters } : value, error: '' }
   } catch {
     return { trip: { version: 1, drafts: [] }, error: 'Le carnet enregistré ne peut pas être lu. Vos données n’ont pas été modifiées ; exportez ou rétablissez le stockage de ce navigateur avant d’enregistrer.' }
   }

@@ -47,6 +47,7 @@ export function writeUnsavedChapter(scope: string, draft: Draft): string {
     }
   }
   const next: Envelope = { version: 1, drafts: [...entries.filter(item => item.scope !== scope), { scope, updatedAt: Date.now(), draft }] }
+  if (!validEnvelope(next)) return 'Brouillon trop long ou limite atteinte : la dernière copie récupérable est conservée. Réduisez le récit à 20 000 caractères avant de sauvegarder.'
   try {
     localStorage.setItem(unsavedChaptersKey, JSON.stringify(next))
     return ''

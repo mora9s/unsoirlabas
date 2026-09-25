@@ -1,7 +1,8 @@
+import { replaceChapter, savePersonalChapter } from '../trip-journals'
 import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import { importGooglePhotos, googlePhotosAvailability } from '../google-photos-picker'
-import { generateStory, importImage, readTrip, storageKey } from '../journal'
+import { generateStory, importImage, readTrip, validateTrip } from '../journal'
 import type { Draft, Media, Trip } from '../journal'
 import { createId } from '../id'
 import { discardUnsavedChapter, readUnsavedChapter, writeUnsavedChapter } from '../unsaved-chapters'
@@ -193,9 +194,13 @@ export default function Creator({ initialDraft, onSave, localStore = true, recov
     const current = localStore ? readTrip() : { trip: { version: 1 as const, drafts: [] }, error: '' }
     if (current.error) { setError(current.error); return }
     const draft: Draft = { id, title: title.trim(), memories, tone, story: story.trim(), media, coverId: cover?.id ?? '', status: 'draft' }
-    const trip: Trip = { version: 1, drafts: [...current.trip.drafts.filter(item => item.id !== id), draft] }
+    const trip: Trip = { version: 1, drafts: replaceChapter(current.trip.drafts, draft) }
+    if (!validateTrip(trip)) {
+      setError('La limite de 40 journées ou de 20 000 caractères par récit est dépassée. Votre texte reste ouvert ; aucun enregistrement effectué.')
+      return
+    }
     if (localStore) {
-      try { localStorage.setItem(storageKey, JSON.stringify(trip)) }
+      try { savePersonalChapter(draft) }
       catch {
         setError('L’enregistrement n’a pas abouti : le stockage est plein ou indisponible. Retirez quelques photos puis réessayez. Votre travail reste ouvert ici.')
         return
@@ -231,7 +236,7 @@ export default function Creator({ initialDraft, onSave, localStore = true, recov
       <label className="field-label" htmlFor="memories">Souvenirs de la journée</label><input id="memories" value={memories} maxLength={4000} onChange={event => { setMemories(event.target.value); changed() }} aria-describedby="memories-hint" /><p className="field-hint" id="memories-hint">Un lieu, un goût, une anecdote… Quelques mots suffisent.</p>
       <fieldset className="tone-field"><legend>Quelle couleur donner aux mots ?</legend><div>{['Contemplatif', 'Aventure', 'Spontané'].map(option => <label key={option} className={tone === option ? 'selected' : ''}><input type="radio" name="tone" value={option} checked={tone === option} onChange={() => { setTone(option); changed() }} />{option}</label>)}</div></fieldset>
       <button className="button generate-button" onClick={generate}>Générer le récit <Icon name="arrow" /></button><p className="field-hint">Une proposition locale à partir de vos souvenirs, sans IA distante. Vous gardez le dernier mot.</p>
-      <label className="field-label story-label" htmlFor="story">Votre récit, à votre façon</label><textarea ref={storyRef} id="story" rows={10} value={story} onChange={event => { setStory(event.target.value); changed() }} aria-describedby="story-hint" /><p className="field-hint" id="story-hint">Chaque phrase est modifiable. Vous pouvez aussi tout écrire vous-même.</p>
+      <label className="field-label story-label" htmlFor="story">Votre récit, à votre façon</label><textarea ref={storyRef} id="story" rows={10} maxLength={20000} value={story} onChange={event => { setStory(event.target.value); changed() }} aria-describedby="story-hint" /><p className="field-hint" id="story-hint">Chaque phrase est modifiable. Vous pouvez aussi tout écrire vous-même. Limite : 20 000 caractères.</p>
       <div className="editor-actions"><button className="button button-outline" onClick={showPreview}>Prévisualiser <Icon name="book" /></button><span className="local-note">Rien n’est enregistré avant votre validation.</span></div>
     </div></div>
     <div className="feedback" role="status" aria-live="polite">{busy && <p>Préparation en cours…</p>}{pickerBusy && <p>Connexion à Google Photos en cours…</p>}{notice && <p className="success-message"><Icon name="check" />{notice}</p>}</div>{error && <p role="alert" className="error-message">{error}</p>}

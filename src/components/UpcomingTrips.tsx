@@ -1,3 +1,4 @@
+import { saveUpcomingMetadata } from '../trip-journals'
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { calendarDate, daysUntil, newUpcoming, readUpcoming, tripIsPast, upcomingKey } from '../upcoming-trips'
@@ -71,7 +72,7 @@ export default function UpcomingTrips({ openJournal, openPlanner, journals = [] 
         setMessage('Les voyages ont changé dans un autre onglet. Vérifiez la liste puis recommencez.')
         return false
       }
-      localStorage.setItem(upcomingKey, JSON.stringify(tripsToSave))
+      saveUpcomingMetadata(tripsToSave)
       setStored({ trips: tripsToSave, error: '' }); setMessage(''); window.dispatchEvent(new Event('upcoming-trips-updated'))
       return true
     } catch { setMessage('Impossible d’enregistrer les voyages sur cet appareil. Libérez de l’espace ou autorisez le stockage local.'); return false }

@@ -104,8 +104,7 @@ inclus dans la prochaine archive ZIP ; rien n’est réservé ni synchronisé av
 La génération du récit est déterministe : elle encadre les souvenirs saisis selon
 le ton choisi, sans inventer de lieux ni envoyer les données à une IA distante.
 Le studio exporte une carte du jour 3, pas une publication effective ni un
-carrousel multipage. Les modifications non enregistrées sont conservées pendant
-la navigation dans l’application, mais pas après un rechargement.
+carrousel multipage. Les brouillons non enregistrés sont conservés séparément sur cet appareil et proposés à la reprise après rechargement, lorsque le stockage le permet. Un échec de stockage est signalé et ne remplace pas une copie valide.
 
 La photographie de Port Barton et la vidéo de Nakabuang Beach sont identifiées
 comme des fenêtres vers d’autres lieux, pas comme des prises de vue d’El Nido.
@@ -142,3 +141,8 @@ l’origine/hôte configurés (`VOICE_ALLOWED_ORIGINS`, `VOICE_ALLOWED_HOSTS`) e
 
 Installation, architecture, limites, modèles validés et commandes de vérification :
 [`docs/voice-ai.md`](docs/voice-ai.md).
+
+
+## Fiabilité des carnets
+
+Les sauvegardes sont validées avant écriture (40 journées par carnet, 20 000 caractères par récit). Les anciens liens Philippines et le carnet migré partagent les modifications ; des versions historiques déjà divergentes restent identifiables sans suppression automatique. Les détails et les tests sont décrits dans [docs/journal-reliability.md](docs/journal-reliability.md).
