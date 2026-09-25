@@ -7,12 +7,12 @@ import type { FilmScene } from '../journey-film'
 import FilmSceneEditor from './FilmSceneEditor'
 import type { FilmBridge } from '../journey-film'
 
-export default function FilmExport({ title, stops, chapters, frame, ready, onBusy }: { title: string; stops: PlanStop[]; chapters: Draft[]; frame: RefObject<HTMLIFrameElement | null>; ready: boolean; onBusy: (busy: boolean) => void }) {
+export default function FilmExport({ title, stops, chapters, frame, ready, onBusy, defaultIllustrated=false }: { title: string; stops: PlanStop[]; chapters: Draft[]; frame: RefObject<HTMLIFrameElement | null>; ready: boolean; onBusy: (busy: boolean) => void; defaultIllustrated?: boolean }) {
   const [open, setOpen] = useState(false)
   const [filmTitle, setFilmTitle] = useState(title)
   const [format, setFormat] = useState<'landscape' | 'portrait'>('landscape')
   const [seconds, setSeconds] = useState(6)
-  const [illustrated, setIllustrated] = useState(false)
+  const [illustrated, setIllustrated] = useState(defaultIllustrated)
   const [scenes,setScenes]=useState<Record<string,FilmScene>>({})
   const [music,setMusic]=useState<File>()
   const musicPreview=useRef<HTMLAudioElement>(null)

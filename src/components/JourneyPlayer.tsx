@@ -1,3 +1,4 @@
+import { makeVisayas, visayasId } from '../visayas-demo'
 import FilmExport from './FilmExport'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { readUpcoming, transportModes } from '../upcoming-trips'
@@ -9,8 +10,9 @@ const icons = { plane: '✈', train: '🚆', car: '🚗', walk: '🚶', boat: '�
 export default function JourneyPlayer({ id, back, plan }: { id: string; back: () => void; plan: () => void }) {
   const [stored, setStored] = useState(readUpcoming)
   const [journals, setJournals] = useState(readJournals)
-  const demo = id === 'demo'
-  const trip = demo ? journeyDemo : stored.trips.find(t => t.id === id)
+  const visayas = useMemo(() => id === 'visayas' ? makeVisayas() : null, [id])
+  const demo = id === 'demo' || id === 'visayas'
+  const trip = visayas ? visayas.trip : demo ? journeyDemo : stored.trips.find(t => t.id === id)
   const stops = useMemo(() => trip?.plan?.stops ?? [], [trip])
   const [tab, setTab] = useState<'motion' | 'map'>('motion')
   const [leg, setLeg] = useState(0)
@@ -20,7 +22,7 @@ export default function JourneyPlayer({ id, back, plan }: { id: string; back: ()
   const [ready, setReady] = useState(false)
   const [error, setError] = useState('')
   const [description, setDescription] = useState('')
-  const [illustrated, setIllustrated] = useState(false)
+  const [illustrated, setIllustrated] = useState(id === 'visayas' || id === visayasId)
   const [exporting, setExporting] = useState(false)
   const [reload, setReload] = useState(0)
   const [duration, setDuration] = useState(12)
@@ -34,7 +36,7 @@ export default function JourneyPlayer({ id, back, plan }: { id: string; back: ()
   const transportsMissing = stops.slice(1).filter(s => !s.transport).length
   const valid = stops.length >= 2 && !missing && !transportsMissing
   const from = stops[leg], to = stops[leg + 1]
-  const chapters = demo ? journeyDemoChapters : journals.data.journals.find(j => j.tripId === id)?.chapters ?? []
+  const chapters = visayas ? visayas.journal.chapters : demo ? journeyDemoChapters : journals.data.journals.find(j => j.tripId === id)?.chapters ?? []
   const chapter = chapters.find(c => c.id === to?.chapterId)
   const photos = chapter ? [...chapter.media].sort((a, b) => Number(b.id === chapter.coverId) - Number(a.id === chapter.coverId)).slice(0, 3) : []
   const arriving = tab === 'motion' && progress >= 1
@@ -84,7 +86,7 @@ export default function JourneyPlayer({ id, back, plan }: { id: string; back: ()
       const next = Math.min(1 + 4 / duration, position.current + Math.min((now - previous) / 1000, .1) / duration)
       previous = now; seek(next)
       if (next >= 1 + 4 / duration) {
-        if (leg < stops.length - 2) { setLeg(l => l + 1); setIllustrated(false) }
+        if (leg < stops.length - 2) { setLeg(l => l + 1); setIllustrated(id === 'visayas' || id === visayasId) }
         else { setPlaying(false); sequence.current = false }
         return
       }
@@ -92,8 +94,8 @@ export default function JourneyPlayer({ id, back, plan }: { id: string; back: ()
     }
     frame = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(frame)
-  }, [playing, ready, reduced, duration, leg, stops.length])
-  function select(index: number) { sequence.current = false; setPlaying(false); setIllustrated(false); if (index === leg) seek(0); else setLeg(index) }
+  }, [playing, ready, reduced, duration, leg, stops.length, id])
+  function select(index: number) { sequence.current = false; setPlaying(false); setIllustrated(id === 'visayas' || id === visayasId); if (index === leg) seek(0); else setLeg(index) }
   function play() {
     if (playing) { sequence.current = false; setPlaying(false); return }
     sequence.current = true
@@ -113,7 +115,7 @@ export default function JourneyPlayer({ id, back, plan }: { id: string; back: ()
           <iframe ref={iframe} src={`${import.meta.env.BASE_URL}atlas/player.html`} title="Globe du voyage" tabIndex={-1} />
           {!ready && !error && <p className="journey-overlay" role="status">{boot ? 'Préparation du parcours…' : 'Ouverture du globe…'}</p>}
           {error && <div className="journey-overlay" role="alert"><p>{error}</p>{boot && tab === 'motion' && (to?.transport === 'car' || to?.transport === 'walk') && !illustrated && <button className="button button-light" onClick={() => setIllustrated(true)}>Utiliser une liaison illustrée</button>}</div>}
-          {arriving && ready && <div className={`journey-arrival ${photos.length ? 'has-photos' : ''}`} data-testid="journey-arrival"><p className="eyebrow">Vous voilà à</p><h2>{to.place}</h2>{photos.length > 0 && <div className="arrival-photos">{photos.map(p => <img src={p.src} alt={p.name} key={p.id} />)}</div>}{chapter && <a href={demo ? "#day-8" : `#journey/${encodeURIComponent(id)}/${encodeURIComponent(chapter.id)}`}>{chapter.title} · Lire le chapitre →</a>}{!chapter && <p>Une nouvelle étape de votre voyage.</p>}</div>}
+          {arriving && ready && <div className={`journey-arrival ${photos.length ? 'has-photos' : ''}`} data-testid="journey-arrival"><p className="eyebrow">Vous voilà à</p><h2>{to.place}</h2>{photos.length > 0 && <div className="arrival-photos">{photos.map(p => <img src={p.src} alt={p.name} key={p.id} />)}</div>}{chapter && <a href={visayas ? "#visayas" : demo ? "#day-8" : `#journey/${encodeURIComponent(id)}/${encodeURIComponent(chapter.id)}`}>{chapter.title} · Lire le chapitre →</a>}{!chapter && <p>Une nouvelle étape de votre voyage.</p>}</div>}
         </div>
         <p className="journey-description" role="status">{ready ? description : 'Le carnet et les photos restent disponibles pendant le chargement.'}</p>
         {tab === 'motion' && <div className="journey-playback">
@@ -124,7 +126,7 @@ export default function JourneyPlayer({ id, back, plan }: { id: string; back: ()
           {reduced && <p>Animations réduites : explorez le trajet avec le curseur ou passez directement à l’arrivée.</p>}
         </div>}
       </div><aside className="journey-itinerary" aria-label="Les étapes du voyage"><p className="eyebrow">{stops.length} étapes · votre itinéraire</p><ol>{stops.map((stop, index) => <li key={stop.id} className={index === leg + 1 ? 'selected' : ''}><span className="stop-number">{index + 1}</span><div><strong>{stop.place}</strong>{stop.date && <small>{stop.date}</small>}{index > 0 ? <button aria-current={index === leg + 1 ? 'step' : undefined} onClick={() => { setTab('motion'); select(index - 1) }}>{icons[stop.transport!]} {transportModes[stop.transport!]} · Voir le trajet</button> : <small>Le départ</small>}</div></li>)}</ol></aside></div>
-      </fieldset><FilmExport title={trip?.destination ?? "Mon voyage"} stops={stops} chapters={chapters} frame={iframe} ready={ready} onBusy={busy => { setExporting(busy); setPlaying(false); sequence.current = false; if (!busy) setReload(value => value + 1) }} />
+      </fieldset><FilmExport defaultIllustrated={id === 'visayas' || id === visayasId} title={trip?.destination ?? "Mon voyage"} stops={stops} chapters={chapters} frame={iframe} ready={ready} onBusy={busy => { setExporting(busy); setPlaying(false); sequence.current = false; if (!busy) setReload(value => value + 1) }} />
       <p className="journey-credits">Globe : Three Globe · Images détaillées : Esri et contributeurs. <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap</a> · <a href="https://www.openstreetmap.org/fixthemap" target="_blank" rel="noreferrer">Corriger la carte</a>. Les recherches et coordonnées nécessaires aux itinéraires sont transmises aux services cartographiques ; vos photos et récits restent sur cet appareil.</p>
     </>}
   </section>

@@ -41,6 +41,7 @@ function drawText(context: CanvasRenderingContext2D, text: string, y: number, si
 
 export default function ShareStudio({ draft, returnHref }: { draft?: Draft; returnHref?: string }) {
   const cover = draft ? coverOf(draft) : undefined
+  const photoCredit=cover?.name.split('| Crédit : ')[1]
   const imageSrc = draft ? cover?.src : asset('el-nido-big-lagoon.jpg')
   const excerpt = draft ? storyExcerpt(draft.story) : ''
   const [caption, setCaption] = useState(() => draft ? `${draft.title}\n\n${storyExcerpt(draft.story, 600)}` : initialCaption)
@@ -121,6 +122,7 @@ export default function ShareStudio({ draft, returnHref }: { draft?: Draft; retu
       context.stroke()
       context.font = '24px Georgia'
       context.fillText('un soir là-bas', 80, canvas.height - 80)
+      if(photoCredit){context.font='16px Arial';textLines(context,`Photo recadrée : ${photoCredit}`,920).forEach((line,index)=>context.fillText(line,80,canvas.height-54+index*18))}
       const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob(value => value ? resolve(value) : reject(new Error('Export indisponible')), 'image/png'))
       if (!mounted.current) return
       const url = URL.createObjectURL(blob)

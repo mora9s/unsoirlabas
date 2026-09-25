@@ -10,7 +10,7 @@ export default function FilmSceneEditor({place,chapter,scene,format,change}:{pla
   useEffect(()=>{
     let cancelled=false
     const sources=scene.photoIds.map(id=>chapter?.media.find(m=>m.id===id)).filter(m=>m!==undefined)
-    Promise.all(sources.map(media=>new Promise<HTMLImageElement>((resolve,reject)=>{const image=new Image();image.onload=()=>resolve(image);image.onerror=reject;image.src=media.src}))).then(images=>{
+    Promise.all(sources.map(media=>new Promise<HTMLImageElement>((resolve,reject)=>{const image=new Image();image.alt=media.name.split('| Crédit : ')[1] ?? '';image.onload=()=>resolve(image);image.onerror=reject;image.src=media.src}))).then(images=>{
       if(cancelled || !canvas.current)return
       const target=canvas.current;target.width=format==='portrait'?720:1280;target.height=format==='portrait'?1280:720
       arrival(target.getContext('2d')!,target.width,target.height,place,scene.caption,images,images.length?Math.min(index,images.length-1)/images.length:0,scene.crop)

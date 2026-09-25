@@ -28,7 +28,7 @@ export default function CustomChapter({ draft, home, edit, share }: Props) {
     </header>
     {cover ? <figure className="chapter-cover">
       <img src={cover.src} alt={`Couverture : ${cover.name}`} />
-      <figcaption>Votre photo de couverture<span>CARNET PERSONNEL</span></figcaption>
+      <figcaption>{cover.name.includes('| Crédit : ') ? 'Photographie documentaire · crédits dans le récit' : 'Votre photo de couverture'}<span>CARNET PERSONNEL</span></figcaption>
     </figure> : <div className="chapter-cover cover-without-photo" aria-label="Chapitre sans photo de couverture">
       <span className="tiny-sun" aria-hidden="true" /><p>Il reste les mots.</p><span className="eyebrow">Une page à soi</span>
     </div>}

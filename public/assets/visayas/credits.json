@@ -1,0 +1,62 @@
+{
+  "cebu": {
+    "title": "Magellan's Cross Cebu.jpg",
+    "author": "Kingphoto23",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "source": "https://commons.wikimedia.org/?curid=21101543",
+    "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/0/05/Magellan%27s_Cross_Cebu.jpg",
+    "changes": "Miniature Wikimedia, cadrage possible dans le film",
+    "consulted": "2026-09-25"
+  },
+  "bohol": {
+    "title": "Chocolate Hills Carmen Bohol 2019.jpg",
+    "author": "Wolfgang Hägele",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "source": "https://commons.wikimedia.org/?curid=79230956",
+    "imageUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/54/Chocolate_Hills_Carmen_Bohol_2019.jpg/960px-Chocolate_Hills_Carmen_Bohol_2019.jpg",
+    "changes": "Miniature Wikimedia, cadrage possible dans le film",
+    "consulted": "2026-09-25"
+  },
+  "siquijor": {
+    "title": "Cambugahay Falls 01.JPG",
+    "author": "Lawrence Ruiz",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "source": "https://commons.wikimedia.org/?curid=42889642",
+    "imageUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/35/Cambugahay_Falls_01.JPG/960px-Cambugahay_Falls_01.JPG",
+    "changes": "Miniature Wikimedia, cadrage possible dans le film",
+    "consulted": "2026-09-25"
+  },
+  "moalboal": {
+    "title": "Basdako Beach Moalboal.jpg",
+    "author": "George Parrilla",
+    "license": "CC BY 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+    "source": "https://commons.wikimedia.org/?curid=25531772",
+    "imageUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/cb/Basdako_Beach_Moalboal.jpg/960px-Basdako_Beach_Moalboal.jpg",
+    "changes": "Miniature Wikimedia, cadrage possible dans le film",
+    "consulted": "2026-09-25"
+  },
+  "apo": {
+    "title": "Apo Island, near Negros.JPG",
+    "author": "CariolaMinze",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "source": "https://commons.wikimedia.org/?curid=42579186",
+    "imageUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3c/Apo_Island%2C_near_Negros.JPG/960px-Apo_Island%2C_near_Negros.JPG",
+    "changes": "Miniature Wikimedia, cadrage possible dans le film",
+    "consulted": "2026-09-25"
+  },
+  "turtle": {
+    "title": "Sea Turtle in Apo Island.jpg",
+    "author": "Anna Varona",
+    "license": "CC BY 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0",
+    "source": "https://commons.wikimedia.org/?curid=64742658",
+    "imageUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/17/Sea_Turtle_in_Apo_Island.jpg/960px-Sea_Turtle_in_Apo_Island.jpg",
+    "changes": "Miniature Wikimedia, cadrage possible dans le film",
+    "consulted": "2026-09-25"
+  }
+}

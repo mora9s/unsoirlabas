@@ -9,6 +9,7 @@ export default function Demo({ openDay }: { openDay: (day: number) => void }) {
     </section>
     <section className="demo-chronicle page-width" aria-labelledby="demo-chronicle-title">
       <header className="library-section-heading"><div><p className="eyebrow">Le fil du voyage</p><h2 id="demo-chronicle-title">D’une île à l’autre.</h2></div><span>3 étapes · un même carnet</span></header>
+      <a className="button button-outline" href="#visayas">Découvrir le voyage complet de 20 jours →</a>
       <a className="button" href="#motion/demo">Voir le voyage animé →</a>
       <div className="day-list">
         {days.map(day => <article className={`day-entry day-${day.status}`} key={day.day} data-testid="day-card" data-status={day.status}>

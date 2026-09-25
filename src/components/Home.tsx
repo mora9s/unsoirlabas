@@ -7,6 +7,7 @@ import '../travel-library.css'
 export default function Home({ openDay, openTools, create, drafts, openDraft, editDraft, onOpenJournal, openPlanner, journals }: { openDay: (day: number) => void; openTools: () => void; create: () => void; drafts: Draft[]; openDraft: (draft: Draft) => void; editDraft: (draft: Draft) => void; onOpenJournal: (trip: import('../upcoming-trips').UpcomingTrip) => void; openPlanner: (id: string) => void; journals: import('../trip-journals').PersonalJournal[] }) {
   return <>
     <UpcomingTrips openJournal={onOpenJournal} openPlanner={openPlanner} journals={journals} />
+    <div className="discover-demo page-width"><div><p className="eyebrow">Essayez toutes les fonctions</p><h2>20 jours dans les Visayas</h2><p>Un voyage complet : programme, carte, photos, souvenirs et film à personnaliser.</p></div><a className="button" href="#visayas">Explorer cet exemple →</a></div>
     <section className="home-pages page-width" aria-labelledby="home-pages-title">
       <header className="library-section-heading"><div><p className="eyebrow">Vos récits</p><h2 id="home-pages-title">Pages personnelles</h2></div><button className="button home-create" onClick={create}>Créer une journée <Icon name="plus" /></button></header>
       {drafts.length ? <div className="personal-memory-grid">{drafts.map(draft => {

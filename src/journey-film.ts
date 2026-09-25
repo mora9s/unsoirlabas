@@ -58,6 +58,7 @@ export function arrival(ctx: CanvasRenderingContext2D, w: number, h: number, pla
     const pw = photo.naturalWidth * ratio, ph = photo.naturalHeight * ratio
     ctx.save();ctx.beginPath();ctx.rect(x,y,boxW,boxH);ctx.clip()
     ctx.drawImage(photo, x + (boxW - pw) / 2, y + (boxH - ph) / 2, pw, ph);ctx.restore()
+    if(photo.alt){ctx.textAlign='center';ctx.fillStyle='#bed1cb';ctx.font='12px Arial';textLines(ctx,photo.alt,boxW,3).forEach((line,i)=>ctx.fillText(line,w/2,y+boxH+17+i*15))}
   }
   ctx.textAlign = 'center'; ctx.fillStyle = '#a2dfca'; ctx.font = '17px Arial'; ctx.fillText('UNE NOUVELLE ESCALE', w / 2, portrait ? 90 : 42)
   ctx.font = `${portrait ? 42 : 40}px Georgia`; ctx.fillStyle = '#fff9e9'
@@ -98,6 +99,7 @@ export async function exportJourneyFilm(bridge: FilmBridge, stops: PlanStop[], c
       const scene=options.scenes?.[to.id] ?? defaultScene(chapter)
       const media=scene.photoIds.slice(0,3).map(id=>chapter?.media.find(m=>m.id===id)).filter(m=>m!==undefined)
       const images = await Promise.all(media.map(m => loadImage(m.src,signal)))
+      images.forEach((image,index)=>{image.alt=media[index].name.split('| Crédit : ')[1] ?? ''})
       prepared.push({ journey, scene, images })
     }
     if (signal.aborted) throw aborted()
