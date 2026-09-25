@@ -7,6 +7,7 @@ import { readUnsavedChapter, writeUnsavedChapter, discardUnsavedChapter } from '
 import { sha256 } from '@noble/hashes/sha2.js'
 import { bytesToHex } from '@noble/hashes/utils.js'
 import './daily-plan.css'
+import OfflineAccess from './OfflineAccess'
 
 function QuickMemory({tripId,date,stopId,open}: {tripId:string;date:string;stopId:string;open:(id:string)=>void}) {
   const scope = `quick:${bytesToHex(sha256(new TextEncoder().encode(JSON.stringify([tripId,date,stopId]))))}`
@@ -72,6 +73,7 @@ export default function Today({id,plan,open}: {id:string;plan:()=>void;open:(id:
     <p className="eyebrow">Votre compagnon de route</p><h1>{date===calendarDate(now) ? 'Aujourd’hui' : 'Votre journée'}{trip ? ` · ${trip.destination}` : ''}</h1>
     {stored.error && <p role="alert">{stored.error}</p>}
     {!trip ? <p>Ce voyage est introuvable sur cet appareil.</p> : <>
+      <OfflineAccess />
       <label className="today-date">Journée affichée<input type="date" value={date} onChange={event=>{setChosenDate(event.target.value);setStopId('')}} /></label>
       {chosenDate && <button className="text-button" onClick={()=>{setChosenDate('');setStopId('')}}>Revenir à aujourd’hui</button>}
       <p className="local-note">Dates et heures selon l’horloge de votre appareil. Les horaires sont ceux que vous avez saisis.</p>

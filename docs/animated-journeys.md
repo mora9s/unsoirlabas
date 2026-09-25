@@ -39,11 +39,19 @@ Le cadrage regroupe les escales qui traversent le méridien 180° (par exemple F
 
 ## Programme quotidien et sauvegardes
 
+### Accès hors connexion
+
+Un téléchargement explicite est proposé dans la préparation, « Aujourd’hui » et les outils de sauvegarde. Le build produit un service worker versionné avec le HTML, les modules JavaScript/CSS et les icônes nécessaires. L’installation ne réussit que lorsque tous ces fichiers sont présents ; aucun serveur tiers, API, carte, moteur 3D ou album distant n’est précaché. Les carnets et leurs photos intégrées restent dans leur stockage local existant. Le mode fonctionne sur HTTPS ou localhost, après une première préparation en ligne ; le serveur de développement ne produit pas ce téléchargement.
+
+Le statut vérifie la présence des fichiers du cache et affiche l’état de connexion du navigateur. Le bouton d’actualisation prépare la version disponible sur le serveur. Une installation échouée ne supprime pas une ancienne version fonctionnelle ; les caches antérieurs sont conservés pour les onglets encore ouverts. Les données et caches peuvent être effacés par le navigateur : l’interface rappelle de vérifier le fonctionnement avant de partir et de conserver une archive ZIP.
+
+Test navigateur : téléchargement, fermeture de la page, coupure réseau, ouverture d’une nouvelle page sur le programme, lecture d’une photo, ajout d’un souvenir, ouverture du plan et actualisation au retour de la connexion. Un refus de téléchargement laisse un statut incomplet et préserve les données.
+
 ### Pendant le voyage
 
 La vue `#today/<voyage>` est accessible depuis la bibliothèque, la préparation et le carnet. Elle utilise la date locale de l’appareil, actualisée toutes les trente secondes, et permet de consulter une autre journée. Les escales datées sont triées par heure, les horaires libres viennent ensuite. Le prochain horaire saisi est mis en avant ; aucune durée de trajet ni disponibilité n’est déduite. Les réservations, notes et adresses restent locales.
 
-L’ajout rapide accepte un texte et jusqu’à trois photos par ajout, optimisées avec le même import que le carnet. Un brouillon séparé par voyage, date et escale est récupérable après rechargement. L’enregistrement relit les données courantes, ajoute au chapitre lié ou crée un chapitre daté, puis associe l’escale. Si l’écriture de l’association échoue, l’écriture du carnet est annulée ; la saisie reste disponible pour réessayer. Les limites existantes du carnet s’appliquent toujours. Sans escale, une nouvelle page datée est créée. Cette vue ne constitue pas un mode hors connexion installable : seuls les souvenirs et préparatifs sont stockés localement, pas l’application complète.
+L’ajout rapide accepte un texte et jusqu’à trois photos par ajout, optimisées avec le même import que le carnet. Un brouillon séparé par voyage, date et escale est récupérable après rechargement. L’enregistrement relit les données courantes, ajoute au chapitre lié ou crée un chapitre daté, puis associe l’escale. Si l’écriture de l’association échoue, l’écriture du carnet est annulée ; la saisie reste disponible pour réessayer. Les limites existantes du carnet s’appliquent toujours. Sans escale, une nouvelle page datée est créée. Cette vue est accessible sans réseau après le téléchargement explicite de l’application décrit ci-dessus.
 
 La préparation regroupe les étapes par date, puis les étapes sans date dans « À programmer ». Chaque étape accepte un type (visite, hébergement, repas ou transport), une heure facultative, une adresse, une référence de réservation et des notes. Changer la date déplace la fiche entre les journées sans réordonner le parcours géographique. À partir de cinq étapes, une indication invite à prévoir les pauses ; elle n’est pas une estimation de durée. Les dates hors du voyage restent possibles et sont signalées.
 

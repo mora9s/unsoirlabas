@@ -54,3 +54,4 @@ button, a { transition: color 160ms ease, background-color 160ms ease, border-co
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
+.offline-access{margin:20px 0;padding:18px;border:1px solid #c8d5cc;border-radius:12px;background:#edf2ec;line-height:1.6;overflow-wrap:anywhere}.offline-access p{font-size:14px}.offline-access small{display:block;font-size:12px;margin-top:10px}

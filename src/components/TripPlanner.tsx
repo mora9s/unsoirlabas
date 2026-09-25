@@ -1,5 +1,6 @@
 import StopDetails from './StopDetails'
 import DailyPlan from './DailyPlan'
+import OfflineAccess from './OfflineAccess'
 import { readJournals } from '../trip-journals'
 import { lazy, Suspense, useState } from 'react'
 import type { FormEvent } from 'react'
@@ -74,6 +75,7 @@ export default function TripPlanner({ id, back, openJournal, openMotion }: { id:
       <a className="button button-outline" href={`#today/${encodeURIComponent(id)}`}>Aujourd’hui · programme et souvenirs →</a>
       <Suspense fallback={<p role="status">Ouverture de la carte…</p>}><RouteBuilder stops={plan.stops} chapters={chapters} save={update => save(current => ({ ...current, stops: update(current.stops) }))} /></Suspense>
       <DailyPlan trip={trip} update={updated => save(current => ({ ...current, stops: current.stops.map(item => item.id === updated.id ? updated : item) }))} />
+      <OfflineAccess />
       <div className="planner-grid">
         <section className="planner-panel" aria-labelledby="ideas-title"><p className="eyebrow">01 · L’inspiration</p><h2 id="ideas-title">Ce qui vous attire.</h2><p>Gardez des envies sans décider encore du programme.</p>
           <ul>{plan.ideas.map(item => <li key={item.id}><span>{item.text}</span><button className="text-button" aria-label={`Retirer l’envie ${item.text}`} onClick={() => save(current => ({ ...current, ideas: current.ideas.filter(idea => idea.id !== item.id) }))}>Retirer</button></li>)}</ul>
