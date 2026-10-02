@@ -2,11 +2,11 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { createId } from '../id'
 import { daysUntil, readUpcoming, upcomingKey, validateUpcomingTrips } from '../upcoming-trips'
-import type { UpcomingTrip } from '../upcoming-trips'
+import type { PlanStop, UpcomingTrip } from '../upcoming-trips'
 
 const emptyPlan = () => ({ ideas: [], stops: [], notes: '' }) as NonNullable<UpcomingTrip['plan']>
 
-export default function TripPlanner({ id, back, openJournal }: { id: string; back: () => void; openJournal: () => void }) {
+export default function TripPlanner({ id, back, openJournal, openPlannedStep }: { id: string; back: () => void; openJournal: () => void; openPlannedStep: (stop: PlanStop) => void }) {
   const [stored, setStored] = useState(readUpcoming)
   const [idea, setIdea] = useState('')
   const [place, setPlace] = useState('')
@@ -71,7 +71,7 @@ export default function TripPlanner({ id, back, openJournal }: { id: string; bac
           <form onSubmit={addIdea}><label>Nouvelle envie<input value={idea} onChange={event => setIdea(event.target.value)} maxLength={160} required placeholder="Un lieu, une expérience…" /></label><button className="button" disabled={plan.ideas.length >= 30}>Ajouter une envie</button></form>
         </section>
         <section className="planner-panel" aria-labelledby="stops-title"><p className="eyebrow">02 · Le parcours</p><h2 id="stops-title">Les étapes prennent forme.</h2><p>Une date est facultative ; l’ordre reste modifiable.</p>
-          <ol>{plan.stops.map((stop, index) => <li key={stop.id}><span><strong>{stop.place}</strong>{stop.date && <small>{stop.date}</small>}</span><span className="planner-controls"><button className="text-button" aria-label={`Monter ${stop.place}`} disabled={index === 0} onClick={() => move(index, -1)}>↑</button><button className="text-button" aria-label={`Descendre ${stop.place}`} disabled={index === plan.stops.length - 1} onClick={() => move(index, 1)}>↓</button><button className="text-button" aria-label={`Retirer l’étape ${stop.place}`} onClick={() => save(current => ({ ...current, stops: current.stops.filter(item => item.id !== stop.id) }))}>Retirer</button></span></li>)}</ol>
+          <ol>{plan.stops.map((stop, index) => <li key={stop.id}><span><strong>{stop.place}</strong>{stop.date && <small>{stop.date}</small>}</span><span className="planner-controls"><button className="text-button" aria-label={`Monter ${stop.place}`} disabled={index === 0} onClick={() => move(index, -1)}>↑</button><button className="text-button" aria-label={`Descendre ${stop.place}`} disabled={index === plan.stops.length - 1} onClick={() => move(index, 1)}>↓</button><button className="text-button" aria-label={`Retirer l’étape ${stop.place}`} onClick={() => save(current => ({ ...current, stops: current.stops.filter(item => item.id !== stop.id) }))}>Retirer</button><button className="text-button" onClick={() => openPlannedStep(stop)} aria-label={`Raconter ${stop.place}`}>Raconter →</button></span></li>)}</ol>
           <form onSubmit={addStop}><label>Nouvelle étape<input value={place} onChange={event => setPlace(event.target.value)} maxLength={160} required placeholder="Une ville, une escale…" /></label><label>Date de l’étape<input type="date" value={date} onChange={event => setDate(event.target.value)} /></label><button className="button" disabled={plan.stops.length >= 30}>Ajouter une étape</button></form>
         </section>
       </div>

@@ -27,6 +27,14 @@ Worktree: `/home/smora/Workspace/unsoirlabas-long`, branch `feat/personal-roadma
 - `t_c2445958` physical device/browser-storage eviction testing remains a device gate; local browser migration/rollback/archive evidence is complete.
 - `t_17cf2d5d` voice/evening-ritual simplification: implemented locally as a short first-chapter ritual (voice or offline text, explicit review/acceptance, up to three first-chapter photos, complete existing workshop and later 12-photo limit). Trip-scoped voice isolation and reload recovery verified; human product review remains pending.
 - Real phone PWA installation, icon/install affordance review, and airplane-mode reload remain human/device gates.
-- Other P0 reconciliation beyond this branch's tested baseline, all P2/P3/P4 lots, authentication/retention gates, and the separate continuity spike integration remain outside this commit. Continuity spike commit `f658745127677266c8af08b9a79572efb4c678ab` is integrated as a bounded local spike only and is explicitly not active sync.
+- Other P0 reconciliation beyond this branch's tested baseline, P2/P4 lots, authentication/retention gates, and the separate continuity spike integration remain outside that P1 checkpoint. The continuity spike commit `f658745127677266c8af08b9a79572efb4c678ab` is integrated there as a bounded local spike only and is explicitly not active sync.
 
 See `evidence/personal-roadmap-results.json` for exact commands, counts, artifact paths, and outstanding gates.
+
+## P3 · Prévu / vécu — worktree isolé `feat/planned-lived-chapters`
+
+Base : `bf0d1ed2190afed1e7119a9905a42743074e0b32`. Depuis le plan, l’action explicite « Raconter » ouvre le rituel du carnet avec le titre prérempli par l’étape et son contexte marqué comme prévu. Aucun souvenir, récit ou date n’est injecté ; l’enregistrement explicite conserve les identifiants stables du voyage et de l’étape. Réordonner ne change pas le lien ; supprimer l’étape conserve le chapitre et affiche honnêtement l’étape retirée. Les jours sans chapitre restent vides. Les liens optionnels sont validés, archivés en ZIP et restaurés, tandis que les chapitres/archives historiques sans lien restent acceptés.
+
+Vérifié : `npm run lint`, `npm run build`, `python3 -m pytest -q tests/backend` (13 passed), tests ciblés Chrome (2 passed), et suite canonique `PLAYWRIGHT_EXECUTABLE_PATH=/usr/bin/google-chrome npm run test:acceptance -- --workers=1` (104 passed, 4 skipped; 108 total). Capture navigateur : `test-results/planned-lived-le-lien-prév-6849e-t-indépendant-entre-voyages-production-preview/planned-lived-chapter.png`. Aucun push, merge ou déploiement.
+
+Cette livraison reste limitée à prévu/vécu. Le changement de permission microphone de la branche parent n’est pas repris ici ; l’intégration parent peut le réconcilier après ce commit.

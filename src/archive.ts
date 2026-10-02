@@ -102,7 +102,8 @@ function parseManifest(value: unknown): Manifest {
   }
   if (manifest.journal.drafts.length > MAX_RECORDS) fail('Cette sauvegarde contient trop de chapitres.')
   for (const draft of manifest.journal.drafts) {
-    if (!exactObject(draft, ['id', 'title', 'memories', 'tone', 'story', 'coverId', 'status', 'media']) || !Array.isArray(draft.media)) fail('Un chapitre du manifeste contient des champs inconnus ou incomplets.')
+    if (!exactObject(draft, ['id', 'title', 'memories', 'tone', 'story', 'coverId', 'status', 'media']) &&
+      !exactObject(draft, ['id', 'title', 'memories', 'tone', 'story', 'coverId', 'status', 'media', 'plannedStep']) || !Array.isArray(draft.media)) fail('Un chapitre du manifeste contient des champs inconnus ou incomplets.')
     for (const media of draft.media) {
       if (!exactObject(media, ['id', 'name', 'mime', 'path', 'bytes', 'sha256'])) fail('Un média du manifeste contient des champs inconnus ou incomplets.')
     }
@@ -130,7 +131,8 @@ async function restorePersonalJournals(value: Journals | PersonalJournalDescript
     const chapters: Draft[] = []
     const chapterIds = new Set<string>()
     for (const chapter of journal.chapters) {
-      if (!chapter || typeof chapter !== 'object' || Array.isArray(chapter) || !exactObject(chapter, ['id', 'title', 'memories', 'tone', 'story', 'coverId', 'status', 'media']) || typeof chapter.id !== 'string' || chapterIds.has(chapter.id) || !Array.isArray(chapter.media)) fail('Un chapitre personnel de l’archive est invalide.')
+      const baseChapterKeys = ['id', 'title', 'memories', 'tone', 'story', 'coverId', 'status', 'media']
+      if (!chapter || typeof chapter !== 'object' || Array.isArray(chapter) || (!exactObject(chapter, baseChapterKeys) && !exactObject(chapter, [...baseChapterKeys, 'plannedStep'])) || typeof chapter.id !== 'string' || chapterIds.has(chapter.id) || !Array.isArray(chapter.media)) fail('Un chapitre personnel de l’archive est invalide.')
       chapterIds.add(chapter.id)
       const media: Draft['media'] = []
       const ids = new Set<string>()

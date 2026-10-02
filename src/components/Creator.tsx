@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import { importGooglePhotos, googlePhotosAvailability } from '../google-photos-picker'
 import { generateStory, importImage, readTrip, storageKey } from '../journal'
-import type { Draft, Media, Trip } from '../journal'
+import type { Draft, Media, PlannedStepLink, Trip } from '../journal'
 import { createId } from '../id'
 import { discardUnsavedChapter, readUnsavedChapter, writeUnsavedChapter } from '../unsaved-chapters'
 import { tripAlbum } from '../trip-media'
@@ -15,12 +15,13 @@ declare const __GOOGLE_PHOTOS_PUBLIC_BUILD__: boolean
 
 type PickerLaunch = { url: string; open: () => void }
 
-export default function Creator({ initialDraft, onSave, localStore = true, recoveryScope = 'personal:new', personalDestination, firstChapter = false }: { initialDraft?: Draft; onSave: (trip: Trip, draft: Draft) => void | Promise<void>; localStore?: boolean; recoveryScope?: string; personalDestination?: string; firstChapter?: boolean }) {
+export default function Creator({ initialDraft, onSave, localStore = true, recoveryScope = 'personal:new', personalDestination, firstChapter = false, plannedStep }: { initialDraft?: Draft; onSave: (trip: Trip, draft: Draft) => void | Promise<void>; localStore?: boolean; recoveryScope?: string; personalDestination?: string; firstChapter?: boolean; plannedStep?: PlannedStepLink }) {
   const [id, setId] = useState(() => initialDraft?.id ?? createId())
   const [recovery] = useState(() => readUnsavedChapter(recoveryScope))
   const [recoveryPending, setRecoveryPending] = useState(Boolean(recovery.draft))
   const [changedSinceOpen, setChangedSinceOpen] = useState(false)
-  const [title, setTitle] = useState(initialDraft?.title ?? (personalDestination ? `Une nouvelle journée à ${personalDestination}` : 'Une nouvelle journée aux Philippines'))
+  const [title, setTitle] = useState(initialDraft?.title ?? (plannedStep ? plannedStep.place.slice(0, 120) : personalDestination ? `Une nouvelle journée à ${personalDestination}` : 'Une nouvelle journée aux Philippines'))
+  const plannedLink = initialDraft?.plannedStep ?? plannedStep
   const [media, setMedia] = useState<Media[]>(initialDraft?.media ?? [])
   const [coverId, setCoverId] = useState(initialDraft?.coverId ?? '')
   const [memories, setMemories] = useState(initialDraft?.memories ?? '')
@@ -54,13 +55,13 @@ export default function Creator({ initialDraft, onSave, localStore = true, recov
 
   useEffect(() => {
     if (!changedSinceOpen || recoveryPending) return
-    const draft: Draft = { id, title: title.trim(), memories, tone, story, media, coverId: cover?.id ?? '', status: 'draft' }
+    const draft: Draft = { id, title: title.trim(), memories, tone, story, media, coverId: cover?.id ?? '', status: 'draft', ...(plannedLink ? { plannedStep: plannedLink } : {}) }
     let active = true
     // Persist the latest editor snapshot after React applies each field update.
     // oxlint-disable-next-line react/set-state-in-effect -- status reflects localStorage quota/corruption result
     void writeUnsavedChapter(recoveryScope, draft).then(failure => { if (active) setError(failure || recovery.error) })
     return () => { active = false }
-  }, [changedSinceOpen, recoveryPending, id, title, memories, tone, story, media, cover, coverId, recoveryScope, recovery.error])
+  }, [changedSinceOpen, recoveryPending, id, title, memories, tone, story, media, cover, coverId, plannedLink, recoveryScope, recovery.error])
 
   function changed() {
     setChangedSinceOpen(true)
@@ -207,7 +208,7 @@ export default function Creator({ initialDraft, onSave, localStore = true, recov
       setError('Le titre et le récit sont nécessaires pour enregistrer la journée.')
       return
     }
-    const draft: Draft = { id, title: title.trim(), memories, tone, story: story.trim(), media, coverId: cover?.id ?? '', status: 'draft' }
+    const draft: Draft = { id, title: title.trim(), memories, tone, story: story.trim(), media, coverId: cover?.id ?? '', status: 'draft', ...(plannedLink ? { plannedStep: plannedLink } : {}) }
     let durableDraft: Draft = draft
     let trip: Trip = { version: 1, drafts: [] }
     setBusy(true)
@@ -241,7 +242,7 @@ export default function Creator({ initialDraft, onSave, localStore = true, recov
   }
 
   if (ritualMode && !(recoveryPending && recovery.draft)) return <section className="creator page-width evening-ritual" data-testid="creator" aria-labelledby="evening-ritual-title">
-    <header className="workspace-heading"><p className="eyebrow">Carnet personnel · {personalDestination}</p><h1 id="evening-ritual-title">Le rituel du soir</h1><p>Un souvenir suffit. Racontez-le ou écrivez quelques lignes, puis choisissez vos photos.</p><p className="local-note">Aucune date ni aucun détail ne seront ajoutés à votre récit. Vous relisez et acceptez avant l’enregistrement.</p></header>
+    <header className="workspace-heading"><p className="eyebrow">Carnet personnel · {personalDestination}</p><h1 id="evening-ritual-title">Le rituel du soir</h1><p>Un souvenir suffit. Racontez-le ou écrivez quelques lignes, puis choisissez vos photos.</p>{plannedLink && <p className="local-note" data-testid="planned-step-context">Étape prévue · {plannedLink.place}. Ce lien situe le chapitre ; il ne raconte pas la journée.</p>}<p className="local-note">Aucune date ni aucun détail ne seront ajoutés à votre récit. Vous relisez et acceptez avant l’enregistrement.</p></header>
     <div className="ritual-photos"><p className="eyebrow">Vos images · jusqu’à {photoLimit}</p><label className="upload-zone"><Icon name="upload" /><strong>{busy ? 'Préparation des photos…' : 'Choisir quelques photos'}</strong><span>Depuis cet appareil</span><small>{media.length} / {photoLimit} photo{photoLimit > 1 ? 's' : ''} · conservées dans ce carnet privé</small><input type="file" multiple accept="image/jpeg,image/png,image/webp,image/gif,image/avif" aria-label={`Ajouter jusqu’à ${photoLimit} photos`} onChange={upload} disabled={busy || media.length >= photoLimit} /></label>
       <div className="media-grid">{media.map(item => <article className="media-item ritual-photo" data-testid="ritual-photo" key={item.id}><div className="media-photo"><img src={item.src} alt={`Photo choisie : ${item.name}`} /><button className="remove-media" onClick={() => remove(item)} aria-label={`Supprimer ${item.name}`}><Icon name="close" /></button></div></article>)}</div>
       {picker.enabled && <button className="button button-outline" onClick={() => void importFromGoogle()} disabled={busy || pickerBusy || media.length >= photoLimit}>Choisir depuis Google Photos</button>}
@@ -272,6 +273,7 @@ export default function Creator({ initialDraft, onSave, localStore = true, recov
       <div className="editor-note"><span className="eyebrow">Un petit conseil</span><p>La meilleure photo n’est pas toujours la plus belle.<br /><em>C’est celle qui vous ramène là-bas.</em></p></div>
     </div><div className="writing-workspace"><div className="step-heading"><span>02</span><div><h2>Les mots pour le dire</h2><p>On commence par ce qui vous revient.</p></div></div>
       <label className="field-label" htmlFor="day-title">Le titre de votre journée</label><input id="day-title" value={title} maxLength={120} onChange={event => { setTitle(event.target.value); changed() }} />
+      {plannedLink && <p className="local-note" data-testid="planned-step-context">Étape prévue · {plannedLink.place}. Ce lien situe le chapitre ; il ne raconte pas la journée.</p>}
       {!__VOICE_PRIVATE_BUILD__ ? <div className="voice-entry-card voice-unavailable" role="note"><span className="eyebrow">Voix · Accès privé</span><strong>Votre histoire, à votre façon</strong><small>Le récit vocal est réservé à l’accès privé pour le moment. Écrivez vos souvenirs ci-dessous pour créer votre page ici.</small></div> : showVoice ? <VoiceNarration scopeId={personalDestination ? recoveryScope : undefined} onAccept={(nextTitle, nextMemories, nextStory) => { setTitle(nextTitle); setMemories(nextMemories); setStory(nextStory); setPreview(false); setNotice('Le récit a rempli l’éditeur. Relisez-le : rien n’est enregistré ni publié.'); setChangedSinceOpen(true); setError('') }} /> : <button className="voice-entry-card" type="button" onClick={() => setShowVoice(true)}><span className="eyebrow">Voix · Premium local</span><strong>Commencer le récit du soir</strong><small>Enregistrez ou importez un audio, puis relisez chaque preuve avant d’utiliser le récit.</small></button>}
       <label className="field-label" htmlFor="memories">Souvenirs de la journée</label><input id="memories" value={memories} maxLength={4000} onChange={event => { setMemories(event.target.value); changed() }} aria-describedby="memories-hint" /><p className="field-hint" id="memories-hint">Un lieu, un goût, une anecdote… Quelques mots suffisent.</p>
       <fieldset className="tone-field"><legend>Quelle couleur donner aux mots ?</legend><div>{['Contemplatif', 'Aventure', 'Spontané'].map(option => <label key={option} className={tone === option ? 'selected' : ''}><input type="radio" name="tone" value={option} checked={tone === option} onChange={() => { setTone(option); changed() }} />{option}</label>)}</div></fieldset>

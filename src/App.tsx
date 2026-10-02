@@ -15,7 +15,7 @@ import ShareChapterPicker from './components/ShareChapterPicker'
 import Backup from './components/Backup'
 import TripPlanner from './components/TripPlanner'
 import type { ShareChoice } from './components/ShareChapterPicker'
-import type { Draft } from './journal'
+import type { Draft, PlannedStepLink } from './journal'
 import './journal.css'
 
 type View = string
@@ -38,6 +38,12 @@ function draftId(view: View): string | undefined {
   try { return decodeURIComponent(parts[1]) } catch { return undefined }
 }
 
+function plannedStepLabel(tripId: string, link?: PlannedStepLink): string | undefined {
+  if (!link) return undefined
+  const stop = link.tripId === tripId ? upcomingForJournal(tripId)?.plan?.stops.find(item => item.id === link.stepId) : undefined
+  return stop ? `Étape prévue · ${stop.place}` : `Étape prévue retirée du plan · ${link.place}`
+}
+
 export default function App() {
   const [view, setView] = useState<View>(currentView)
   const [stored, setStored] = useState(readTrip)
@@ -56,8 +62,10 @@ export default function App() {
   const journalChapterId = tripParts[2]
   const journalChapter = journal?.chapters.find(item => item.id === journalChapterId)
   const tripCreating = view.startsWith('trip-create/')
+  const plannedRoute = tripCreating && tripParts[2] === 'planned'
+  const tripCreatePlanLink: PlannedStepLink | undefined = plannedRoute && tripParts[3] && tripParts[4] ? { tripId: journalTripId, stepId: tripParts[3], place: tripParts[4] } : undefined
   const tripCreateContext = tripCreating ? (journal ? { id: journal.tripId, destination: journal.destination, departure: journal.departure } : (() => { const upcoming = upcomingForJournal(journalTripId); return upcoming ? { id: upcoming.id, destination: upcoming.destination, departure: upcoming.departure } : undefined })()) : undefined
-  const tripEditDraft = tripCreating && journalChapterId ? journal?.chapters.find(item => item.id === journalChapterId) : undefined
+  const tripEditDraft = tripCreating && !plannedRoute && journalChapterId ? journal?.chapters.find(item => item.id === journalChapterId) : undefined
   const journalRoute = view.startsWith('trip/') || view.startsWith('journey/') || view.startsWith('journal-share/')
   const journalSharing = view.startsWith('journal-share/')
   const tripSharing = view.startsWith('share-trip/')
@@ -193,7 +201,7 @@ export default function App() {
       )}
       {view === 'demo' && <Demo openDay={openDay} />}
       {view === 'tools' && <section className="tools-page page-width" aria-labelledby="tools-title"><p className="eyebrow">Réglages et conservation</p><h1 id="tools-title">Outils du carnet</h1><Backup trip={stored.trip} onRestore={() => { void refreshStorage() }} /></section>}
-      {view.startsWith('plan/') && <TripPlanner key={view} id={draftId(view) ?? ''} back={() => navigate('home')} openJournal={() => navigate(`trip/${encodeURIComponent(journalTripId)}`)} />}
+      {view.startsWith('plan/') && <TripPlanner key={view} id={draftId(view) ?? ''} back={() => navigate('home')} openJournal={() => navigate(`trip/${encodeURIComponent(journalTripId)}`)} openPlannedStep={stop => { setEditing(undefined); navigate(`trip-create/${encodeURIComponent(journalTripId)}/planned/${encodeURIComponent(stop.id)}/${encodeURIComponent(stop.place)}`) }} />}
       {view.startsWith('day') && (
         <Chapter
           dayNumber={Number(view.slice(4))}
@@ -203,8 +211,8 @@ export default function App() {
         />
       )}
       {view.startsWith('trip/') && journal && <TripJournal journal={journal} open={chapter => navigate(`journey/${encodeURIComponent(journal.tripId)}/${encodeURIComponent(chapter.id)}`)} create={() => createTripChapter(journal)} edit={chapter => editTripChapter(journal, chapter)} />}
-      {view.startsWith('journey/') && journal && journalChapter && <CustomChapter draft={journalChapter} home={() => navigate(`trip/${encodeURIComponent(journal.tripId)}`)} edit={() => editTripChapter(journal, journalChapter)} share={() => navigate(`journal-share/${encodeURIComponent(journal.tripId)}/${encodeURIComponent(journalChapter.id)}`)} />}
-      {tripCreating && tripCreateContext && <Creator localStore={false} firstChapter={Boolean(!tripEditDraft && journal?.chapters.length === 0)} personalDestination={tripCreateContext.destination} recoveryScope={`trip:${tripCreateContext.id}:${tripEditDraft?.id ?? 'new'}`} key={tripEditDraft?.id ?? `trip-${tripCreateContext.id}-${newDraftNumber}`} initialDraft={tripEditDraft ?? editing} onSave={async (_trip, saved) => {
+      {view.startsWith('journey/') && journal && journalChapter && <CustomChapter draft={journalChapter} plannedStepLabel={plannedStepLabel(journal.tripId, journalChapter.plannedStep)} home={() => navigate(`trip/${encodeURIComponent(journal.tripId)}`)} edit={() => editTripChapter(journal, journalChapter)} share={() => navigate(`journal-share/${encodeURIComponent(journal.tripId)}/${encodeURIComponent(journalChapter.id)}`)} />}
+      {tripCreating && tripCreateContext && <Creator localStore={false} firstChapter={Boolean(!tripEditDraft && journal?.chapters.length === 0)} personalDestination={tripCreateContext.destination} plannedStep={tripEditDraft?.plannedStep ?? tripCreatePlanLink} recoveryScope={`trip:${tripCreateContext.id}:${tripEditDraft?.id ?? (tripCreatePlanLink ? `planned:${tripCreatePlanLink.stepId}` : 'new')}`} key={tripEditDraft?.id ?? `trip-${tripCreateContext.id}-${tripCreatePlanLink?.stepId ?? newDraftNumber}`} initialDraft={tripEditDraft ?? (plannedRoute ? undefined : editing)} onSave={async (_trip, saved) => {
         await saveChapter(tripCreateContext.id, tripCreateContext.destination, tripCreateContext.departure, saved)
         await refreshStorage()
         setEditing(saved)

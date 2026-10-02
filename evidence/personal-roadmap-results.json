@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "scope": "Verified P0/P1 subset: PWA/offline, durable IndexedDB personal media, Web Locks serialization, conservative cleanup, portable ZIP restore, short evening ritual, and trip-scoped voice isolation",
+  "scope": "Verified P0/P1 baseline plus bounded P3 planned-to-lived chapter linkage in the isolated feat/planned-lived-chapters worktree",
   "worktree": "/home/smora/Workspace/unsoirlabas-long",
   "branch": "feat/personal-roadmap-long",
   "base": "9093761c90f04eee78ab459976a3fa7095186138",
@@ -10,7 +10,7 @@
     "status": "bounded local spike only; not active sync"
   },
   "verification": {
-    "status": "final settled P1 commit; current branch HEAD",
+    "status": "historical P1 baseline verification; current P3 final gates are recorded in plannedLived",
     "commands": [
       {"command":"npm run lint","result":"passed"},
       {"command":"npm run build","result":"passed after restoring the private build following public-build smoke"},
@@ -26,6 +26,29 @@
       "test-results/evening-ritual-captures-re-8dd38--le-rituel-de-chaque-voyage-production-preview/evening-ritual-1440.png"
     ],
     "phoneInstallOrAirplaneModeTested": false
+  },
+  "plannedLived": {
+    "worktree": "/home/smora/Workspace/unsoirlabas-planned-lived",
+    "branch": "feat/planned-lived-chapters",
+    "base": "bf0d1ed2190afed1e7119a9905a42743074e0b32",
+    "status": "implemented locally; no push, merge, or deployment",
+    "acceptance": [
+      "explicit planner action starts a chapter with stable tripId/stepId and title/context only",
+      "no fabricated story, memories, or date; saved-day gaps remain empty",
+      "reorder retains the reference; deleting a stop retains the chapter and renders an honest orphan label",
+      "two-trip isolation and fresh-browser ZIP restore preserve the optional reference",
+      "chapters and archives without planned-step metadata remain backward compatible"
+    ],
+    "limits": {"planStopsPerTrip": 30, "stopPlaceCharacters": 160, "chapterTitleCharacters": 120, "linkTripIdCharacters": 160, "linkStepIdCharacters": 160},
+    "verification": [
+      {"command": "PLAYWRIGHT_EXECUTABLE_PATH=/usr/bin/google-chrome npx playwright test tests/planned-lived.spec.ts --workers=1", "result": "2 passed; includes two-trip stable-reference reorder/deletion, empty story/date defaults, portable ZIP roundtrip on a fresh browser, and legacy optional-field compatibility"},
+      {"command": "PLAYWRIGHT_EXECUTABLE_PATH=/usr/bin/google-chrome npm run test:acceptance -- --workers=1", "result": "104 passed, 4 skipped; 108 total"},
+      {"command": "npm run lint", "result": "passed"},
+      {"command": "npm run build", "result": "passed"},
+      {"command": "python3 -m pytest -q tests/backend", "result": "13 passed; 64 existing FastAPI on_event deprecation warnings"}
+    ],
+    "screenshot": "test-results/planned-lived-le-lien-prév-6849e-t-indépendant-entre-voyages-production-preview/planned-lived-chapter.png",
+    "parentBranchMicrophonePermissionFix": "not cherry-picked or modified; parent to integrate after this commit"
   },
   "historicalVerification": {
     "status": "older checkpoint evidence retained for history only; not the final P1 gate",
@@ -45,9 +68,10 @@
     {"id":"t_fa1579b9","phase":"P0","status":"partial","delivered":"Current branch lint/build/full Playwright/backend checks executed and passed; scoped PWA lot reconciled against base ee031a3.","pending":"Full multi-worktree P0 reconciliation/acceptance beyond this branch's bounded subset."},
     {"id":"t_f7fee089","phase":"P1","status":"implemented-local","delivered":"Real 192/512 PNG icons; build-versioned full shell precache; failed precache rejects install and deletes incomplete cache; bounded current/previous caches; previous hashed JS/CSS lookup; API exclusion; offline reload/write path; production-only registration.","pending":"Physical phone install, install affordance visual review, and real airplane-mode gate."},
     {"id":"t_c2445958","phase":"P1","status":"local-delivered","delivered":"Validated personal media are migrated from localStorage data URLs to IndexedDB blobs with idb:media references, recovery copy/log, Blob URL hydration, bounded cleanup, and portable ZIP byte export/fresh-browser ref regeneration. Corruption, unavailable IndexedDB and quota paths preserve source and report errors.","pending":"Physical-device/browser-storage eviction and human migration review."},
-    {"id":"t_17cf2d5d","phase":"P1","status":"local-delivered","delivered":"Short first-chapter ritual supports offline text or private voice, explicit review, and a three-photo cap; full-workshop transition restores the historic 12-photo cap. Upload busy state prevents overlapping imports and saving while decoding. Public Vercel build hides and omits private voice from the short ritual. Trip-scoped voice records/transcripts/proposals remain isolated on switching and reload, with active async work invalidated.","pending":"Human product review; no phone installation or physical offline test claimed."}
+    {"id":"t_17cf2d5d","phase":"P1","status":"local-delivered","delivered":"Short first-chapter ritual supports offline text or private voice, explicit review, and a three-photo cap; full-workshop transition restores the historic 12-photo cap. Upload busy state prevents overlapping imports and saving while decoding. Public Vercel build hides and omits private voice from the short ritual. Trip-scoped voice records/transcripts/proposals remain isolated on switching and reload, with active async work invalidated.","pending":"Human product review; no phone installation or physical offline test claimed."},
+    {"id":"t_e5e778cb","phase":"P3","status":"implemented-local","delivered":"Stable planned trip/step linkage on explicit chapter creation; title/context prefilled only; reorder/delete preserve references and chapters; honest orphan rendering; optional ZIP metadata roundtrips and missing legacy fields remain valid.","pending":"Parent local integration after this commit; no push, merge, or deployment."}
   ],
-  "notInScope": ["P2 benchmark/backend/trip research", "P3 planned-to-lived links/photo composition/multipage share", "P4 PDF and physical continuity", "Authentication and retention gates"],
+  "notInScope": ["P2 benchmark/backend/trip research", "other P3 photo composition/multipage share", "P4 PDF and physical continuity", "Authentication and retention gates"],
   "privacy": "Service worker does not precache /api/ or audio/private response paths. No personal user data was added to evidence.",
   "commit": "Earlier commits: fa8d768558704f2f9c87760acd72a3ccc3ae476e (durable-media delivery), b890f1e (final hydration bootstrap fix). P1 closure commit: fix: close evening ritual regressions (see current branch HEAD).",
   "remainingGates": ["Phone installation and offline reload", "Physical-device IndexedDB retention/migration review", "Human review of the evening ritual", "Parent review of the separate continuity spike; no active sync claim"]
