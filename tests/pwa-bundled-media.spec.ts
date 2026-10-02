@@ -74,6 +74,17 @@ test('serves an offline video byte range as a valid 206 response', async ({ page
   })
 })
 
+test('serves the last video bytes for an offline suffix range', async ({ page, context }) => {
+  await page.goto('/')
+  await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker?.controller))).toBe(true)
+  await context.setOffline(true)
+  const result = await page.evaluate(async () => {
+    const response = await fetch('/assets/nakabuang-beach.webm', { headers: { Range: 'bytes=-1024' } })
+    return { status: response.status, range: response.headers.get('content-range'), bytes: (await response.arrayBuffer()).byteLength }
+  })
+  expect(result).toEqual({ status: 206, range: 'bytes 5005503-5006526/5006527', bytes: 1024 })
+})
+
 test('deletes the partial shell and rejects installation when a mandatory precache entry fails', async () => {
   const listeners = new Map<string, (event: { waitUntil: (promise: Promise<unknown>) => void }) => void>()
   const deleted: string[] = []

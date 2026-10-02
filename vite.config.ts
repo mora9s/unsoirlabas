@@ -90,7 +90,7 @@ self.addEventListener('fetch', event => {
           return new Response(null, { status: 416, headers: { 'Content-Range': 'bytes */' + bytes.byteLength, 'Accept-Ranges': 'bytes' } })
         }
         const start = match[1] ? Number(match[1]) : Math.max(0, bytes.byteLength - Number(match[2]))
-        const end = match[2] ? Math.min(Number(match[2]), bytes.byteLength - 1) : bytes.byteLength - 1
+        const end = match[1] && match[2] ? Math.min(Number(match[2]), bytes.byteLength - 1) : bytes.byteLength - 1
         if (start >= bytes.byteLength || start > end) {
           return new Response(null, { status: 416, headers: { 'Content-Range': 'bytes */' + bytes.byteLength, 'Accept-Ranges': 'bytes' } })
         }
