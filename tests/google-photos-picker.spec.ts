@@ -66,6 +66,7 @@ test('album partagé explicite et import Picker configuré, paginé et portable'
   expect(pickerUrl).toContain('/autoclose')
   await page.getByLabel('Votre récit, à votre façon').fill('Deux photos choisies, préparées ici.')
   await page.getByRole('button', { name: 'Prévisualiser' }).click(); await page.getByRole('button', { name: 'Ajouter au voyage' }).click()
+  await expect(page).toHaveURL(/#draft\/[^/]+$/)
   const local = await page.evaluate(key => localStorage.getItem(key)!, key)
   expect(local).not.toContain('test-access-token-long-enough-for-gis'); expect(local).not.toContain('googleusercontent.com')
   await page.getByRole('button', { name: 'Retour au carnet' }).click()

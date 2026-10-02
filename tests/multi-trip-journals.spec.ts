@@ -53,7 +53,8 @@ test('Partager globalement choisit un chapitre sauvegardé parmi plusieurs voyag
   const studio = page.getByTestId('share-studio')
   await expect(studio.getByTestId('story-preview')).toContainText('Un matin à Tokyo')
   await expect(studio.getByTestId('story-preview')).not.toContainText('Un soir à Lisbonne')
-  await expect(studio.getByTestId('story-preview').locator('img')).toHaveAttribute('src', tokyoData.media[0].src)
+  expect(tokyoData.media[0].src).toMatch(/^idb:media:/)
+  await expect(studio.getByTestId('story-preview').locator('img')).toHaveAttribute('src', /^blob:/)
   await expect(page.getByLabel('La légende proposée')).toHaveValue(`Un matin à Tokyo\n\n${story.replace(/\s+/g, ' ')}`)
   await page.evaluate(() => {
     const calls = { texts: [] as string[], images: [] as string[] }
@@ -85,7 +86,8 @@ test('Partager globalement choisit un chapitre sauvegardé parmi plusieurs voyag
   const exportCalls = await page.evaluate(() => (window as unknown as { selectedExportCalls: { texts: string[]; images: string[] } }).selectedExportCalls)
   expect(exportCalls.texts.join(' ')).toContain('Un matin à Tokyo')
   expect(exportCalls.texts.join(' ')).toContain('Le vent frais du matin')
-  expect(exportCalls.images).toEqual([tokyoData.media[0].src])
+  expect(exportCalls.images).toHaveLength(1)
+  expect(exportCalls.images[0]).toMatch(/^blob:/)
   const route = page.url()
   await page.getByRole('link', { name: 'Retour à cette journée' }).click()
   await expect(page).toHaveURL(/#journey\/trip-tokyo\//)
@@ -168,9 +170,36 @@ test('migration Philippines non destructive puis archive ZIP restaure les carnet
   await expect(fresh.getByRole('status')).toContainText('restaurées sur cet appareil')
   const restored = await fresh.evaluate(key => JSON.parse(localStorage.getItem(key)!), journalsKey)
   expect(restored.journals.map((item: { destination: string }) => item.destination)).toEqual(['Philippines', 'Tokyo'])
-  expect(restored.journals.find((item: { destination: string }) => item.destination === 'Tokyo').chapters[0].media[0].src).toBe(personalPhoto)
-  expect(restored.journals.find((item: { destination: string }) => item.destination === 'Tokyo').chapters[0].media[0].src).toMatch(/^data:image\/jpeg;base64,/)
+  const restoredPhoto = restored.journals.find((item: { destination: string }) => item.destination === 'Tokyo').chapters[0].media[0]
+  expect(personalPhoto).toMatch(/^idb:media:/)
+  expect(restoredPhoto.src).toMatch(/^idb:media:/)
+  expect(restoredPhoto.storageRef).toBe(restoredPhoto.src.slice('idb:media:'.length))
   await freshContext.close()
+})
+
+test('une photo historique est déplacée vers IndexedDB sans conserver son data URL dans le carnet', async ({ page }) => {
+  await seed(page)
+  const legacyRaw = JSON.stringify({ version: 1, journals: [{ tripId: 'trip-tokyo', destination: 'Tokyo', departure: '2027-04-12', chapters: [{ id: 'photo-history', title: 'La lumière', memories: 'Un matin.', tone: 'Contemplatif', story, media: [{ id: 'historical-photo', name: 'lagon.jpg', src: 'data:image/jpeg;base64,/9j/2Q==' }], coverId: 'historical-photo', status: 'draft' }] }] })
+  await page.evaluate(({ key, legacyRaw }) => localStorage.setItem(key, legacyRaw), { key: journalsKey, legacyRaw })
+  await page.reload()
+  await page.getByTestId('upcoming-trip').filter({ hasText: 'Tokyo' }).getByRole('button', { name: /^(?:Ouvrir le carnet|Carnet)$/ }).click()
+  await expect(page.getByTestId('journal-chapter-card').locator('img')).toHaveAttribute('src', /^blob:/)
+  const persisted = await page.evaluate(key => JSON.parse(localStorage.getItem(key)!).journals[0].chapters[0].media[0], journalsKey)
+  expect(persisted.src).toMatch(/^idb:media:/)
+  expect(persisted.src).not.toContain('base64')
+  expect(await page.evaluate(key => localStorage.getItem('un-soir-la-bas-media-legacy-v1:' + key), journalsKey)).toBe(legacyRaw)
+})
+
+test('IndexedDB indisponible garde les octets historiques et signale que la migration ne peut pas être validée', async ({ page }) => {
+  await page.addInitScript(() => Object.defineProperty(window, 'indexedDB', { value: undefined, configurable: true }))
+  await seed(page)
+  const legacyRaw = JSON.stringify({ version: 1, journals: [{ tripId: 'trip-tokyo', destination: 'Tokyo', departure: '2027-04-12', chapters: [{ id: 'photo-history', title: 'La lumière', memories: 'Un matin.', tone: 'Contemplatif', story, media: [{ id: 'historical-photo', name: 'lagon.jpg', src: 'data:image/jpeg;base64,/9j/2Q==' }], coverId: 'historical-photo', status: 'draft' }] }] })
+  await page.evaluate(({ key, legacyRaw }) => localStorage.setItem(key, legacyRaw), { key: journalsKey, legacyRaw })
+  await page.reload()
+  await expect(page.getByRole('alert')).toContainText('IndexedDB est indisponible')
+  expect(await page.evaluate(key => localStorage.getItem(key), journalsKey)).toBe(legacyRaw)
+  await page.getByTestId('upcoming-trip').filter({ hasText: 'Tokyo' }).getByRole('button', { name: /^(?:Ouvrir le carnet|Carnet)$/ }).click()
+  await expect(page.getByTestId('journal-chapter-card').locator('img')).toHaveAttribute('src', /^data:image/)
 })
 
 test('un stockage de carnets corrompu est conservé et empêche un faux succès', async ({ page }) => {

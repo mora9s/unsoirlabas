@@ -8,6 +8,7 @@ import ShareStudio from './components/ShareStudio'
 import Icon from './components/Icon'
 import { readTrip } from './journal'
 import { readJournals, journalForTrip, saveChapter, upcomingForJournal } from './trip-journals'
+import { hydrateJournals, hydrateTrip, prepareMediaStorage, releaseHydratedMedia } from './media-store'
 import type { PersonalJournal } from './trip-journals'
 import TripJournal from './components/TripJournal'
 import ShareChapterPicker from './components/ShareChapterPicker'
@@ -26,6 +27,11 @@ function currentView(): View {
   return ['', 'carnet', 'main'].includes(hash) ? 'home' : 'missing'
 }
 
+function initialMediaReady() {
+  try { return ![localStorage.getItem('philippines-trip'), localStorage.getItem('un-soir-la-bas-journals-v1')].some(value => value?.includes('idb:media:')) }
+  catch { return true }
+}
+
 function draftId(view: View): string | undefined {
   const parts = view.split('/')
   if (parts.length !== 2 || !parts[1]) return undefined
@@ -40,6 +46,8 @@ export default function App() {
   const [newDraftNumber, setNewDraftNumber] = useState(0)
   const [creatorOpened, setCreatorOpened] = useState(view === 'create' || view.startsWith('trip-create/'))
   const [savedId, setSavedId] = useState<string>()
+  const [mediaReady, setMediaReady] = useState(initialMediaReady)
+  const [mediaError, setMediaError] = useState('')
   const personalRoute = view.startsWith('draft/') || view.startsWith('share/')
   const draft = personalRoute ? stored.trip.drafts.find(item => item.id === draftId(view)) : undefined
   const tripParts = view.split('/').map(part => { try { return decodeURIComponent(part) } catch { return '' } })
@@ -66,23 +74,39 @@ export default function App() {
   const mainRef = useRef<HTMLElement>(null)
   const lastView = useRef(view)
 
+  async function refreshStorage() {
+    const migrationError = await prepareMediaStorage()
+    const nextTrip = readTrip()
+    const nextJournals = readJournals()
+    try {
+      setStored({ trip: await hydrateTrip(nextTrip.trip), error: nextTrip.error })
+      setJournals({ data: await hydrateJournals(nextJournals.data), error: nextJournals.error })
+      setMediaError(migrationError)
+    } catch (error) {
+      setStored(nextTrip)
+      setJournals(nextJournals)
+      setMediaError(error instanceof Error ? error.message : migrationError)
+    } finally { setMediaReady(true) }
+  }
+
   useEffect(() => {
     const updateView = () => {
       if (window.location.hash === '#main') return
       const next = currentView()
       setView(next)
       setSavedId(undefined)
-      setStored(readTrip())
-      setJournals(readJournals())
+      void refreshStorage()
       if (next === 'create' || next.startsWith('trip-create/')) setCreatorOpened(true)
     }
-    const updateStorage = () => { setStored(readTrip()); setJournals(readJournals()) }
+    const updateStorage = () => { void refreshStorage() }
     window.addEventListener('upcoming-trips-updated', updateStorage)
     window.addEventListener('trip-journals-updated', updateStorage)
     window.addEventListener('popstate', updateView)
     window.addEventListener('hashchange', updateView)
     window.addEventListener('storage', updateStorage)
+    void refreshStorage()
     return () => {
+      releaseHydratedMedia()
       window.removeEventListener('trip-journals-updated', updateStorage)
       window.removeEventListener('upcoming-trips-updated', updateStorage)
       window.removeEventListener('popstate', updateView)
@@ -151,7 +175,8 @@ export default function App() {
       </nav>
     </header>
     <main id="main" ref={mainRef} tabIndex={-1}>
-      {stored.error && <p role="alert" className="error-message page-width">{stored.error}</p>}
+      {!mediaReady ? <p role="status" className="page-width">Ouverture de vos médias locaux…</p> : <>
+      {(stored.error || mediaError) && <p role="alert" className="error-message page-width">{stored.error || mediaError}</p>}
       {view === 'home' && (
         <Home
           openDay={day => day === 0 ? navigate('demo') : openDay(day)}
@@ -166,7 +191,7 @@ export default function App() {
         />
       )}
       {view === 'demo' && <Demo openDay={openDay} />}
-      {view === 'tools' && <section className="tools-page page-width" aria-labelledby="tools-title"><p className="eyebrow">Réglages et conservation</p><h1 id="tools-title">Outils du carnet</h1><Backup trip={stored.trip} onRestore={trip => { setStored({ trip, error: '' }); setJournals(readJournals()) }} /></section>}
+      {view === 'tools' && <section className="tools-page page-width" aria-labelledby="tools-title"><p className="eyebrow">Réglages et conservation</p><h1 id="tools-title">Outils du carnet</h1><Backup trip={stored.trip} onRestore={() => { void refreshStorage() }} /></section>}
       {view.startsWith('plan/') && <TripPlanner key={view} id={draftId(view) ?? ''} back={() => navigate('home')} openJournal={() => navigate(`trip/${encodeURIComponent(journalTripId)}`)} />}
       {view.startsWith('day') && (
         <Chapter
@@ -178,9 +203,9 @@ export default function App() {
       )}
       {view.startsWith('trip/') && journal && <TripJournal journal={journal} open={chapter => navigate(`journey/${encodeURIComponent(journal.tripId)}/${encodeURIComponent(chapter.id)}`)} create={() => createTripChapter(journal)} edit={chapter => editTripChapter(journal, chapter)} />}
       {view.startsWith('journey/') && journal && journalChapter && <CustomChapter draft={journalChapter} home={() => navigate(`trip/${encodeURIComponent(journal.tripId)}`)} edit={() => editTripChapter(journal, journalChapter)} share={() => navigate(`journal-share/${encodeURIComponent(journal.tripId)}/${encodeURIComponent(journalChapter.id)}`)} />}
-      {tripCreating && tripCreateContext && <Creator localStore={false} personalDestination={tripCreateContext.destination} recoveryScope={`trip:${tripCreateContext.id}:${tripEditDraft?.id ?? 'new'}`} key={tripEditDraft?.id ?? `trip-${tripCreateContext.id}-${newDraftNumber}`} initialDraft={tripEditDraft ?? editing} onSave={(_trip, saved) => {
-        saveChapter(tripCreateContext.id, tripCreateContext.destination, tripCreateContext.departure, saved)
-        setJournals(readJournals())
+      {tripCreating && tripCreateContext && <Creator localStore={false} personalDestination={tripCreateContext.destination} recoveryScope={`trip:${tripCreateContext.id}:${tripEditDraft?.id ?? 'new'}`} key={tripEditDraft?.id ?? `trip-${tripCreateContext.id}-${newDraftNumber}`} initialDraft={tripEditDraft ?? editing} onSave={async (_trip, saved) => {
+        await saveChapter(tripCreateContext.id, tripCreateContext.destination, tripCreateContext.departure, saved)
+        await refreshStorage()
         setEditing(saved)
         navigate(`journey/${encodeURIComponent(tripCreateContext.id)}/${encodeURIComponent(saved.id)}`)
       }} />}
@@ -215,6 +240,7 @@ export default function App() {
       {view === 'share-demo' && <ShareStudio key="el-nido" />}
       {sharing && !journalSharing && !missing && view.startsWith('share/') && draft && <ShareStudio key={draft.id} draft={draft} />}
       {tripSharing && shareDraft && <ShareStudio key={`trip-${shareTripId}-${shareDraft.id}`} draft={shareDraft} returnHref={`#journey/${encodeURIComponent(shareTripId)}/${encodeURIComponent(shareDraft.id)}`} />}
+      </>}
     </main>
     <footer className="site-footer page-width">
       <div className="footer-brand">

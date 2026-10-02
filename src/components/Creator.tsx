@@ -6,6 +6,7 @@ import type { Draft, Media, Trip } from '../journal'
 import { createId } from '../id'
 import { discardUnsavedChapter, readUnsavedChapter, writeUnsavedChapter } from '../unsaved-chapters'
 import { tripAlbum } from '../trip-media'
+import { cleanupOrphanedMedia, persistDraftMedia, storedDraft } from '../media-store'
 import Icon from './Icon'
 import VoiceNarration from './VoiceNarration'
 
@@ -14,7 +15,7 @@ declare const __GOOGLE_PHOTOS_PUBLIC_BUILD__: boolean
 
 type PickerLaunch = { url: string; open: () => void }
 
-export default function Creator({ initialDraft, onSave, localStore = true, recoveryScope = 'personal:new', personalDestination }: { initialDraft?: Draft; onSave: (trip: Trip, draft: Draft) => void; localStore?: boolean; recoveryScope?: string; personalDestination?: string }) {
+export default function Creator({ initialDraft, onSave, localStore = true, recoveryScope = 'personal:new', personalDestination }: { initialDraft?: Draft; onSave: (trip: Trip, draft: Draft) => void | Promise<void>; localStore?: boolean; recoveryScope?: string; personalDestination?: string }) {
   const [id, setId] = useState(() => initialDraft?.id ?? createId())
   const [recovery] = useState(() => readUnsavedChapter(recoveryScope))
   const [recoveryPending, setRecoveryPending] = useState(Boolean(recovery.draft))
@@ -192,7 +193,7 @@ export default function Creator({ initialDraft, onSave, localStore = true, recov
     requestAnimationFrame(() => previewRef.current?.focus())
   }
 
-  function save() {
+  async function save() {
     changed()
     if (!story.trim() || !title.trim()) {
       setError('Le titre et le récit sont nécessaires pour enregistrer la journée.')
@@ -201,20 +202,28 @@ export default function Creator({ initialDraft, onSave, localStore = true, recov
     const current = localStore ? readTrip() : { trip: { version: 1 as const, drafts: [] }, error: '' }
     if (current.error) { setError(current.error); return }
     const draft: Draft = { id, title: title.trim(), memories, tone, story: story.trim(), media, coverId: cover?.id ?? '', status: 'draft' }
-    const trip: Trip = { version: 1, drafts: [...current.trip.drafts.filter(item => item.id !== id), draft] }
+    let durableDraft: Draft
+    setBusy(true)
+    try { durableDraft = await persistDraftMedia(draft) }
+    catch (caught) { setError(caught instanceof Error ? caught.message : 'Les photos ne peuvent pas être enregistrées dans le stockage durable.'); setBusy(false); return }
+    const trip: Trip = { version: 1, drafts: [...current.trip.drafts.filter(item => item.id !== id), durableDraft] }
     if (localStore) {
-      try { localStorage.setItem(storageKey, JSON.stringify(trip)) }
+      try { localStorage.setItem(storageKey, JSON.stringify({ ...trip, drafts: trip.drafts.map(storedDraft) })) }
       catch {
         setError('L’enregistrement n’a pas abouti : le stockage est plein ou indisponible. Retirez quelques photos puis réessayez. Votre travail reste ouvert ici.')
+        setBusy(false)
         return
       }
+      try { await cleanupOrphanedMedia() }
+      catch (caught) { setError(caught instanceof Error ? caught.message : 'Les médias orphelins ne peuvent pas être nettoyés. Le chapitre est resté enregistré.'); setBusy(false); return }
     }
     try {
-      onSave(trip, draft)
+      await onSave(trip, durableDraft)
       const cleanupError = discardUnsavedChapter(recoveryScope)
       if (cleanupError) setError(cleanupError)
     }
     catch (caught) { setError(caught instanceof Error ? caught.message : 'Impossible d’enregistrer ce chapitre. Vos données restent ouvertes ici.') }
+    finally { setBusy(false) }
   }
 
   if (recoveryPending && recovery.draft) return <section className="workspace-heading page-width recovery-page" data-testid="chapter-recovery" aria-labelledby="chapter-recovery-title">

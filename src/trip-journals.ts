@@ -1,5 +1,6 @@
 import type { Draft } from './journal'
 import { validateTrip } from './journal'
+import { cleanupOrphanedMedia, persistDraftMedia, storedDraft } from './media-store'
 import { upcomingKey } from './upcoming-trips'
 import type { UpcomingTrip } from './upcoming-trips'
 
@@ -53,18 +54,20 @@ export function journalForTrip(data: Journals, trip: UpcomingTrip): PersonalJour
   return data.journals.find(item => item.tripId === trip.id) ?? { tripId: trip.id, destination: trip.destination, departure: trip.departure, chapters: [] }
 }
 
-export function saveChapter(tripId: string, destination: string, departure: string, chapter: Draft): Journals {
+export async function saveChapter(tripId: string, destination: string, departure: string, chapter: Draft): Promise<Journals> {
   const current = readJournals()
   if (current.error) throw new Error(current.error)
+  const durableChapter = storedDraft(await persistDraftMedia(chapter))
   const index = current.data.journals.findIndex(item => item.tripId === tripId)
   const existing = index < 0 ? undefined : current.data.journals[index]
-  const chapters = [...(existing?.chapters ?? []).filter(item => item.id !== chapter.id), chapter]
+  const chapters = [...(existing?.chapters ?? []).filter(item => item.id !== chapter.id), durableChapter]
   const entry: PersonalJournal = { tripId, destination: existing?.destination ?? destination, departure: existing?.departure ?? departure, chapters }
   const journals = [...current.data.journals.filter(item => item.tripId !== tripId), entry]
   if (!validateJournals({ version: 1, journals })) throw new Error('Ce carnet a atteint sa limite de pages ou son format est invalide.')
   const next = { version: 1 as const, journals }
   try { localStorage.setItem(journalsKey, JSON.stringify(next)) }
   catch { throw new Error('L’enregistrement n’a pas abouti : le stockage est plein ou indisponible. Vos données restent ouvertes ici.') }
+  await cleanupOrphanedMedia()
   window.dispatchEvent(new Event('trip-journals-updated'))
   return next
 }

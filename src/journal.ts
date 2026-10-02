@@ -17,7 +17,7 @@ export const gallery = [
   { image: 'port-barton.jpg', alt: 'Plage de Port Barton sur l’île de Palawan', caption: '06 — Port Barton, une envie pour la suite' },
 ]
 
-export type Media = { id: string; name: string; src: string }
+export type Media = { id: string; name: string; src: string; storageRef?: string }
 export type Draft = { id: string; title: string; memories: string; tone: string; story: string; media: Media[]; coverId: string; status: 'draft' }
 export type Trip = { version: 1; drafts: Draft[] }
 export const storageKey = 'philippines-trip'
@@ -29,7 +29,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function isMedia(value: unknown): value is Media {
   return isRecord(value) && typeof value.id === 'string' && value.id.length > 0 &&
     typeof value.name === 'string' && typeof value.src === 'string' &&
-    /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(value.src)
+    (value.storageRef === undefined || typeof value.storageRef === 'string' && value.storageRef.length > 0 && value.storageRef.length <= 160) &&
+    (/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(value.src) || /^idb:media:[A-Za-z0-9-]{8,160}$/.test(value.src) || typeof value.storageRef === 'string' && value.src.startsWith('blob:'))
 }
 
 function isDraft(value: unknown): value is Draft {
