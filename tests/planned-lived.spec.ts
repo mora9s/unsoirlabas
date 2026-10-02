@@ -49,6 +49,7 @@ test('le lien prévu/vécu est explicite, stable sur réordre/suppression et ind
   await page.getByRole('button', { name: 'Le carnet', exact: true }).click()
   await page.getByRole('button', { name: 'Planifier Tokyo' }).click()
   await page.getByRole('button', { name: 'Monter Rive du Sud' }).click()
+  await expect.poll(() => page.evaluate(key => JSON.parse(localStorage.getItem(key)!).find((trip: { id: string }) => trip.id === 'trip-tokyo').plan.stops.map((stop: { id: string }) => stop.id).join(','), upcomingKey)).toBe('step-river,step-garden')
   const reordered = await page.evaluate(({ upcomingKey, journalsKey }) => {
     const plan = JSON.parse(localStorage.getItem(upcomingKey)!).find((trip: { id: string }) => trip.id === 'trip-tokyo').plan.stops
     const chapter = JSON.parse(localStorage.getItem(journalsKey)!).journals.find((journal: { tripId: string }) => journal.tripId === 'trip-tokyo').chapters[0]
@@ -57,6 +58,7 @@ test('le lien prévu/vécu est explicite, stable sur réordre/suppression et ind
   expect(reordered.order).toEqual(['step-river', 'step-garden'])
   expect(reordered.link).toEqual({ tripId: 'trip-tokyo', stepId: 'step-garden', place: 'Jardin du Nord' })
   await page.getByRole('button', { name: 'Retirer l’étape Jardin du Nord' }).click()
+  await expect.poll(() => page.evaluate(key => JSON.parse(localStorage.getItem(key)!).find((trip: { id: string }) => trip.id === 'trip-tokyo').plan.stops.length, upcomingKey)).toBe(1)
   const afterRemoval = await page.evaluate(({ upcomingKey, journalsKey }) => {
     const chapter = JSON.parse(localStorage.getItem(journalsKey)!).journals.find((journal: { tripId: string }) => journal.tripId === 'trip-tokyo').chapters[0]
     const plan = JSON.parse(localStorage.getItem(upcomingKey)!).find((trip: { id: string }) => trip.id === 'trip-tokyo').plan.stops

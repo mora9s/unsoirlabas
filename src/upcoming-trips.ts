@@ -20,7 +20,7 @@ function validPlan(value: unknown): boolean {
   const status = (item: unknown) => item === 'confirmed' || item === 'estimated' || item === 'to-check'
   const sourceUrl = (item: unknown) => {
     if (typeof item !== 'string' || item.length > 2000) return false
-    try { const url = new URL(item); return url.protocol === 'https:' || url.protocol === 'http:' } catch { return false }
+    try { const url = new URL(item); return (url.protocol === 'https:' || url.protocol === 'http:') && !url.username && !url.password } catch { return false }
   }
   const validSourceFields = (item: Record<string, unknown>) =>
     (!Object.hasOwn(item, 'sourceUrl') || sourceUrl(item.sourceUrl)) &&

@@ -4,7 +4,7 @@ import { storageKey, validateTrip } from './journal'
 import { unsavedChaptersKey, validateUnsavedChapterEnvelope } from './unsaved-chapters'
 
 import { withMediaDurabilityLock } from './durability-lock'
-export { withMediaDurabilityLock } from './durability-lock'
+export { withDurabilityLock, withMediaDurabilityLock } from './durability-lock'
 
 const databaseName = 'un-soir-la-bas-media-v1'
 const storeName = 'blobs'

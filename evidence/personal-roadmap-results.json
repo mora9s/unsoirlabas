@@ -74,6 +74,23 @@
     ],
     "remaining": ["human visual review", "real-phone install and export review"]
   },
+  "plannerDurability": {
+    "status": "implemented locally; bounded durability/security follow-up for manual cited options; no push, merge, or deployment",
+    "delivered": [
+      "All upcoming-trip and planner read-modify-write operations (create/edit dates/remove/complete/reopen, ideas, stops, options, import and ordering) use the same exclusive Web Lock as media durability and archive restoration.",
+      "Canonical upcoming state is reread only after lock acquisition; scoped changes are merged into that latest state, and reorders target stable item IDs rather than stale rendered positions.",
+      "Without Web Locks, writes fail explicitly without mutation. Actual two-page Chrome test queues distinct same-trip option additions behind a held common lock and verifies both persist.",
+      "HTTP(S) source URLs containing username/password are refused on entry and schema validation. Historical envelopes containing such URLs remain byte-for-byte unchanged and produce a generic error without displaying the secret."
+    ],
+    "verification": [
+      {"command":"npm run lint","result":"passed"},
+      {"command":"npm run build","result":"passed"},
+      {"command":"python3 -m pytest -q tests/backend","result":"26 passed, 76 existing FastAPI on_event deprecation warnings"},
+      {"command":"PLAYWRIGHT_EXECUTABLE_PATH=/usr/bin/google-chrome npm run test:acceptance -- --workers=1","result":"121 passed, 4 skipped; 125 total, single worker; includes real two-page same-trip write race, reject username/password URLs, historical envelope preservation, unsupported-lock fail-closed behavior, and archive restore/cancel compatibility"},
+      {"command":"git diff --check","result":"passed; generated screenshots excluded from the change"}
+    ],
+    "limits": ["live research/provider, deployment, publication and profiles are out of scope", "no phone/device verification claimed"]
+  },
   "historicalVerification": {
     "status": "older checkpoint evidence retained for history only; not the final P1 gate",
     "commands": [
