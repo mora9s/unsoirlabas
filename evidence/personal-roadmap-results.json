@@ -37,6 +37,6 @@
   ],
   "notInScope": ["P2 benchmark/backend/trip research", "P3 planned-to-lived links/photo composition/multipage share", "P4 PDF and physical continuity", "Authentication and retention gates"],
   "privacy": "Service worker does not precache /api/ or audio/private response paths. No personal user data was added to evidence.",
-  "commit": "to be recorded in git HEAD after local commit",
+  "commit": "fa8d768558704f2f9c87760acd72a3ccc3ae476e (durable-media delivery)",
   "remainingGates": ["Phone installation and offline reload", "Physical-device IndexedDB retention/migration review", "Voice simplification", "Parent review of the separate continuity spike; no active sync claim"]
 }
