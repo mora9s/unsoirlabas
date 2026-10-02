@@ -4,6 +4,7 @@ import { storageKey, validateTrip } from '../journal'
 import { upcomingKey, validateUpcomingTrips } from '../upcoming-trips'
 import { journalsKey, validateJournals } from '../trip-journals'
 import type { Trip } from '../journal'
+import { withMediaDurabilityLock } from '../media-store'
 import Icon from './Icon'
 
 type Notice = { kind: 'success' | 'error' | 'info'; text: string }
@@ -98,47 +99,43 @@ export default function Backup({ trip, onRestore }: { trip: Trip; onRestore: (tr
     finally { setBusy(false) }
   }
 
-  function restore() {
+  async function restore() {
     if (!staged || !safetyDownloadRequested || !safetyConfirmed) return
-    if (!safetySnapshot.current || [storageKey, upcomingKey, journalsKey].some((key, index) => localStorage.getItem(key) !== safetySnapshot.current?.[index])) {
-      setSafetyDownloadRequested(false); setSafetyConfirmed(false); safetySnapshot.current = null
-      setNotice({ kind: 'error', text: 'Les données locales ont changé depuis la copie de sécurité. Téléchargez une nouvelle copie avant de restaurer.' })
-      return
-    }
-    const previous = new Map<string, string | null>()
-    const written: string[] = []
+    setBusy(true)
     try {
-      previous.set(storageKey, localStorage.getItem(storageKey))
-      previous.set(upcomingKey, localStorage.getItem(upcomingKey))
-      previous.set(journalsKey, localStorage.getItem(journalsKey))
-      const next = JSON.stringify(staged.trip)
-      const nextUpcoming = staged.upcomingTrips === undefined ? undefined : JSON.stringify(staged.upcomingTrips)
-      const nextJournals = staged.personalJournals === undefined ? undefined : JSON.stringify(staged.personalJournals)
-      localStorage.setItem(storageKey, next)
-      written.push(storageKey)
-      if (nextUpcoming !== undefined) {
-        localStorage.setItem(upcomingKey, nextUpcoming)
-        written.push(upcomingKey)
-      }
-      if (nextJournals !== undefined) {
-        localStorage.setItem(journalsKey, nextJournals)
-        written.push(journalsKey)
-      }
-      if (nextUpcoming !== undefined) window.dispatchEvent(new Event('upcoming-trips-updated'))
-      if (nextJournals !== undefined) window.dispatchEvent(new Event('trip-journals-updated'))
-      onRestore(staged.trip)
-      setStaged(undefined)
-      setNotice({ kind: 'success', text: 'Les collections présentes dans l’archive ont été restaurées sur cet appareil. Les voyages et carnets absents de l’archive ont été conservés.' })
-    } catch {
-      for (const key of written.reverse()) {
+      await withMediaDurabilityLock(async () => {
+        if (!safetySnapshot.current || [storageKey, upcomingKey, journalsKey].some((key, index) => localStorage.getItem(key) !== safetySnapshot.current?.[index])) {
+          setSafetyDownloadRequested(false); setSafetyConfirmed(false); safetySnapshot.current = null
+          setNotice({ kind: 'error', text: 'Les données locales ont changé depuis la copie de sécurité. Téléchargez une nouvelle copie avant de restaurer.' })
+          return
+        }
+        const previous = new Map<string, string | null>()
+        const written: string[] = []
         try {
-          localStorage.removeItem(key)
-          const value = previous.get(key)
-          if (value != null) localStorage.setItem(key, value)
-        } catch { /* Restore each prior key independently if storage is constrained. */ }
-      }
-      setNotice({ kind: 'error', text: 'La restauration n’a pas abouti : le stockage est plein ou indisponible. Le carnet et les décomptes déjà présents n’ont pas été modifiés.' })
-    }
+          previous.set(storageKey, localStorage.getItem(storageKey))
+          previous.set(upcomingKey, localStorage.getItem(upcomingKey))
+          previous.set(journalsKey, localStorage.getItem(journalsKey))
+          const next = JSON.stringify(staged.trip)
+          const nextUpcoming = staged.upcomingTrips === undefined ? undefined : JSON.stringify(staged.upcomingTrips)
+          const nextJournals = staged.personalJournals === undefined ? undefined : JSON.stringify(staged.personalJournals)
+          localStorage.setItem(storageKey, next); written.push(storageKey)
+          if (nextUpcoming !== undefined) { localStorage.setItem(upcomingKey, nextUpcoming); written.push(upcomingKey) }
+          if (nextJournals !== undefined) { localStorage.setItem(journalsKey, nextJournals); written.push(journalsKey) }
+          if (nextUpcoming !== undefined) window.dispatchEvent(new Event('upcoming-trips-updated'))
+          if (nextJournals !== undefined) window.dispatchEvent(new Event('trip-journals-updated'))
+          onRestore(staged.trip)
+          setStaged(undefined)
+          setNotice({ kind: 'success', text: 'Les collections présentes dans l’archive ont été restaurées sur cet appareil. Les voyages et carnets absents de l’archive ont été conservés.' })
+        } catch {
+          for (const key of written.reverse()) {
+            try { localStorage.removeItem(key); const value = previous.get(key); if (value != null) localStorage.setItem(key, value) }
+            catch { /* Restore each prior key independently if storage is constrained. */ }
+          }
+          setNotice({ kind: 'error', text: 'La restauration n’a pas abouti : le stockage est plein ou indisponible. Le carnet et les décomptes déjà présents n’ont pas été modifiés.' })
+        }
+      })
+    } catch (error) { setNotice({ kind: 'error', text: error instanceof Error ? error.message : 'La restauration ne peut pas obtenir un verrouillage sûr.' }) }
+    finally { setBusy(false) }
   }
 
   return <section className="backup page-width" aria-labelledby="backup-title">

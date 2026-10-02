@@ -6,7 +6,7 @@ import type { Draft, Media, Trip } from '../journal'
 import { createId } from '../id'
 import { discardUnsavedChapter, readUnsavedChapter, writeUnsavedChapter } from '../unsaved-chapters'
 import { tripAlbum } from '../trip-media'
-import { cleanupOrphanedMedia, persistDraftMedia, storedDraft } from '../media-store'
+import { cleanupOrphanedMediaUnlocked, persistDraftMediaUnlocked, storedDraft, withMediaDurabilityLock } from '../media-store'
 import Icon from './Icon'
 import VoiceNarration from './VoiceNarration'
 
@@ -52,9 +52,11 @@ export default function Creator({ initialDraft, onSave, localStore = true, recov
   useEffect(() => {
     if (!changedSinceOpen || recoveryPending) return
     const draft: Draft = { id, title: title.trim(), memories, tone, story, media, coverId: cover?.id ?? '', status: 'draft' }
+    let active = true
     // Persist the latest editor snapshot after React applies each field update.
     // oxlint-disable-next-line react/set-state-in-effect -- status reflects localStorage quota/corruption result
-    setError(writeUnsavedChapter(recoveryScope, draft) || recovery.error)
+    void writeUnsavedChapter(recoveryScope, draft).then(failure => { if (active) setError(failure || recovery.error) })
+    return () => { active = false }
   }, [changedSinceOpen, recoveryPending, id, title, memories, tone, story, media, cover, coverId, recoveryScope, recovery.error])
 
   function changed() {
@@ -77,8 +79,8 @@ export default function Creator({ initialDraft, onSave, localStore = true, recov
     setNotice('Votre brouillon a été repris. Les modifications enregistrées précédemment restent distinctes jusqu’à votre validation.')
   }
 
-  function discardRecovery() {
-    const failure = discardUnsavedChapter(recoveryScope)
+  async function discardRecovery() {
+    const failure = await discardUnsavedChapter(recoveryScope)
     if (failure) { setError(failure); return }
     setRecoveryPending(false)
     setChangedSinceOpen(false)
@@ -199,27 +201,33 @@ export default function Creator({ initialDraft, onSave, localStore = true, recov
       setError('Le titre et le récit sont nécessaires pour enregistrer la journée.')
       return
     }
-    const current = localStore ? readTrip() : { trip: { version: 1 as const, drafts: [] }, error: '' }
-    if (current.error) { setError(current.error); return }
     const draft: Draft = { id, title: title.trim(), memories, tone, story: story.trim(), media, coverId: cover?.id ?? '', status: 'draft' }
-    let durableDraft: Draft
+    let durableDraft: Draft = draft
+    let trip: Trip = { version: 1, drafts: [] }
     setBusy(true)
-    try { durableDraft = await persistDraftMedia(draft) }
-    catch (caught) { setError(caught instanceof Error ? caught.message : 'Les photos ne peuvent pas être enregistrées dans le stockage durable.'); setBusy(false); return }
-    const trip: Trip = { version: 1, drafts: [...current.trip.drafts.filter(item => item.id !== id), durableDraft] }
     if (localStore) {
-      try { localStorage.setItem(storageKey, JSON.stringify({ ...trip, drafts: trip.drafts.map(storedDraft) })) }
-      catch {
-        setError('L’enregistrement n’a pas abouti : le stockage est plein ou indisponible. Retirez quelques photos puis réessayez. Votre travail reste ouvert ici.')
+      try {
+        trip = await withMediaDurabilityLock(async () => {
+          const before = readTrip()
+          if (before.error) throw new Error(before.error)
+          durableDraft = await persistDraftMediaUnlocked(draft)
+          // Re-read after IndexedDB work so an older tab cannot overwrite a concurrent save.
+          const current = readTrip()
+          if (current.error) throw new Error(current.error)
+          const next: Trip = { version: 1, drafts: [...current.trip.drafts.filter(item => item.id !== id), durableDraft] }
+          localStorage.setItem(storageKey, JSON.stringify({ ...next, drafts: next.drafts.map(storedDraft) }))
+          await cleanupOrphanedMediaUnlocked()
+          return next
+        })
+      } catch (caught) {
+        setError(caught instanceof Error ? caught.message : 'Les photos ne peuvent pas être enregistrées dans le stockage durable.')
         setBusy(false)
         return
       }
-      try { await cleanupOrphanedMedia() }
-      catch (caught) { setError(caught instanceof Error ? caught.message : 'Les médias orphelins ne peuvent pas être nettoyés. Le chapitre est resté enregistré.'); setBusy(false); return }
     }
     try {
       await onSave(trip, durableDraft)
-      const cleanupError = discardUnsavedChapter(recoveryScope)
+      const cleanupError = await discardUnsavedChapter(recoveryScope)
       if (cleanupError) setError(cleanupError)
     }
     catch (caught) { setError(caught instanceof Error ? caught.message : 'Impossible d’enregistrer ce chapitre. Vos données restent ouvertes ici.') }

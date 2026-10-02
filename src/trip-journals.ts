@@ -1,6 +1,6 @@
 import type { Draft } from './journal'
 import { validateTrip } from './journal'
-import { cleanupOrphanedMedia, persistDraftMedia, storedDraft } from './media-store'
+import { cleanupOrphanedMediaUnlocked, persistDraftMediaUnlocked, storedDraft, withMediaDurabilityLock } from './media-store'
 import { upcomingKey } from './upcoming-trips'
 import type { UpcomingTrip } from './upcoming-trips'
 
@@ -39,7 +39,7 @@ export function readJournals(): { data: Journals; error: string } {
           const next = { version: 1 as const, journals: [...data.journals, { tripId: legacyId, destination: 'Philippines', departure: '', chapters: parsed.drafts }] }
           // Keep the original journal readable even when the personal-journal cap is reached.
           if (!validateJournals(next)) return { data, error: '' }
-          localStorage.setItem(journalsKey, JSON.stringify(next))
+          // Read-only projection: the next locked save will persist the legacy journal with new data.
           return { data: next, error: '' }
         }
       }
@@ -54,22 +54,40 @@ export function journalForTrip(data: Journals, trip: UpcomingTrip): PersonalJour
   return data.journals.find(item => item.tripId === trip.id) ?? { tripId: trip.id, destination: trip.destination, departure: trip.departure, chapters: [] }
 }
 
-export async function saveChapter(tripId: string, destination: string, departure: string, chapter: Draft): Promise<Journals> {
+export function persistLegacyJournalUnlocked() {
   const current = readJournals()
   if (current.error) throw new Error(current.error)
-  const durableChapter = storedDraft(await persistDraftMedia(chapter))
-  const index = current.data.journals.findIndex(item => item.tripId === tripId)
-  const existing = index < 0 ? undefined : current.data.journals[index]
-  const chapters = [...(existing?.chapters ?? []).filter(item => item.id !== chapter.id), durableChapter]
-  const entry: PersonalJournal = { tripId, destination: existing?.destination ?? destination, departure: existing?.departure ?? departure, chapters }
-  const journals = [...current.data.journals.filter(item => item.tripId !== tripId), entry]
-  if (!validateJournals({ version: 1, journals })) throw new Error('Ce carnet a atteint sa limite de pages ou son format est invalide.')
-  const next = { version: 1 as const, journals }
-  try { localStorage.setItem(journalsKey, JSON.stringify(next)) }
-  catch { throw new Error('L’enregistrement n’a pas abouti : le stockage est plein ou indisponible. Vos données restent ouvertes ici.') }
-  await cleanupOrphanedMedia()
-  window.dispatchEvent(new Event('trip-journals-updated'))
-  return next
+  if (!current.data.journals.some(item => item.tripId === legacyId)) return
+  const raw = localStorage.getItem(journalsKey)
+  if (raw !== null) {
+    const stored: unknown = JSON.parse(raw)
+    if (!validateJournals(stored)) throw new Error('Les carnets personnels ne peuvent pas être lus. Les données originales sont conservées ; vérifiez le stockage avant tout enregistrement.')
+    if (stored.journals.some(item => item.tripId === legacyId)) return
+  }
+  localStorage.setItem(journalsKey, JSON.stringify(current.data))
+}
+
+export async function saveChapter(tripId: string, destination: string, departure: string, chapter: Draft): Promise<Journals> {
+  return withMediaDurabilityLock(async () => {
+    const before = readJournals()
+    if (before.error) throw new Error(before.error)
+    const durableChapter = storedDraft(await persistDraftMediaUnlocked(chapter))
+    // Re-read after IndexedDB awaits, while still holding the cross-tab lock.
+    const current = readJournals()
+    if (current.error) throw new Error(current.error)
+    const index = current.data.journals.findIndex(item => item.tripId === tripId)
+    const existing = index < 0 ? undefined : current.data.journals[index]
+    const chapters = [...(existing?.chapters ?? []).filter(item => item.id !== chapter.id), durableChapter]
+    const entry: PersonalJournal = { tripId, destination: existing?.destination ?? destination, departure: existing?.departure ?? departure, chapters }
+    const journals = [...current.data.journals.filter(item => item.tripId !== tripId), entry]
+    if (!validateJournals({ version: 1, journals })) throw new Error('Ce carnet a atteint sa limite de pages ou son format est invalide.')
+    const next = { version: 1 as const, journals }
+    try { localStorage.setItem(journalsKey, JSON.stringify(next)) }
+    catch { throw new Error('L’enregistrement n’a pas abouti : le stockage est plein ou indisponible. Vos données restent ouvertes ici.') }
+    await cleanupOrphanedMediaUnlocked()
+    window.dispatchEvent(new Event('trip-journals-updated'))
+    return next
+  })
 }
 
 export function upcomingForJournal(tripId: string): UpcomingTrip | undefined {

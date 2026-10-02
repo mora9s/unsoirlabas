@@ -1,7 +1,10 @@
 import type { Draft, Media, Trip } from './journal'
-import { journalsKey, validateJournals } from './trip-journals'
+import { journalsKey, persistLegacyJournalUnlocked, validateJournals } from './trip-journals'
 import { storageKey, validateTrip } from './journal'
-import { unsavedChaptersKey } from './unsaved-chapters'
+import { unsavedChaptersKey, validateUnsavedChapterEnvelope } from './unsaved-chapters'
+
+import { withMediaDurabilityLock } from './durability-lock'
+export { withMediaDurabilityLock } from './durability-lock'
 
 const databaseName = 'un-soir-la-bas-media-v1'
 const storeName = 'blobs'
@@ -9,7 +12,6 @@ const migrationKey = 'un-soir-la-bas-media-migration-v1'
 const legacyPrefix = 'un-soir-la-bas-media-legacy-v1:'
 const referencePrefix = 'idb:media:'
 const hydratedUrls = new Map<string, string>()
-
 type BlobRecord = { id: string; mime: string; bytes: ArrayBuffer }
 type MigrationLog = { version: 1; key: string; state: 'writing' | 'ready'; updatedAt: number }
 
@@ -65,15 +67,12 @@ function mapDrafts<T>(value: T, mapper: (media: Media) => Media): T {
   const mapDraft = (draft: Draft): Draft => ({ ...draft, media: draft.media.map(mapper) })
   if (validateTrip(value)) return { ...value, drafts: value.drafts.map(mapDraft) } as T
   if (validateJournals(value)) return { ...value, journals: value.journals.map(journal => ({ ...journal, chapters: journal.chapters.map(mapDraft) })) } as T
-  const candidate = value as { version?: unknown; drafts?: unknown }
-  if (candidate.version === 1 && Array.isArray(candidate.drafts)) return { ...candidate, drafts: candidate.drafts.map((entry: unknown) => {
-    const item = entry as { draft?: Draft }
-    return item?.draft ? { ...item, draft: mapDraft(item.draft) } : entry
-  }) } as T
+  if (validateUnsavedChapterEnvelope(value)) return { ...value, drafts: value.drafts.map(entry => ({ ...entry, draft: mapDraft(entry.draft) })) } as T
   return value
 }
 
-function allMedia(value: unknown): Media[] {
+function allMedia(value: unknown): Media[] | undefined {
+  if (!validateTrip(value) && !validateJournals(value) && !validateUnsavedChapterEnvelope(value)) return undefined
   const found: Media[] = []
   mapDrafts(value, media => { found.push(media); return media })
   return found
@@ -97,7 +96,9 @@ async function migrateKey(key: string, valid: (value: unknown) => boolean) {
   let parsed: unknown
   try { parsed = JSON.parse(raw) } catch { return }
   if (!valid(parsed)) return
-  const legacy = allMedia(parsed).filter(item => isDataUrl(item.src))
+  const media = allMedia(parsed)
+  if (!media) return
+  const legacy = media.filter(item => isDataUrl(item.src))
   if (!legacy.length) return
   writeLog({ version: 1, key, state: 'writing', updatedAt: Date.now() })
   const records: BlobRecord[] = legacy.map(item => {
@@ -119,10 +120,13 @@ async function migrateKey(key: string, valid: (value: unknown) => boolean) {
 
 export async function prepareMediaStorage(): Promise<string> {
   try {
-    await migrateKey(storageKey, validateTrip)
-    await migrateKey(journalsKey, validateJournals)
-    await migrateKey(unsavedChaptersKey, value => Boolean(value && typeof value === 'object'))
-    await cleanupOrphanedMedia()
+    await withMediaDurabilityLock(async () => {
+      await migrateKey(storageKey, validateTrip)
+      await migrateKey(journalsKey, validateJournals)
+      await migrateKey(unsavedChaptersKey, validateUnsavedChapterEnvelope)
+      persistLegacyJournalUnlocked()
+      await cleanupOrphanedMediaUnlocked()
+    })
     return ''
   } catch (error) { return error instanceof Error ? error.message : 'La migration des photos n’a pas pu être terminée.' }
 }
@@ -151,7 +155,7 @@ export async function hydrateJournals<T extends { version: 1; journals: { chapte
   return { ...journals, journals: await Promise.all(journals.journals.map(async journal => ({ ...journal, chapters: await Promise.all(journal.chapters.map(hydrateDraft)) }))) }
 }
 
-export async function persistDraftMedia(draft: Draft): Promise<Draft> {
+export async function persistDraftMediaUnlocked(draft: Draft): Promise<Draft> {
   const writes: BlobRecord[] = []
   const media = draft.media.map(item => {
     if (!isDataUrl(item.src)) return item
@@ -162,6 +166,10 @@ export async function persistDraftMedia(draft: Draft): Promise<Draft> {
   })
   await writeBlobs(writes)
   return { ...draft, media }
+}
+
+export async function persistDraftMedia(draft: Draft): Promise<Draft> {
+  return withMediaDurabilityLock(() => persistDraftMediaUnlocked(draft))
 }
 
 export function storedDraft(draft: Draft): Draft {
@@ -182,28 +190,33 @@ export async function mediaBytes(media: Media): Promise<{ mime: string; bytes: U
 }
 
 export async function importArchiveMedia(media: Media[]): Promise<Media[]> {
-  const writes: BlobRecord[] = []
-  const persisted = media.map(item => {
-    const decoded = bytesFromDataUrl(item.src)
-    const ref = newRef()
-    writes.push({ id: ref, mime: decoded.mime, bytes: decoded.bytes.buffer })
-    return { ...item, storageRef: ref, src: `${referencePrefix}${ref}` }
+  return withMediaDurabilityLock(async () => {
+    const writes: BlobRecord[] = []
+    const persisted = media.map(item => {
+      const decoded = bytesFromDataUrl(item.src)
+      const ref = newRef()
+      writes.push({ id: ref, mime: decoded.mime, bytes: decoded.bytes.buffer })
+      return { ...item, storageRef: ref, src: `${referencePrefix}${ref}` }
+    })
+    await writeBlobs(writes)
+    return persisted
   })
-  await writeBlobs(writes)
-  return persisted
 }
 
-export async function cleanupOrphanedMedia() {
+export async function cleanupOrphanedMediaUnlocked() {
   const live = new Set<string>()
   for (const key of [storageKey, journalsKey, unsavedChaptersKey]) {
-    try {
-      const raw = localStorage.getItem(key)
-      if (!raw) continue
-      for (const media of allMedia(JSON.parse(raw))) {
-        const ref = mediaRef(media)
-        if (ref) live.add(ref)
-      }
-    } catch { return }
+    let raw: string | null
+    try { raw = localStorage.getItem(key) } catch { return }
+    if (raw === null) continue
+    let parsed: unknown
+    try { parsed = JSON.parse(raw) } catch { return }
+    const media = allMedia(parsed)
+    if (!media) return
+    for (const item of media) {
+      const ref = mediaRef(item)
+      if (ref) live.add(ref)
+    }
   }
   const database = await openDatabase()
   try {
@@ -222,6 +235,10 @@ export async function cleanupOrphanedMedia() {
       transaction.onabort = () => reject(transaction.error ?? new Error('Impossible de nettoyer les médias orphelins.'))
     })
   } finally { database.close() }
+}
+
+export async function cleanupOrphanedMedia() {
+  return withMediaDurabilityLock(cleanupOrphanedMediaUnlocked)
 }
 
 export function migrationStatus() { return readLog() }
