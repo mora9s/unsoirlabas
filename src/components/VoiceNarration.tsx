@@ -22,6 +22,8 @@ export default function VoiceNarration({ onAccept, scopeId }: Props & { scopeId?
   const timer = useRef<number | undefined>(undefined)
   const current = useRef<VoiceRecord | undefined>(undefined)
   const generation = useRef(0)
+  const streamRef = useRef<MediaStream | undefined>(undefined)
+  const mounted = useRef(false)
   const controller = useRef<AbortController | undefined>(undefined)
   const retryRef = useRef<() => void>(() => {})
   const writeChain = useRef<Promise<void>>(Promise.resolve())
@@ -47,6 +49,7 @@ export default function VoiceNarration({ onAccept, scopeId }: Props & { scopeId?
 
   useEffect(() => {
     let alive = true
+    mounted.current = true
     void (async () => {
       const saved = await loadActiveVoice(scopeId).catch(() => undefined)
       if (!alive || !saved) return
@@ -55,7 +58,7 @@ export default function VoiceNarration({ onAccept, scopeId }: Props & { scopeId?
     })()
     const retry = () => retryRef.current()
     window.addEventListener('online', retry)
-    return () => { alive = false; invalidate(); window.removeEventListener('online', retry); if (timer.current) clearTimeout(timer.current); recorder.current?.stream.getTracks().forEach(track => track.stop()) }
+    return () => { alive = false; mounted.current = false; invalidate(); window.removeEventListener('online', retry); if (timer.current) clearTimeout(timer.current); const stream = streamRef.current ?? recorder.current?.stream; stream?.getTracks().forEach(track => track.stop()); streamRef.current = undefined }
   }, [scopeId])
 
   async function importAudio(file?: File) {
@@ -71,15 +74,30 @@ export default function VoiceNarration({ onAccept, scopeId }: Props & { scopeId?
   }
 
   async function start() {
-    invalidate(); setMessage('')
-    if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) { setMessage('L’enregistrement audio n’est pas pris en charge ici. Importez un fichier audio.'); return }
+    invalidate()
+    const token = generation.current
+    const isCurrentStart = () => mounted.current && generation.current === token
+    if (isCurrentStart()) setMessage('')
+    if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) { if (isCurrentStart()) setMessage('L’enregistrement audio n’est pas pris en charge ici. Importez un fichier audio.'); return }
+    let stream: MediaStream | undefined
+    let next: VoiceRecord | undefined
+    let recorderStarted = false
     try {
       await cancelJob(current.current)
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      if (!isCurrentStart()) return
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      if (!isCurrentStart()) { stream.getTracks().forEach(track => track.stop()); return }
+      streamRef.current = stream
       const mime = supportedRecorderMime()
-      if (!mime) { stream.getTracks().forEach(track => track.stop()); setMessage('Aucun format d’enregistrement compatible. Importez un fichier audio.'); return }
-      const next = createVoiceRecord({ id: createId(), name: `recit-du-soir.${extensionForMime(mime)}`, mime, status: 'recording', complete: false, scopeId })
+      if (!mime) { stream.getTracks().forEach(track => track.stop()); if (streamRef.current === stream) streamRef.current = undefined; setMessage('Aucun format d’enregistrement compatible. Importez un fichier audio.'); return }
+      next = createVoiceRecord({ id: createId(), name: `recit-du-soir.${extensionForMime(mime)}`, mime, status: 'recording', complete: false, scopeId })
       await beginVoice(next)
+      if (!isCurrentStart()) {
+        stream.getTracks().forEach(track => track.stop())
+        if (streamRef.current === stream) streamRef.current = undefined
+        await deleteVoice(next.id).catch(() => undefined)
+        return
+      }
       current.current = next; setRecord(next)
       let bytes = 0; let index = 0; let stopping = false; let chunkFailure = false
       const chunkWrites: Promise<void>[] = []
@@ -94,27 +112,37 @@ export default function VoiceNarration({ onAccept, scopeId }: Props & { scopeId?
           return
         }
         bytes += event.data.size
-        const write = appendChunk(next.id, index++, event.data).then(() => {
+        const write = appendChunk(next!.id, index++, event.data).then(() => {
           if (bytes >= MAX_BYTES && value.state !== 'inactive') { stopping = true; setMessage('Limite de 64 MiB atteinte : arrêt et sauvegarde de l’audio disponible.'); value.stop() }
         }).catch(() => { chunkFailure = true; stopping = true; setMessage('La sauvegarde du fragment a échoué : arrêt de l’enregistrement.'); value.stop() })
         chunkWrites.push(write)
       }
       value.onstop = () => { void (async () => {
         if (timer.current) clearTimeout(timer.current)
-        stream.getTracks().forEach(track => track.stop()); setRecorderState('inactive')
+        stream!.getTracks().forEach(track => track.stop()); if (streamRef.current === stream) streamRef.current = undefined; setRecorderState('inactive')
         await Promise.all(chunkWrites)
-        const final = { ...next, status: 'saving' as const, size: bytes }
-        if (current.current?.id !== next.id) return
+        const final = { ...next!, status: 'saving' as const, size: bytes }
+        if (current.current?.id !== next!.id) return
         await commit(final)
         const complete = { ...final, status: 'device-only' as const, complete: !chunkFailure && bytes > 0 }
         await commit(complete)
         setMessage(chunkFailure ? 'Audio incomplet conservé : un fragment n’a pas pu être sauvegardé.' : bytes ? 'Audio conservé sur cet appareil. Il est complet et prêt à être envoyé.' : 'Aucun fragment audio n’a été enregistré.')
       })() }
-      value.start(1000); setRecorderState('recording')
+      if (!isCurrentStart()) { value.stream.getTracks().forEach(track => track.stop()); if (streamRef.current === stream) streamRef.current = undefined; await deleteVoice(next.id).catch(() => undefined); return }
+      value.start(1000); recorderStarted = true; setRecorderState('recording')
       timer.current = window.setTimeout(() => { if (value.state !== 'inactive') { setMessage('Limite de 5 minutes atteinte : arrêt et sauvegarde de l’audio disponible.'); value.stop() } }, MAX_DURATION)
       const warning = await storageWarning()
+      if (!isCurrentStart()) return
       if (warning) setMessage(warning); else setMessage('Enregistrement en cours. Les fragments sont sauvegardés chaque seconde sur cet appareil.')
-    } catch (error) { setMessage(error instanceof DOMException && error.name === 'NotAllowedError' ? 'L’autorisation du microphone a été refusée. Vous pouvez importer un fichier audio.' : 'Le microphone est indisponible. Vous pouvez importer un fichier audio.') }
+    } catch (error) {
+      if (!recorderStarted) {
+        stream?.getTracks().forEach(track => track.stop())
+        if (streamRef.current === stream) streamRef.current = undefined
+        if (next) await deleteVoice(next.id).catch(() => undefined)
+      }
+      if (!isCurrentStart()) return
+      setMessage(error instanceof DOMException && error.name === 'NotAllowedError' ? 'L’autorisation du microphone a été refusée. Vous pouvez importer un fichier audio.' : 'Le microphone est indisponible. Vous pouvez importer un fichier audio.')
+    }
   }
   function pause() { if (recorder.current?.state === 'recording') { recorder.current.pause(); setRecorderState('paused'); setMessage('Enregistrement en pause. Les fragments déjà reçus sont conservés.') } }
   function resume() { if (recorder.current?.state === 'paused') { recorder.current.resume(); setRecorderState('recording'); setMessage('Enregistrement repris.') } }
