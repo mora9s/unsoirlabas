@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import react from '@vitejs/plugin-react'
 import { defineConfig, type Plugin } from 'vite'
@@ -24,6 +24,9 @@ function productionServiceWorker(): Plugin {
     apply: 'build',
     generateBundle(_options, bundle) {
       const assetFiles = Object.keys(bundle).filter(file => /^assets\/[^/]+\.(?:js|css)$/.test(file)).sort()
+      const mediaFiles = readdirSync(resolve(process.cwd(), 'public/assets'))
+        .filter(file => /^[a-z0-9-]+\.(?:jpg|webm)$/.test(file))
+        .sort()
       if (!assetFiles.some(file => file.endsWith('.js')) || !assetFiles.some(file => file.endsWith('.css'))) {
         this.error('PWA shell requires the production JavaScript and CSS bundles')
       }
@@ -31,6 +34,7 @@ function productionServiceWorker(): Plugin {
         '/', '/manifest.webmanifest', '/favicon.svg',
         '/icons/icon-192.png', '/icons/icon-512.png',
         ...assetFiles.map(file => `/${file}`),
+        ...mediaFiles.map(file => `/assets/${file}`),
       ]
       const digest = createHash('sha256')
       for (const path of shell) {
@@ -74,7 +78,32 @@ self.addEventListener('fetch', event => {
     event.respondWith(fetch(request).then(response => response.ok ? response : currentDocument().then(cached => cached || response)).catch(async () => (await currentDocument()) || Response.error()))
     return
   }
-  if (SHELL.includes(url.pathname) || /^\\/assets\\/[^/]+\\.(?:js|css)$/.test(url.pathname)) event.respondWith(caches.match(url.pathname).then(cached => cached || fetch(request)))
+  if (SHELL.includes(url.pathname) || /^\\/assets\\/[^/]+\\.(?:js|css)$/.test(url.pathname)) {
+    if (request.headers.has('range') && url.pathname.endsWith('.webm')) {
+      event.respondWith((async () => {
+        const cached = await caches.match(url.pathname)
+        if (!cached) return fetch(request)
+        const bytes = await cached.arrayBuffer()
+        const range = request.headers.get('range')
+        const match = range && /^bytes=(\\d*)-(\\d*)$/.exec(range)
+        if (!match || (!match[1] && !match[2])) {
+          return new Response(null, { status: 416, headers: { 'Content-Range': 'bytes */' + bytes.byteLength, 'Accept-Ranges': 'bytes' } })
+        }
+        const start = match[1] ? Number(match[1]) : Math.max(0, bytes.byteLength - Number(match[2]))
+        const end = match[2] ? Math.min(Number(match[2]), bytes.byteLength - 1) : bytes.byteLength - 1
+        if (start >= bytes.byteLength || start > end) {
+          return new Response(null, { status: 416, headers: { 'Content-Range': 'bytes */' + bytes.byteLength, 'Accept-Ranges': 'bytes' } })
+        }
+        const headers = new Headers(cached.headers)
+        headers.set('Accept-Ranges', 'bytes')
+        headers.set('Content-Range', 'bytes ' + start + '-' + end + '/' + bytes.byteLength)
+        headers.set('Content-Length', String(end - start + 1))
+        return new Response(bytes.slice(start, end + 1), { status: 206, headers })
+      })())
+    } else {
+      event.respondWith(caches.match(url.pathname).then(cached => cached || fetch(request)))
+    }
+  }
 })
 `
       this.emitFile({ type: 'asset', fileName: 'service-worker.js', source })
