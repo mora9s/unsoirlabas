@@ -17,7 +17,7 @@ export const gallery = [
   { image: 'port-barton.jpg', alt: 'Plage de Port Barton sur l’île de Palawan', caption: '06 — Port Barton, une envie pour la suite' },
 ]
 
-export type Media = { id: string; name: string; src: string; storageRef?: string }
+export type Media = { id: string; name: string; src: string; storageRef?: string; width?: number; height?: number }
 export type PlannedStepLink = { tripId: string; stepId: string; place: string }
 export type Draft = { id: string; title: string; memories: string; tone: string; story: string; media: Media[]; coverId: string; status: 'draft'; plannedStep?: PlannedStepLink }
 export type Trip = { version: 1; drafts: Draft[] }
@@ -115,7 +115,7 @@ export async function importImage(file: File): Promise<Media> {
     context.fillStyle = '#f6f2e9'
     context.fillRect(0, 0, canvas.width, canvas.height)
     context.drawImage(image, 0, 0, canvas.width, canvas.height)
-    return { id: createId(), name: file.name, src: canvas.toDataURL('image/jpeg', 0.82) }
+    return { id: createId(), name: file.name, src: canvas.toDataURL('image/jpeg', 0.82), width: canvas.width, height: canvas.height }
   } catch (error) {
     throw new Error(error instanceof Error && error.message.startsWith('La préparation') ? error.message : `Impossible de lire « ${file.name} ». Essayez une autre image.`)
   } finally {

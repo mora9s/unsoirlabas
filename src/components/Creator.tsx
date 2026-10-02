@@ -6,6 +6,9 @@ import type { Draft, Media, PlannedStepLink, Trip } from '../journal'
 import { createId } from '../id'
 import { discardUnsavedChapter, readUnsavedChapter, writeUnsavedChapter } from '../unsaved-chapters'
 import { tripAlbum } from '../trip-media'
+import { proposePhotoComposition } from '../photo-composition'
+import type { PhotoComposition } from '../photo-composition'
+import { mediaBytes } from '../media-store'
 import { cleanupOrphanedMediaUnlocked, persistDraftMediaUnlocked, storedDraft, withMediaDurabilityLock } from '../media-store'
 import Icon from './Icon'
 import VoiceNarration from './VoiceNarration'
@@ -31,6 +34,8 @@ export default function Creator({ initialDraft, onSave, localStore = true, recov
   const [busy, setBusy] = useState(false)
   const [pickerBusy, setPickerBusy] = useState(false)
   const [pickerLaunch, setPickerLaunch] = useState<PickerLaunch>()
+  const [composition, setComposition] = useState<PhotoComposition>()
+  const compositionRequest = useRef(0)
   const [notice, setNotice] = useState('')
   const [showVoice, setShowVoice] = useState(false)
   const [ritualMode, setRitualMode] = useState(firstChapter && Boolean(personalDestination))
@@ -107,7 +112,7 @@ export default function Creator({ initialDraft, onSave, localStore = true, recov
       const imported = results.flatMap(result => result.status === 'fulfilled' ? [result.value] : [])
       const errors = results.flatMap(result => result.status === 'rejected' ? [String(result.reason instanceof Error ? result.reason.message : result.reason)] : [])
       setMedia(previous => [...previous, ...imported])
-      if (imported.length) setChangedSinceOpen(true)
+      if (imported.length) { compositionRequest.current += 1; setComposition(undefined); setChangedSinceOpen(true) }
       setCoverId(previous => previous || imported[0]?.id || '')
       if (errors.length) setError(errors.join(' '))
       if (files.length > acceptedFiles.length) setNotice(`${imported.length} photo${imported.length === 1 ? '' : 's'} ajoutée${imported.length === 1 ? '' : 's'} ; la limite de ${photoLimit} est atteinte.`)
@@ -126,7 +131,7 @@ export default function Creator({ initialDraft, onSave, localStore = true, recov
       const result = await importGooglePhotos({ remaining: Math.max(0, photoLimit - media.length), signal: controller.signal, normalize: importImage, openPicker: waitForPickerOpen })
       if (controller.signal.aborted) return
       setMedia(previous => [...previous, ...result.media])
-      if (result.media.length) setChangedSinceOpen(true)
+      if (result.media.length) { compositionRequest.current += 1; setComposition(undefined); setChangedSinceOpen(true) }
       setCoverId(previous => previous || result.media[0]?.id || '')
       const skipped = [
         result.videosSkipped ? `${result.videosSkipped} vidéo${result.videosSkipped > 1 ? 's' : ''} non importée${result.videosSkipped > 1 ? 's' : ''}` : '',
@@ -164,6 +169,8 @@ export default function Creator({ initialDraft, onSave, localStore = true, recov
 
   function remove(item: Media) {
     const next = media.filter(photo => photo.id !== item.id)
+    compositionRequest.current += 1
+    setComposition(undefined)
     setMedia(next)
     if (item.id === coverId) setCoverId(next[0]?.id ?? '')
     changed()
@@ -174,8 +181,22 @@ export default function Creator({ initialDraft, onSave, localStore = true, recov
     const target = index + direction
     if (target < 0 || target >= media.length) return
     ;[next[index], next[target]] = [next[target], next[index]]
+    compositionRequest.current += 1
+    setComposition(undefined)
     setMedia(next)
     changed()
+  }
+
+  async function suggestComposition() {
+    const requestId = ++compositionRequest.current
+    const selected = media
+    const payloads = await Promise.all(selected.map(async item => {
+      try { return { id: item.id, bytes: (await mediaBytes(item)).bytes } }
+      catch { return undefined }
+    }))
+    if (requestId !== compositionRequest.current) return
+    const availableBytes = new Map(payloads.flatMap(entry => entry ? [[entry.id, entry.bytes] as const] : []))
+    setComposition(proposePhotoComposition(selected, availableBytes))
   }
 
   function generate() {
@@ -270,6 +291,16 @@ export default function Creator({ initialDraft, onSave, localStore = true, recov
       <label className={`upload-zone ${busy ? 'is-busy' : ''}`}><Icon name="upload" /><strong>{busy ? 'Préparation des photos…' : 'Déposez vos souvenirs ici'}</strong><span>Choisir des photos sur cet appareil</span><small>JPEG, PNG, WebP, GIF, AVIF · {photoLimit} photo{photoLimit > 1 ? 's' : ''} maximum<br />12 Mo par photo · optimisées pour le carnet</small><input type="file" multiple accept="image/jpeg,image/png,image/webp,image/gif,image/avif" aria-label="Importer des photos" onChange={upload} disabled={busy || pickerBusy} /></label>
       <div className="media-grid">{media.map((item, index) => <article className={`media-item ${cover?.id === item.id ? 'is-cover' : ''}`} data-testid="media-item" key={item.id}><div className="media-photo"><img src={item.src} alt={`Photo importée : ${item.name}`} /><span className="media-number">{String(index + 1).padStart(2, '0')}</span><button className="remove-media" onClick={() => remove(item)} aria-label={`Supprimer ${item.name}`}><Icon name="close" /></button></div><div className="media-controls"><button className="cover-button" aria-pressed={cover?.id === item.id} onClick={() => { setCoverId(item.id); changed() }}>{cover?.id === item.id ? <><Icon name="check" /> Couverture</> : 'Choisir en couverture'}</button><div><button aria-label={`Déplacer ${item.name} vers le précédent`} disabled={index === 0} onClick={() => move(index, -1)}><Icon name="left" /></button><button aria-label={`Déplacer ${item.name} vers le suivant`} disabled={index === media.length - 1} onClick={() => move(index, 1)}><Icon name="arrow" /></button></div></div></article>)}</div>
       {media.length > 0 && <p className="local-note">La couverture ouvre votre chapitre. Les flèches composent l’ordre de votre album.</p>}
+      {media.length > 1 && <section className="composition-tool" aria-label="Composition des photos">
+        <button className="button button-outline" onClick={() => void suggestComposition()}>Proposer une composition</button>
+        <p className="field-hint">Suggestion locale selon le format et les dimensions disponibles. Vos photos d’origine et votre sélection restent intactes.</p>
+        {composition && <div className="composition-preview" data-testid="composition-preview" aria-live="polite">
+          <h3>Aperçu proposé</h3><p>Couverture : {media.find(photo => photo.id === composition.coverId)?.name}</p>
+          <ol>{composition.mediaIds.map(photoId => { const photo = media.find(item => item.id === photoId); return photo ? <li key={photo.id}><img src={photo.src} alt="" /><span>{photo.name}</span>{composition.duplicateGroups.some(group => group.includes(photo.id)) && <small>Doublon exact possible · conservé</small>}</li> : null })}</ol>
+          {composition.duplicateGroups.length > 0 && <p role="note">{composition.duplicateGroups.length} groupe{composition.duplicateGroups.length > 1 ? 's' : ''} de photos identiques détecté{composition.duplicateGroups.length > 1 ? 's' : ''} par comparaison exacte des octets disponibles. Ils sont signalés uniquement : toutes les photos restent dans la sélection.</p>}
+          <div className="editor-actions"><button className="button" onClick={() => { const next = composition.mediaIds.flatMap(photoId => { const photo = media.find(item => item.id === photoId); return photo ? [photo] : [] }); setMedia(next); setCoverId(next.some(photo => photo.id === composition.coverId) ? composition.coverId : next[0]?.id ?? ''); setComposition(undefined); changed(); setNotice('Composition appliquée. Toutes vos photos ont été conservées.') }}>Accepter cette composition</button><button className="button button-outline" onClick={() => setComposition(undefined)}>Annuler</button></div>
+        </div>}
+      </section>}
       <div className="editor-note"><span className="eyebrow">Un petit conseil</span><p>La meilleure photo n’est pas toujours la plus belle.<br /><em>C’est celle qui vous ramène là-bas.</em></p></div>
     </div><div className="writing-workspace"><div className="step-heading"><span>02</span><div><h2>Les mots pour le dire</h2><p>On commence par ce qui vous revient.</p></div></div>
       <label className="field-label" htmlFor="day-title">Le titre de votre journée</label><input id="day-title" value={title} maxLength={120} onChange={event => { setTitle(event.target.value); changed() }} />
