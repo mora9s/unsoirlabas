@@ -5,6 +5,7 @@ import Chapter from './components/Chapter'
 import CustomChapter from './components/CustomChapter'
 import Creator from './components/Creator'
 import ShareStudio from './components/ShareStudio'
+import ChapterShareStudio from './components/ChapterShareStudio'
 import Icon from './components/Icon'
 import { readTrip } from './journal'
 import { readJournals, journalForTrip, saveChapter, upcomingForJournal } from './trip-journals'
@@ -218,7 +219,7 @@ export default function App() {
         setEditing(saved)
         navigate(`journey/${encodeURIComponent(tripCreateContext.id)}/${encodeURIComponent(saved.id)}`)
       }} />}
-      {journalSharing && journalChapter && <ShareStudio key={`trip-${journalTripId}-${journalChapter.id}`} draft={journalChapter} />}
+      {journalSharing && journalChapter && <ChapterShareStudio key={`trip-${journalTripId}-${journalChapter.id}`} draft={journalChapter} destination={journal?.destination ?? ''} departure={journal?.departure ?? ''} returnHref={`#journey/${encodeURIComponent(journalTripId)}/${encodeURIComponent(journalChapter.id)}`} />}
       {missing && <section className="workspace-heading page-width recovery-page">
         <p className="eyebrow">Le carnet personnel</p><h1>Cette page est introuvable</h1>
         <p>Ce chapitre n’est pas disponible dans ce navigateur. Les journées personnelles restent sur l’appareil où elles ont été enregistrées.</p>
@@ -248,7 +249,7 @@ export default function App() {
       {sharing && !journalSharing && !missing && view === 'share' && <ShareChapterPicker choices={shareChoices} demo={() => navigate('share-demo')} />}
       {view === 'share-demo' && <ShareStudio key="el-nido" />}
       {sharing && !journalSharing && !missing && view.startsWith('share/') && draft && <ShareStudio key={draft.id} draft={draft} />}
-      {tripSharing && shareDraft && <ShareStudio key={`trip-${shareTripId}-${shareDraft.id}`} draft={shareDraft} returnHref={`#journey/${encodeURIComponent(shareTripId)}/${encodeURIComponent(shareDraft.id)}`} />}
+      {tripSharing && shareDraft && <ChapterShareStudio key={`trip-${shareTripId}-${shareDraft.id}`} draft={shareDraft} destination={shareJournal?.destination ?? ''} departure={shareJournal?.departure ?? ''} returnHref={`#journey/${encodeURIComponent(shareTripId)}/${encodeURIComponent(shareDraft.id)}`} />}
       </>}
     </main>
     <footer className="site-footer page-width">

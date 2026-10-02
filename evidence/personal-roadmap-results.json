@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "scope": "Verified P0/P1 baseline plus bounded P3 planned-to-lived chapter linkage in the isolated feat/planned-lived-chapters worktree",
+  "scope": "Verified P0/P1 baseline plus local P3 planned-to-lived and selected-chapter sharing/redaction lots",
   "worktree": "/home/smora/Workspace/unsoirlabas-long",
   "branch": "feat/personal-roadmap-long",
   "base": "9093761c90f04eee78ab459976a3fa7095186138",
@@ -50,6 +50,30 @@
     "screenshot": "test-results/planned-lived-le-lien-prév-6849e-t-indépendant-entre-voyages-production-preview/planned-lived-chapter.png",
     "parentBranchMicrophonePermissionFix": "not cherry-picked or modified; parent to integrate after this commit"
   },
+  "chapterSharing": {
+    "card": "t_271135f2",
+    "status": "implemented-local; no automatic publication, remote upload, or source-chapter mutation",
+    "acceptance": [
+      "selected chapter only; deterministic story 9:16, carousel 4:5 as ordered ZIP, and postcard 4:5 render only that chapter's selected photos and reviewed text",
+      "exact PNG preview and explicit review confirmation precede export; changed text, redaction toggles, format, or photo selection invalidates confirmation",
+      "voyage departure date and destination can be edited/omitted separately; names are never auto-detected and text remains explicitly user-editable",
+      "each photo can be omitted; neutral filenames and Canvas re-encoding prevent source filename/EXIF metadata from being carried into exports",
+      "cancel/back/export leaves canonical chapter bytes unchanged; long text is flowed across ordered pages rather than clipped"
+    ],
+    "verification": [
+      {"command":"npm run lint","result":"passed without warnings"},
+      {"command":"npm run build","result":"passed"},
+      {"command":"PLAYWRIGHT_EXECUTABLE_PATH=/usr/bin/google-chrome npx playwright test tests/share-redaction.spec.ts tests/multi-trip-journals.spec.ts --workers=1","result":"8 passed; includes decoded ZIP entry PNGs, 9:16/4:5 dimensions, redacted canvas text, source-image selection, two-trip isolation, source immutability, and 320/390/1440 captures with no console errors/overflow"},
+      {"command":"PLAYWRIGHT_EXECUTABLE_PATH=/usr/bin/google-chrome npm run test:acceptance -- --workers=1","result":"110 passed, 4 skipped; 114 total"},
+      {"command":"python3 -m pytest -q tests/backend","result":"13 passed; 64 existing FastAPI on_event deprecation warnings"}
+    ],
+    "screenshots": [
+      "test-results/share-redaction-le-partage-69978-ibles-après-revue-explicite-production-preview/share-redaction-320.png",
+      "test-results/share-redaction-le-partage-69978-ibles-après-revue-explicite-production-preview/share-redaction-390.png",
+      "test-results/share-redaction-le-partage-69978-ibles-après-revue-explicite-production-preview/share-redaction-1440.png"
+    ],
+    "remaining": ["human visual review", "real-phone install and export review"]
+  },
   "historicalVerification": {
     "status": "older checkpoint evidence retained for history only; not the final P1 gate",
     "commands": [
@@ -69,9 +93,10 @@
     {"id":"t_f7fee089","phase":"P1","status":"implemented-local","delivered":"Real 192/512 PNG icons; build-versioned full shell precache; failed precache rejects install and deletes incomplete cache; bounded current/previous caches; previous hashed JS/CSS lookup; API exclusion; offline reload/write path; production-only registration.","pending":"Physical phone install, install affordance visual review, and real airplane-mode gate."},
     {"id":"t_c2445958","phase":"P1","status":"local-delivered","delivered":"Validated personal media are migrated from localStorage data URLs to IndexedDB blobs with idb:media references, recovery copy/log, Blob URL hydration, bounded cleanup, and portable ZIP byte export/fresh-browser ref regeneration. Corruption, unavailable IndexedDB and quota paths preserve source and report errors.","pending":"Physical-device/browser-storage eviction and human migration review."},
     {"id":"t_17cf2d5d","phase":"P1","status":"local-delivered","delivered":"Short first-chapter ritual supports offline text or private voice, explicit review, and a three-photo cap; full-workshop transition restores the historic 12-photo cap. Upload busy state prevents overlapping imports and saving while decoding. Public Vercel build hides and omits private voice from the short ritual. Trip-scoped voice records/transcripts/proposals remain isolated on switching and reload, with active async work invalidated.","pending":"Human product review; no phone installation or physical offline test claimed."},
-    {"id":"t_e5e778cb","phase":"P3","status":"implemented-local","delivered":"Stable planned trip/step linkage on explicit chapter creation; title/context prefilled only; reorder/delete preserve references and chapters; honest orphan rendering; optional ZIP metadata roundtrips and missing legacy fields remain valid.","pending":"Parent local integration after this commit; no push, merge, or deployment."}
+    {"id":"t_e5e778cb","phase":"P3","status":"implemented-local","delivered":"Stable planned trip/step linkage on explicit chapter creation; title/context prefilled only; reorder/delete preserve references and chapters; honest orphan rendering; optional ZIP metadata roundtrips and missing legacy fields remain valid.","pending":"Parent local integration after this commit; no push, merge, or deployment."},
+    {"id":"t_271135f2","phase":"P3","status":"implemented-local","delivered":"Selected personal chapter has exact-preview-confirmed Story 9:16, ordered 4:5 ZIP carousel and photo/text postcard. Per-field date/place controls, manual name/text redaction, per-photo opt-out, neutral re-encoded files; original remains unchanged and nothing publishes automatically.","pending":"Human visual review and real-phone gate; no push, merge, or deployment."}
   ],
-  "notInScope": ["P2 benchmark/backend/trip research", "other P3 photo composition/multipage share", "P4 PDF and physical continuity", "Authentication and retention gates"],
+  "notInScope": ["P2 benchmark/backend/trip research", "P4 PDF and physical continuity", "Authentication and retention gates"],
   "privacy": "Service worker does not precache /api/ or audio/private response paths. No personal user data was added to evidence.",
   "commit": "Earlier commits: fa8d768558704f2f9c87760acd72a3ccc3ae476e (durable-media delivery), b890f1e (final hydration bootstrap fix). P1 closure commit: fix: close evening ritual regressions (see current branch HEAD).",
   "remainingGates": ["Phone installation and offline reload", "Physical-device IndexedDB retention/migration review", "Human review of the evening ritual", "Parent review of the separate continuity spike; no active sync claim"]

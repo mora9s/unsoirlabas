@@ -1,6 +1,6 @@
-# Un soir là-bas — checkpoint P0/P1
+# Un soir là-bas — checkpoint P0/P1/P3
 
-Worktree: `/home/smora/Workspace/unsoirlabas-long`, branch `feat/personal-roadmap-long`, based on `9093761`. This checkpoint covers the settled local PWA/offline lot, P1 durable-media migration, and the bounded P1 evening ritual/voice-isolation work. No P2/P3/P4 implementation is claimed.
+Worktree: `/home/smora/Workspace/unsoirlabas-long`, branch `feat/personal-roadmap-long`, based on `9093761`. This checkpoint covers the settled local PWA/offline lot, P1 durable-media migration, bounded P1 evening ritual/voice-isolation work, and the local P3 lots listed below. No P2/P4 implementation is claimed.
 
 ## Delivered locally
 
@@ -38,3 +38,11 @@ Base : `bf0d1ed2190afed1e7119a9905a42743074e0b32`. Depuis le plan, l’action ex
 Vérifié : `npm run lint`, `npm run build`, `python3 -m pytest -q tests/backend` (13 passed), tests ciblés Chrome (2 passed), et suite canonique `PLAYWRIGHT_EXECUTABLE_PATH=/usr/bin/google-chrome npm run test:acceptance -- --workers=1` (104 passed, 4 skipped; 108 total). Capture navigateur : `test-results/planned-lived-le-lien-prév-6849e-t-indépendant-entre-voyages-production-preview/planned-lived-chapter.png`. Aucun push, merge ou déploiement.
 
 Cette livraison reste limitée à prévu/vécu. Le changement de permission microphone de la branche parent n’est pas repris ici ; l’intégration parent peut le réconcilier après ce commit.
+
+## P3 · Partage multipage et redaction — `t_271135f2`
+
+Sur le partage d’un chapitre personnel choisi, aperçu PNG réellement identique à l’export avant confirmation explicite ; story verticale 9:16, carrousel 4:5 ordonné en ZIP, et carte postale 4:5 à partir des photos et du récit du chapitre. Le titre, la date de départ du voyage et le lieu du voyage sont éditables/décochables un par un ; le champ de noms est explicitement saisi par la personne, et le récit peut être relu/rédigé pour retirer manuellement les noms. Aucune détection sémantique automatique. Chaque photo peut être exclue ; un redraw Canvas enlève les métadonnées d’origine et les fichiers ont des noms neutres. Aucune modification du chapitre source, aucun partage automatique et aucun envoi distant.
+
+Vérifié sur la révision finale : `npm run lint`, `npm run build`, `python3 -m pytest -q tests/backend` (13 passed), suite canonique Chrome `PLAYWRIGHT_EXECUTABLE_PATH=/usr/bin/google-chrome npm run test:acceptance -- --workers=1` (110 passed, 4 skipped; 114 total). Le test réel ouvre et décode tous les PNG du carrousel, vérifie la géométrie 1080×1350 et 1080×1920, les textes réellement envoyés à Canvas après redaction, le maintien de l’ordre, l’exclusion effective d’une photo et l’absence de mutation source ; les captures sans débordement/console errors sont dans `test-results/share-redaction-le-partage-69978-ibles-après-revue-explicite-production-preview/share-redaction-{320,390,1440}.png`.
+
+Le partage reste local/non publié. Le test navigateur n’est pas une revue visuelle humaine ni une validation sur téléphone ; installation PWA et vérification physique restent à faire.

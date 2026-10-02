@@ -657,6 +657,19 @@
   .share-choice strong { font-size: 19px; }
 }
 .planner { padding-block: 48px 90px; }
+.chapter-share-studio .share-visuals { display:grid; gap:14px; width:100%; max-width:900px; margin-inline:auto; text-align:left; }
+.chapter-share-studio .share-visuals fieldset { display:grid; gap:10px; border:1px solid var(--line); padding:16px; }
+.chapter-share-studio .share-visuals fieldset label,.explicit-review { display:flex; align-items:center; gap:10px; }
+.chapter-share-studio .share-visuals input:not([type=checkbox]),.chapter-share-studio .share-visuals textarea { width:100%; min-width:0; padding:12px; border:1px solid var(--line); background:#fbfaf5; color:var(--ink); }
+.share-format-controls { display:flex; flex-wrap:wrap; gap:9px; }
+.share-format-controls button { min-height:44px; padding:8px 12px; border:1px solid var(--line); background:#fbfaf5; color:var(--ink); }
+.share-format-controls button[aria-pressed=true] { background:#27483e; color:white; }
+.chapter-share-preview { display:grid; gap:14px; }
+.share-review-card { display:grid; grid-template-columns:minmax(110px, 1fr) minmax(0, 1fr); gap:12px; padding:12px; background:#f3eee2; border:1px solid var(--line); }
+.share-review-card img { width:100%; height:180px; object-fit:contain; background:#e8e7df; }
+.share-review-card pre { white-space:pre-wrap; overflow-wrap:anywhere; font:16px/1.45 var(--serif); color:var(--ink); }
+.explicit-review { line-height:1.45; }
+@media (max-width:520px) { .share-review-card { grid-template-columns:1fr; } .share-review-card img { height:auto; max-height:260px; } .chapter-share-studio .share-layout { grid-template-columns:minmax(0,1fr); } }
 .planner > .text-button { margin-bottom: 28px; }
 .planner-hero { padding: clamp(32px, 6vw, 80px); color: #fff8e8; background: linear-gradient(125deg, #153d3a, #36766c 75%, #a28d68); }
 .planner-hero h1 { font-family: var(--serif); font-weight: 400; font-size: clamp(48px, 8vw, 112px); line-height: 1.06; overflow-wrap: anywhere; }

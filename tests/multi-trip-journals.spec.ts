@@ -53,11 +53,11 @@ test('Partager globalement choisit un chapitre sauvegardé parmi plusieurs voyag
   await expect(page).toHaveURL(new RegExp(`#share-trip/${encodeURIComponent('trip-tokyo')}/${encodeURIComponent(tokyoData.id)}$`))
   await page.reload()
   const studio = page.getByTestId('share-studio')
-  await expect(studio.getByTestId('story-preview')).toContainText('Un matin à Tokyo')
-  await expect(studio.getByTestId('story-preview')).not.toContainText('Un soir à Lisbonne')
+  await expect(studio.getByLabel('Titre retouchable')).toHaveValue('Un matin à Tokyo')
+  await expect(studio.getByTestId('story-preview').first().locator('img')).toHaveAttribute('src', /^blob:/)
   expect(tokyoData.media[0].src).toMatch(/^idb:media:/)
-  await expect(studio.getByTestId('story-preview').locator('img')).toHaveAttribute('src', /^blob:/)
-  await expect(page.getByLabel('La légende proposée')).toHaveValue(`Un matin à Tokyo\n\n${story.replace(/\s+/g, ' ')}`)
+  await expect(studio.getByTestId('story-preview').first().locator('img')).toHaveAttribute('src', /^blob:/)
+  await expect(page.getByLabel('Texte à partager')).toHaveValue(story)
   await page.evaluate(() => {
     const calls = { texts: [] as string[], images: [] as string[] }
     Object.assign(window, { selectedExportCalls: calls })
@@ -69,8 +69,9 @@ test('Partager globalement choisit un chapitre sauvegardé parmi plusieurs voyag
       return Reflect.apply(drawImage, this, [image, ...coordinates])
     }
   })
+  await page.getByRole('checkbox', { name: /J’ai relu cet aperçu/ }).check()
   const pending = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Télécharger', exact: true }).click()
+  await page.getByRole('button', { name: 'Télécharger la Story' }).click()
   const download = await pending
   const pngPath = testInfo.outputPath('selected-tokyo.png')
   await download.saveAs(pngPath)
@@ -99,9 +100,9 @@ test('Partager globalement choisit un chapitre sauvegardé parmi plusieurs voyag
   await expect(chooser.getByRole('button', { name: /Un soir à Lisbonne/ })).toBeVisible()
   await chooser.getByRole('button', { name: /Un soir à Lisbonne/ }).click()
   await expect(page).toHaveURL(new RegExp(`#share-trip/trip-lisbon/${encodeURIComponent(lisbonData.id)}$`))
-  await expect(page.getByTestId('share-studio').getByTestId('story-preview')).toContainText('Un soir à Lisbonne')
-  await expect(page.getByTestId('share-studio').getByTestId('story-preview').locator('img')).toHaveCount(0)
-  await expect(page.getByLabel('La légende proposée')).toHaveValue(`Un soir à Lisbonne\n\n${story.replace(/\s+/g, ' ')}`)
+  await expect(page.getByLabel('Titre retouchable')).toHaveValue('Un soir à Lisbonne')
+  await expect(page.getByTestId('share-studio').getByRole('checkbox', { name: /Photo/ })).toHaveCount(0)
+  await expect(page.getByLabel('Texte à partager')).toHaveValue(story)
   await page.getByRole('button', { name: 'Partager', exact: true }).click()
   await chooser.getByRole('button', { name: /Démo · Philippines · Jour 03/ }).click()
   await expect(page.getByTestId('share-studio').getByText('El Nido · Palawan', { exact: true })).toBeVisible()
@@ -131,8 +132,8 @@ test('deux voyages ont des carnets indépendants : écriture, reload, édition e
     ['Lisbonne', ['Un soir à Lisbonne']], ['Tokyo', ['Tokyo, un matin clair']],
   ])
   await page.getByRole('button', { name: 'Préparer le partage' }).click()
-  await expect(page.getByTestId('share-studio').getByTestId('story-preview')).toContainText('Tokyo, un matin clair')
-  await expect(page.getByTestId('share-studio').getByTestId('story-preview')).not.toContainText('Lisbonne')
+  await expect(page.getByLabel('Titre retouchable')).toHaveValue('Tokyo, un matin clair')
+  await expect(page.getByTestId('share-studio').getByTestId('story-preview').first().locator('img')).toHaveAttribute('src', /^blob:/)
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1)
 })
 
