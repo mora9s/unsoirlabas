@@ -11,14 +11,19 @@ function wrap(ctx: CanvasRenderingContext2D, text: string, width: number) {
   for (const paragraph of text.split('\n')) {
     if (!paragraph) { lines.push(''); continue }
     let line = ''
-    for (const word of paragraph.split(/\s+/)) {
-      const candidate = line ? `${line} ${word}` : word
-      if (ctx.measureText(candidate).width <= width) { line = candidate; continue }
-      if (line) lines.push(line)
-      line = ''
-      for (const char of word) {
-        if (line && ctx.measureText(line + char).width > width) { lines.push(line); line = '' }
-        line += char
+    const Segmenter = (Intl as unknown as { Segmenter?: new (locale?: string, options?: { granularity: 'grapheme' }) => { segment(value: string): Iterable<{ segment: string }> } }).Segmenter
+    const graphemes = (value: string) => Segmenter ? Array.from(new Segmenter('fr', { granularity: 'grapheme' }).segment(value), item => item.segment) : Array.from(value)
+    for (const token of paragraph.match(/\s+|[^\s]+/gu) ?? []) {
+      if (/^\s+$/u.test(token)) {
+        if (ctx.measureText(line + token).width > width && line) { lines.push(line); line = '' }
+        line += token
+        continue
+      }
+      if (ctx.measureText(line + token).width <= width) { line += token; continue }
+      if (line) { lines.push(line); line = '' }
+      for (const grapheme of graphemes(token)) {
+        if (line && ctx.measureText(line + grapheme).width > width) { lines.push(line); line = '' }
+        line += grapheme
       }
     }
     if (line) lines.push(line)
@@ -56,7 +61,7 @@ async function renderPage(media: Media | undefined, text: string, format: Exclud
   const usableHeight = canvas.height - top - 120
   while (size >= 24) {
     ctx.font = `${size}px Georgia`
-    lines = wrap(ctx, text.trim(), 936)
+    lines = wrap(ctx, text, 936)
     if (lines.length * size * 1.28 <= usableHeight) break
     size -= 2
   }
@@ -71,17 +76,19 @@ async function renderPage(media: Media | undefined, text: string, format: Exclud
 function filename(index: number) { return `souvenir-${String(index + 1).padStart(2, '0')}.png` }
 function planPages(photos: Array<Media | undefined>, text: string, format: Format) {
   if (format === 'postcard') return [{ media: photos[0], text }]
-  const limit = format === 'story' ? 1050 : 680
-  const count = Math.max(photos.length, Math.ceil(text.length / limit), 1)
-  const words = text.split(/\s+/)
-  const chunks: string[] = Array.from({ length: count }, () => '')
-  let page = 0
-  for (const word of words) {
-    const next = chunks[page] ? `${chunks[page]} ${word}` : word
-    if (page < count - 1 && chunks[page] && next.length > Math.ceil(text.length / count)) page++
-    chunks[page] = chunks[page] ? `${chunks[page]} ${word}` : word
-  }
-  return chunks.map((part, index) => ({ media: photos[index % photos.length], text: part }))
+  const canvas = document.createElement('canvas')
+  canvas.width = 1080
+  canvas.height = format === 'story' ? 1920 : 1350
+  const ctx = canvas.getContext('2d')
+  if (!ctx) throw new Error('Canvas indisponible')
+  ctx.font = '24px Georgia'
+  const top = Math.round(canvas.height * (format === 'story' ? 0.63 : 0.55))
+  const linesPerPage = Math.max(1, Math.floor((canvas.height - top - 120) / (24 * 1.28)))
+  const lines = wrap(ctx, text, 936)
+  const count = Math.max(photos.length, Math.ceil(lines.length / linesPerPage), 1)
+  const pages: string[][] = Array.from({ length: count }, () => [])
+  for (let index = 0; index < lines.length; index++) pages[Math.min(count - 1, Math.floor(index * count / lines.length))]!.push(lines[index]!)
+  return pages.map((part, index) => ({ media: photos[index % photos.length], text: part.join('\n') }))
 }
 
 export default function ChapterShareStudio({ draft, destination, departure, returnHref }: Props) {
@@ -104,13 +111,13 @@ export default function ChapterShareStudio({ draft, destination, departure, retu
   const photos = useMemo(() => draft.media.filter(item => selected.includes(item.id)), [draft.media, selected])
   const text = [title.trim(), includeDate ? date.trim() : '', includePlace ? place.trim() : '', includeNames ? names.trim() : '', story.trim()].filter(Boolean).join('\n\n')
   const previewPhotos = useMemo(() => photos.length ? photos : [undefined], [photos])
+  const pages = useMemo(() => planPages(previewPhotos, text, format), [previewPhotos, text, format])
   const change = (fn: () => void) => { fn(); setReviewed(false); setNotice(''); setError(''); setPreviewUrls([]); setPreviewError('') }
 
   useEffect(() => {
     let active = true
     const created: string[] = []
     const outputFormat = format === 'story' ? 'story' : 'postcard'
-    const pages = planPages(previewPhotos, text, format)
     void (async () => {
       try {
         for (let index = 0; index < pages.length; index++) {
@@ -121,13 +128,12 @@ export default function ChapterShareStudio({ draft, destination, departure, retu
       } catch (reason) { if (active) setPreviewError(reason instanceof Error ? reason.message : 'Aperçu indisponible.') }
     })()
     return () => { active = false; created.forEach(URL.revokeObjectURL) }
-  }, [format, text, previewPhotos])
+  }, [format, pages])
 
   async function exportFiles() {
     setBusy(true); setError(''); setNotice('')
     try {
       const outputFormat = format === 'story' ? 'story' : 'postcard'
-      const pages = planPages(previewPhotos, text, format)
       const pngs: Record<string, Uint8Array> = {}
       for (let index = 0; index < pages.length; index++) pngs[filename(index)] = new Uint8Array(await (await renderPage(pages[index].media, pages[index].text, outputFormat, index, pages.length)).arrayBuffer())
       const first = pngs[filename(0)]!
@@ -155,9 +161,9 @@ export default function ChapterShareStudio({ draft, destination, departure, retu
       <label className="field-label" htmlFor="share-story">Texte à partager — relisez et retirez vous-même les détails sensibles</label><textarea id="share-story" aria-label="Texte à partager" rows={7} value={story} onChange={e => change(() => setStory(e.target.value))} />
       <fieldset><legend>Photos du chapitre · ordre conservé</legend>{draft.media.length ? draft.media.map((media, index) => <label key={media.id}><input aria-label={`Photo ${index + 1}`} type="checkbox" checked={selected.includes(media.id)} onChange={e => change(() => setSelected(current => e.target.checked ? [...current, media.id] : current.filter(id => id !== media.id)))} /> Photo {index + 1} · {media.name}</label>) : <p>Aucune photo enregistrée dans ce chapitre.</p>}</fieldset>
       <div className="share-format-controls"><button aria-pressed={format === 'story'} onClick={() => change(() => setFormat('story'))}>Story · 9:16</button><button aria-pressed={format === 'carousel'} onClick={() => change(() => setFormat('carousel'))}>Publication / carrousel · 4:5</button><button aria-pressed={format === 'postcard'} onClick={() => change(() => setFormat('postcard'))}>Carte postale · 4:5</button></div>
-      <div className="chapter-share-preview" data-testid="share-review"><p className="eyebrow">Aperçu exact avant export · {previewUrls.length || planPages(previewPhotos, text, format).length} page{(previewUrls.length || planPages(previewPhotos, text, format).length) > 1 ? 's' : ''}</p>{previewUrls.map((url, index) => <article className="share-review-card" key={url} data-testid="story-preview"><img src={url} alt={`Aperçu exportable ${index + 1}`} /></article>)}{previewError && <p role="alert">{previewError}</p>}</div>
-      <label className="explicit-review"><input type="checkbox" checked={reviewed} disabled={previewUrls.length !== planPages(previewPhotos, text, format).length || Boolean(previewError)} onChange={e => setReviewed(e.target.checked)} /> J’ai relu cet aperçu et confirme le contenu exact à exporter.</label>
-      <button className="button" disabled={!reviewed || busy || previewUrls.length !== planPages(previewPhotos, text, format).length} onClick={() => void exportFiles()}>{busy ? 'Préparation…' : format === 'carousel' ? 'Créer le carrousel ZIP' : format === 'postcard' ? 'Télécharger la carte postale' : 'Télécharger la Story'}</button>
+      <div className="chapter-share-preview" data-testid="share-review"><p className="eyebrow">Aperçu exact avant export · {previewUrls.length || pages.length} page{(previewUrls.length || pages.length) > 1 ? 's' : ''}</p>{previewUrls.map((url, index) => <article className="share-review-card" key={url} data-testid="story-preview"><img src={url} alt={`Aperçu exportable ${index + 1}`} /></article>)}{previewError && <p role="alert">{previewError}</p>}</div>
+      <label className="explicit-review"><input type="checkbox" checked={reviewed} disabled={previewUrls.length !== pages.length || Boolean(previewError)} onChange={e => setReviewed(e.target.checked)} /> J’ai relu cet aperçu et confirme le contenu exact à exporter.</label>
+      <button className="button" disabled={!reviewed || busy || previewUrls.length !== pages.length} onClick={() => void exportFiles()}>{busy ? 'Préparation…' : format === 'carousel' ? 'Créer le carrousel ZIP' : format === 'postcard' ? 'Télécharger la carte postale' : 'Télécharger la Story'}</button>
       <div aria-live="polite">{notice && <p role="status" className="success-message">{notice}</p>}</div>{error && <p role="alert" className="error-message">{error}</p>}
       <p className="privacy-note">Les fichiers sont produits localement. Aucun partage système ni publication automatique.</p>
     </div></div>
