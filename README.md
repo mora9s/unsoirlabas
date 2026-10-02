@@ -154,8 +154,12 @@ utilisateur. `npm run preview` reste une solution de repli sans API vocale.
 
 Le service stocke ses fichiers privés dans `voice-data/` (ignoré par Git), exige
 l’origine/hôte configurés (`VOICE_ALLOWED_ORIGINS`, `VOICE_ALLOWED_HOSTS`) et
-`X-Un-Soir-Request: voice-v1` sur toute mutation. Les uploads sont limités à
-64 MiB, vérifiés par SHA-256 et les tâches SQLite sont exécutées une par une.
+`X-Un-Soir-Request: voice-v1` sur toute mutation. Ce sont des contrôles d’origine,
+pas une identité. Une protection bearer serveur opt-in existe mais n’est pas
+activée; l’atelier navigateur n’a pas encore de connexion sûre, donc l’activation
+bloquerait le vocal. Aucun secret ne va dans le build. Voir la limite explicite et
+la configuration privée dans [`docs/voice-ai.md`](docs/voice-ai.md). Les uploads
+sont limités à 64 MiB, vérifiés par SHA-256 et les tâches SQLite sont exécutées une par une.
 
 Installation, architecture, limites, modèles validés et commandes de vérification :
 [`docs/voice-ai.md`](docs/voice-ai.md).

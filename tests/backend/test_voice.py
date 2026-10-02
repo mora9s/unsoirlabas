@@ -87,6 +87,42 @@ def test_mutation_gate_requires_exact_origin_host_header_and_sha(tmp_path):
     assert upload(c, **{"X-Idempotency-Key": ""}).status_code == 422
 
 
+def test_private_auth_fails_closed_and_protects_reads_and_mutations(tmp_path):
+    app, c = client(tmp_path, auth_enabled=True, auth_token=None)
+    # Missing configured credential must not silently fall back to legacy gates.
+    assert c.get("/api/voice/health").status_code == 503
+    assert c.get("/api/voice/jobs/unknown-job").status_code == 503
+    assert upload(c).status_code == 503
+
+    app, c = client(tmp_path / "configured", auth_enabled=True, auth_token="synthetic-test-capability-that-is-long-enough")
+    unauthenticated = TestClient(app, headers={"host": "127.0.0.1:4681", "origin": "http://127.0.0.1:4681"})
+    assert unauthenticated.get("/api/voice/health").status_code == 401
+    assert unauthenticated.get("/api/voice/jobs/unknown-job").status_code == 401
+    assert unauthenticated.get("/api/voice/recordings/abcdefgh/audio").status_code == 401
+    assert upload(unauthenticated).status_code == 401
+    assert unauthenticated.post("/api/voice/recordings/abcdefgh/transcriptions", json={"idempotencyKey": "transcribe-unauth"}, headers={"X-Un-Soir-Request": "voice-v1"}).status_code == 401
+    assert unauthenticated.post("/api/voice/recordings/abcdefgh/drafts", json={"idempotencyKey": "draft-unauth", "transcriptVersion": 1, "segments": [{"id": "S1", "start": 0, "end": 1, "text": "synthetic"}]}, headers={"X-Un-Soir-Request": "voice-v1"}).status_code == 401
+    assert unauthenticated.delete("/api/voice/recordings/abcdefgh", headers={"X-Un-Soir-Request": "voice-v1"}).status_code == 401
+    assert unauthenticated.post("/api/voice/jobs/unknown-job/cancel", headers={"X-Un-Soir-Request": "voice-v1"}).status_code == 401
+    # The legacy constant header and an allowed Origin do not constitute auth.
+    assert unauthenticated.get("/api/voice/health", headers={"X-Un-Soir-Request": "voice-v1"}).status_code == 401
+    assert unauthenticated.get("/api/voice/health", headers={"Origin": "http://evil.test"}).status_code == 403
+
+    authorized = TestClient(app, headers={"host": "127.0.0.1:4681", "origin": "http://127.0.0.1:4681", "authorization": "Bearer synthetic-test-capability-that-is-long-enough"})
+    assert authorized.get("/api/voice/health").status_code == 200
+    assert upload(authorized).status_code == 200
+    audio = authorized.get("/api/voice/recordings/abcdefgh/audio")
+    assert audio.status_code == 200 and audio.content == b"x"
+    assert audio.headers["cache-control"] == "no-store"
+    started = authorized.post("/api/voice/recordings/abcdefgh/transcriptions", json={"idempotencyKey": "transcribe-auth"}, headers={"X-Un-Soir-Request": "voice-v1"})
+    assert started.status_code == 202
+    assert authorized.get(f"/api/voice/jobs/{started.json()['jobId']}").status_code == 200
+    draft = authorized.post("/api/voice/recordings/abcdefgh/drafts", json={"idempotencyKey": "draft-auth", "transcriptVersion": 1, "segments": [{"id": "S1", "start": 0, "end": 1, "text": "Bonjour Marie 42"}]}, headers={"X-Un-Soir-Request": "voice-v1"})
+    assert draft.status_code == 202
+    assert authorized.get(f"/api/voice/jobs/{draft.json()['jobId']}").status_code == 200
+    assert authorized.delete("/api/voice/recordings/abcdefgh", headers={"X-Un-Soir-Request": "voice-v1"}).status_code == 200
+
+
 def test_upload_validation_replay_conflict_and_cleanup(tmp_path):
     app, c = client(tmp_path, max_upload_bytes=2)
     assert upload(c, recording="short").status_code == 422

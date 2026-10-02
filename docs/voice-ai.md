@@ -27,6 +27,9 @@ L’audio local et la copie serveur ont deux suppressions séparées. Le texte b
 - FastAPI et Ollama écoutent uniquement sur `127.0.0.1`.
 - Tailscale Serve fournit l’origine HTTPS privée.
 - Toutes les mutations exigent une origine, un hôte autorisé et `X-Un-Soir-Request: voice-v1`.
+- Cette origine, cet hôte et cet en-tête ne sont pas une authentification. La protection applicative par bearer est disponible en opt-in (`VOICE_AUTH_ENABLED=true` + secret `VOICE_AUTH_TOKEN`) et couvre santé, lectures de tâches, audio et toutes les mutations. Si activée sans secret, l’API répond 503 sans retomber sur les anciennes vérifications.
+- L’atelier navigateur actuel ne fait pas de connexion ni n’ajoute de bearer. Activer cette option bloque donc l’atelier vocal dans l’état actuel; aucun secret serveur ne doit être copié dans le build public. Ne pas l’activer sur le service en cours avant une intégration d’auth navigateur sûre et un essai privé planifié. La création/édition manuelle reste disponible.
+- Le schéma serveur n’associe pas les enregistrements ou tâches à un utilisateur ou scope. Le bearer est un unique périmètre partagé, pas une isolation entre voyages/personnes; protéger le token et ne pas partager l’accès.
 - Les uploads sont bornés, hachés, écrits dans un fichier temporaire puis promus atomiquement.
 - Les tâches sont persistées dans SQLite et exécutées une par une.
 - Les instructions prononcées dans l’audio sont traitées comme des données, pas comme des commandes du modèle.
@@ -49,6 +52,8 @@ VOICE_ALLOWED_HOSTS='smora-precision-3550.taildf8f08.ts.net:7443,127.0.0.1:4681,
 VOICE_OLLAMA_URL='http://127.0.0.1:11435' \
 uvicorn server.app:app --host 127.0.0.1 --port 4681
 ```
+
+Cette commande conserve le mode compatible actuel, sans authentification applicative. Pour un futur démarrage privé de validation seulement, configurer le secret hors dépôt dans l’environnement du service (long aléatoire, jamais dans Vite, HTML, stockage navigateur ou logs), puis définir `VOICE_AUTH_ENABLED=true` et `VOICE_AUTH_TOKEN`. Les clients HTTP autorisés doivent envoyer `Authorization: Bearer <token>` sur chaque route `/api/voice/*`; le serveur compare en temps constant. Aucun endpoint de connexion/session navigateur n’est livré, aucun bearer n’est fourni au frontend et la configuration n’est pas activée sur l’instance existante. L’activation en production reste bloquée jusqu’à ce qu’un parcours privé de session/capacité côté navigateur soit conçu, testé et approuvé.
 
 Deux services utilisateur sont installés localement :
 

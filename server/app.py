@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import gc
+import hmac
 import json
 import logging
 import os
@@ -46,6 +47,8 @@ class Settings:
     ollama_url: str = "http://127.0.0.1:11434"
     ollama_model: str = "qwen2.5:3b"
     ollama_timeout_seconds: float = 180.0
+    auth_enabled: bool = False
+    auth_token: str | None = None
 
     def __post_init__(self) -> None:
         self.data_dir = Path(self.data_dir).expanduser().resolve()
@@ -75,6 +78,8 @@ class Settings:
             ollama_url=os.getenv("VOICE_OLLAMA_URL", "http://127.0.0.1:11434"),
             ollama_model=os.getenv("VOICE_OLLAMA_MODEL", "qwen2.5:3b"),
             ollama_timeout_seconds=float(os.getenv("VOICE_OLLAMA_TIMEOUT_SECONDS", "180")),
+            auth_enabled=os.getenv("VOICE_AUTH_ENABLED", "false").strip().lower() in {"1", "true", "yes"},
+            auth_token=os.getenv("VOICE_AUTH_TOKEN") or None,
         )
 
 
@@ -465,6 +470,15 @@ def create_app(settings: Settings | None = None, *, transcriber: Any | None = No
             raise HTTPException(403, "origin required")
         if origin and origin.lower().rstrip("/") not in settings.allowed_origins:
             raise HTTPException(403, "origin refused")
+        if settings.auth_enabled:
+            if not settings.auth_token:
+                # Explicitly enabled but incomplete configuration must never
+                # degrade to the legacy origin/header checks.
+                raise HTTPException(503, "private voice authentication is not configured")
+            authorization = request.headers.get("authorization", "")
+            supplied = authorization[7:] if authorization.startswith("Bearer ") else ""
+            if not hmac.compare_digest(supplied.encode(), settings.auth_token.encode()):
+                raise HTTPException(401, "private voice authentication required", headers={"WWW-Authenticate": "Bearer"})
         if mutation and request.headers.get("x-un-soir-request") != "voice-v1":
             raise HTTPException(403, "request header required")
 
@@ -519,6 +533,16 @@ def create_app(settings: Settings | None = None, *, transcriber: Any | None = No
             return response
         finally:
             temp.unlink(missing_ok=True)
+
+    @app.get("/api/voice/recordings/{rid}/audio")
+    def read_audio(rid: str, request: Request):
+        gate(request)
+        recording_id(rid)
+        rows = app.state.store.rows("SELECT mime FROM recordings WHERE id=? AND deleted=0", (rid,))
+        path = settings.data_dir / "audio" / f"{rid}.audio"
+        if not rows or not path.is_file():
+            raise HTTPException(404, "recording not found")
+        return FileResponse(path, media_type=rows[0]["mime"], headers={"Cache-Control": "no-store"})
 
     def enqueue(rid: str, operation: str, key: str, payload: dict, version: int | None = None) -> dict:
         if not KEY.fullmatch(key): raise HTTPException(422, "invalid idempotency key")

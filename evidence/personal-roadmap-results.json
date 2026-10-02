@@ -96,7 +96,25 @@
     {"id":"t_e5e778cb","phase":"P3","status":"implemented-local","delivered":"Stable planned trip/step linkage on explicit chapter creation; title/context prefilled only; reorder/delete preserve references and chapters; honest orphan rendering; optional ZIP metadata roundtrips and missing legacy fields remain valid.","pending":"Parent local integration after this commit; no push, merge, or deployment."},
     {"id":"t_271135f2","phase":"P3","status":"implemented-local","delivered":"Selected personal chapter has exact-preview-confirmed Story 9:16, ordered 4:5 ZIP carousel and photo/text postcard. Per-field date/place controls, manual name/text redaction, per-photo opt-out, neutral re-encoded files; original remains unchanged and nothing publishes automatically.","pending":"Human visual review and real-phone gate; no push, merge, or deployment."}
   ],
-  "notInScope": ["P2 benchmark/backend/trip research", "P4 PDF and physical continuity", "Authentication and retention gates"],
+  "voiceSecurity": {
+    "card": "t_776b6981",
+    "status": "implemented-locally; auth disabled by default and not adopted by active service",
+    "delivered": [
+      "Opt-in bearer auth gates health, GET audio/jobs and all upload/transcription/draft/cancel/delete API handlers; Origin and the fixed request header remain anti-CSRF/origin checks, not identity.",
+      "When explicitly enabled without VOICE_AUTH_TOKEN, protected API calls fail with 503 rather than falling back; configured missing/incorrect bearer gets 401; comparison is constant-time.",
+      "GET audio serves only a live recording with Cache-Control: no-store.",
+      "VOICE_AUTH_ENABLED defaults false. No systemd/Tailscale process/config changed or restarted; browser has no auth/session and must not receive the server token, so activation is blocked until a private session boundary is implemented. Manual journal remains available.",
+      "No server owner/trip scope exists, so capability-holder cross-scope isolation cannot be claimed or tested. No live voice DB/audio/personal notes inspected or changed."
+    ],
+    "verification": [
+      {"command":"python3 -m pytest -q tests/backend", "result":"14 passed; 72 existing FastAPI on_event deprecation warnings"},
+      {"command":"npm run lint", "result":"passed"},
+      {"command":"npm run build", "result":"passed"},
+      {"command":"git diff --check", "result":"passed"}
+    ],
+    "next": "Implement a private browser session boundary that never exposes the server capability; add persisted principal/scope ownership and two-scope access tests. Define and verify retention/purge across audio, job payload/results, SQLite tombstones/WAL and backups before activation."
+  },
+  "notInScope": ["P2 benchmark/backend/trip research", "P4 PDF and physical continuity"],
   "privacy": "Service worker does not precache /api/ or audio/private response paths. No personal user data was added to evidence.",
   "commit": "Earlier commits: fa8d768558704f2f9c87760acd72a3ccc3ae476e (durable-media delivery), b890f1e (final hydration bootstrap fix). P1 closure commit: fix: close evening ritual regressions (see current branch HEAD).",
   "remainingGates": ["Phone installation and offline reload", "Physical-device IndexedDB retention/migration review", "Human review of the evening ritual", "Parent review of the separate continuity spike; no active sync claim"]
