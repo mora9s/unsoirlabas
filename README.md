@@ -157,7 +157,8 @@ l’origine/hôte configurés (`VOICE_ALLOWED_ORIGINS`, `VOICE_ALLOWED_HOSTS`) e
 `X-Un-Soir-Request: voice-v1` sur toute mutation. Ce sont des contrôles d’origine,
 pas une identité. Une protection bearer serveur opt-in existe mais n’est pas
 activée; l’atelier navigateur n’a pas encore de connexion sûre, donc l’activation
-bloquerait le vocal. Aucun secret ne va dans le build. Voir la limite explicite et
+bloquerait le vocal. Il n’existe pas de route serveur de téléchargement audio :
+`GET /api/voice/recordings/{rid}/audio` répond 404, avec ou sans bearer. Aucun secret ne va dans le build. Voir la limite explicite et
 la configuration privée dans [`docs/voice-ai.md`](docs/voice-ai.md). Les uploads
 sont limités à 64 MiB, vérifiés par SHA-256 et les tâches SQLite sont exécutées une par une.
 

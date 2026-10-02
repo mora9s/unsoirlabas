@@ -66,6 +66,13 @@ class Settings:
     @classmethod
     def from_env(cls) -> "Settings":
         repo = Path(__file__).resolve().parents[1]
+        voice_auth_value = os.getenv("VOICE_AUTH_ENABLED", "false").strip().lower()
+        if voice_auth_value in {"1", "true", "yes", "on"}:
+            auth_enabled = True
+        elif voice_auth_value in {"0", "false", "no", "off"}:
+            auth_enabled = False
+        else:
+            raise ValueError("VOICE_AUTH_ENABLED must be one of: true/false, 1/0, yes/no, on/off")
         return cls(
             data_dir=Path(os.getenv("VOICE_DATA_DIR", str(repo / "voice-data"))),
             allowed_origins=tuple(v.strip() for v in os.getenv("VOICE_ALLOWED_ORIGINS", "http://127.0.0.1:4681").split(",") if v.strip()),
@@ -78,7 +85,7 @@ class Settings:
             ollama_url=os.getenv("VOICE_OLLAMA_URL", "http://127.0.0.1:11434"),
             ollama_model=os.getenv("VOICE_OLLAMA_MODEL", "qwen2.5:3b"),
             ollama_timeout_seconds=float(os.getenv("VOICE_OLLAMA_TIMEOUT_SECONDS", "180")),
-            auth_enabled=os.getenv("VOICE_AUTH_ENABLED", "false").strip().lower() in {"1", "true", "yes"},
+            auth_enabled=auth_enabled,
             auth_token=os.getenv("VOICE_AUTH_TOKEN") or None,
         )
 
@@ -534,16 +541,6 @@ def create_app(settings: Settings | None = None, *, transcriber: Any | None = No
         finally:
             temp.unlink(missing_ok=True)
 
-    @app.get("/api/voice/recordings/{rid}/audio")
-    def read_audio(rid: str, request: Request):
-        gate(request)
-        recording_id(rid)
-        rows = app.state.store.rows("SELECT mime FROM recordings WHERE id=? AND deleted=0", (rid,))
-        path = settings.data_dir / "audio" / f"{rid}.audio"
-        if not rows or not path.is_file():
-            raise HTTPException(404, "recording not found")
-        return FileResponse(path, media_type=rows[0]["mime"], headers={"Cache-Control": "no-store"})
-
     def enqueue(rid: str, operation: str, key: str, payload: dict, version: int | None = None) -> dict:
         if not KEY.fullmatch(key): raise HTTPException(422, "invalid idempotency key")
         now = time.time()
@@ -617,6 +614,8 @@ def create_app(settings: Settings | None = None, *, transcriber: Any | None = No
 
     @app.get("/{path:path}")
     def spa(path: str):
+        if path == "api" or path.startswith("api/"):
+            raise HTTPException(404, "not found")
         root = settings.dist_dir
         requested = (root / path).resolve()
         # Never serve an escaped path, even if it exists; SPA fallback is safe.

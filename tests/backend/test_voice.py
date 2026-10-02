@@ -78,6 +78,30 @@ def wait_job(c, job_id):
     raise AssertionError("job did not settle")
 
 
+def test_default_auth_mode_does_not_expose_uploaded_audio(tmp_path):
+    _, c = client(tmp_path)
+    audio_bytes = b"synthetic-no-bearer-audio"
+    assert upload(c, data=audio_bytes).status_code == 200
+    response = c.get("/api/voice/recordings/abcdefgh/audio")
+    assert response.status_code == 404
+    assert response.content != audio_bytes
+
+
+def test_voice_auth_enabled_rejects_unknown_values(monkeypatch):
+    monkeypatch.setenv("VOICE_AUTH_ENABLED", "perhaps")
+    with pytest.raises(ValueError, match="VOICE_AUTH_ENABLED"):
+        Settings.from_env()
+
+
+@pytest.mark.parametrize(("value", "expected"), [
+    ("true", True), ("TRUE", True), ("1", True), ("yes", True), ("on", True),
+    ("false", False), ("FALSE", False), ("0", False), ("no", False), ("off", False),
+])
+def test_voice_auth_enabled_accepts_documented_boolean_values(monkeypatch, value, expected):
+    monkeypatch.setenv("VOICE_AUTH_ENABLED", value)
+    assert Settings.from_env().auth_enabled is expected
+
+
 def test_mutation_gate_requires_exact_origin_host_header_and_sha(tmp_path):
     _, c = client(tmp_path)
     assert upload(c, origin="http://evil.test").status_code == 403
@@ -98,7 +122,8 @@ def test_private_auth_fails_closed_and_protects_reads_and_mutations(tmp_path):
     unauthenticated = TestClient(app, headers={"host": "127.0.0.1:4681", "origin": "http://127.0.0.1:4681"})
     assert unauthenticated.get("/api/voice/health").status_code == 401
     assert unauthenticated.get("/api/voice/jobs/unknown-job").status_code == 401
-    assert unauthenticated.get("/api/voice/recordings/abcdefgh/audio").status_code == 401
+    # There is intentionally no audio download route, regardless of auth mode.
+    assert unauthenticated.get("/api/voice/recordings/abcdefgh/audio").status_code == 404
     assert upload(unauthenticated).status_code == 401
     assert unauthenticated.post("/api/voice/recordings/abcdefgh/transcriptions", json={"idempotencyKey": "transcribe-unauth"}, headers={"X-Un-Soir-Request": "voice-v1"}).status_code == 401
     assert unauthenticated.post("/api/voice/recordings/abcdefgh/drafts", json={"idempotencyKey": "draft-unauth", "transcriptVersion": 1, "segments": [{"id": "S1", "start": 0, "end": 1, "text": "synthetic"}]}, headers={"X-Un-Soir-Request": "voice-v1"}).status_code == 401
@@ -111,9 +136,10 @@ def test_private_auth_fails_closed_and_protects_reads_and_mutations(tmp_path):
     authorized = TestClient(app, headers={"host": "127.0.0.1:4681", "origin": "http://127.0.0.1:4681", "authorization": "Bearer synthetic-test-capability-that-is-long-enough"})
     assert authorized.get("/api/voice/health").status_code == 200
     assert upload(authorized).status_code == 200
+    # No authenticated audio download is implemented; no caller can retrieve raw bytes.
     audio = authorized.get("/api/voice/recordings/abcdefgh/audio")
-    assert audio.status_code == 200 and audio.content == b"x"
-    assert audio.headers["cache-control"] == "no-store"
+    assert audio.status_code == 404
+    assert audio.content != b"x"
     started = authorized.post("/api/voice/recordings/abcdefgh/transcriptions", json={"idempotencyKey": "transcribe-auth"}, headers={"X-Un-Soir-Request": "voice-v1"})
     assert started.status_code == 202
     assert authorized.get(f"/api/voice/jobs/{started.json()['jobId']}").status_code == 200
