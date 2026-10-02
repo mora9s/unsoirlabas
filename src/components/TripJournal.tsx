@@ -6,6 +6,7 @@ export default function TripJournal({ journal, open, create, edit }: { journal: 
     <p className="eyebrow">Carnet personnel · {journal.departure || 'sans date ajoutée'}</p>
     <h1>{journal.destination}<span>Les pages de ce voyage</span></h1>
     <p className="journal-intro">Un carnet indépendant, avec vos mots et vos images. Aucun souvenir n’est ajouté sans vous.</p>
+    <p className="journal-intro">Ce soir à {journal.destination}, quelques mots et les photos de votre choix suffisent.</p>
     <button className="button" onClick={create}>Écrire un chapitre pour {journal.destination}<span aria-hidden="true">＋</span></button>
     {!journal.chapters.length ? <p className="journal-empty">Les pages de ce voyage apparaîtront ici.</p> : <div className="journal-chapters">{journal.chapters.map(chapter => <article key={chapter.id} data-testid="journal-chapter-card">
       <div>{chapter.media[0] && <img src={(chapter.media.find(item => item.id === chapter.coverId) ?? chapter.media[0]).src} alt="" />}<span className="eyebrow">Chapitre personnel</span><h2>{chapter.title}</h2><p>{chapter.story.replace(/\s+/g, ' ').slice(0, 180)}</p></div>

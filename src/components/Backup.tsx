@@ -9,6 +9,7 @@ import Icon from './Icon'
 type Notice = { kind: 'success' | 'error' | 'info'; text: string }
 
 function size(bytes: number) { return bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} Ko` : `${(bytes / (1024 * 1024)).toFixed(1)} Mo` }
+function storageSize(bytes: number) { return bytes >= 1024 ** 3 ? `${(bytes / 1024 ** 3).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} Go` : bytes >= 1024 ** 2 ? `${(bytes / 1024 ** 2).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} Mo` : `${Math.max(1, Math.round(bytes / 1024))} Ko` }
 function date(value: string) { return new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long', timeStyle: 'short' }).format(new Date(value)) }
 function download(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob)
@@ -34,7 +35,16 @@ export default function Backup({ trip, onRestore }: { trip: Trip; onRestore: (tr
   const [staged, setStaged] = useState<Awaited<ReturnType<typeof previewArchive>>>()
   const [safetyDownloadRequested, setSafetyDownloadRequested] = useState(false)
   const [safetyConfirmed, setSafetyConfirmed] = useState(false)
+  const [storageEstimate, setStorageEstimate] = useState<{ usage?: number; quota?: number }>()
   const safetySnapshot = useRef<[string | null, string | null, string | null] | null>(null)
+
+  useEffect(() => {
+    let active = true
+    void navigator.storage?.estimate().then(estimate => {
+      if (active) setStorageEstimate({ usage: estimate.usage, quota: estimate.quota })
+    }).catch(() => undefined)
+    return () => { active = false }
+  }, [])
 
   useEffect(() => {
     if (staged) window.requestAnimationFrame(() => previewTitle.current?.focus())
@@ -138,6 +148,7 @@ export default function Backup({ trip, onRestore }: { trip: Trip; onRestore: (tr
       <button className="text-button" onClick={() => input.current?.click()} disabled={busy}>Importer depuis Drive <Icon name="book" /></button>
       <input ref={input} className="visually-hidden" type="file" accept="application/zip,.zip" aria-label="Choisir une sauvegarde ZIP" onChange={event => stage(event.target.files?.[0])} />
       <p className="local-note">Drive s’ouvre via la feuille de partage quand elle est disponible. Sinon, le téléchargement reste possible, même hors ligne ou sur un réseau local.</p>
+      <p className="local-note" data-testid="storage-estimate">{storageEstimate?.usage !== undefined ? `Utilisation estimée : ${storageSize(storageEstimate.usage)} utilisés${storageEstimate.quota !== undefined ? ` sur ${storageSize(storageEstimate.quota)} estimés` : ''}.` : 'Estimation du stockage indisponible.'} Ce stockage peut être supprimé par le navigateur ; gardez une archive séparée.</p>
     </div>
     {notice && <p role={notice.kind === 'error' ? 'alert' : 'status'} aria-live="polite" className={notice.kind === 'error' ? 'error-message backup-message' : notice.kind === 'success' ? 'success-message backup-message' : 'backup-message'}>{notice.text}</p>}
     {staged && <section className="restore-preview" aria-labelledby="restore-title" aria-live="polite">

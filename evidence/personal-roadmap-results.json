@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "scope": "Verified P0/P1 subset: PWA/offline plus preserved storage-estimate and evening-trip-context UX",
+  "worktree": "/home/smora/Workspace/unsoirlabas-long",
+  "branch": "feat/personal-roadmap-long",
+  "base": "ee031a3f8d5b191d03f23b4cac76fd370af61846",
+  "continuitySpike": {
+    "commit": "f658745127677266c8af08b9a79572efb4c678ab",
+    "integrated": false,
+    "status": "partial spike only; not active sync"
+  },
+  "verification": {
+    "commands": [
+      {"command":"npm run lint","result":"passed"},
+      {"command":"npm run build","result":"passed; build-generated service worker hashes shell paths and deployed asset bytes"},
+      {"command":"PLAYWRIGHT_EXECUTABLE_PATH=/usr/bin/google-chrome npm run test:acceptance","result":"84 passed, 3 skipped; 87 total; final code"},
+      {"command":"python3 -m pytest -q tests/backend","result":"9 passed, 64 FastAPI on_event deprecation warnings; final code"},
+      {"command":"PLAYWRIGHT_EXECUTABLE_PATH=/usr/bin/google-chrome npx playwright test tests/pwa-offline.spec.ts tests/storage-estimate.spec.ts tests/evening-ritual.spec.ts","result":"6 passed; final source specs (PWA update/offline test also passed separately 4/4)"},
+      {"command":"Vite dev + Google Chrome registration check at http://127.0.0.1:4674","result":"registrations=0, controller=false; dev server stopped"},
+      {"command":"git diff --check","result":"passed after restoring generated screenshot outputs; final committed-scope edits are whitespace-clean"}
+    ],
+    "screenshots": [
+      "test-results/home-visual-matrix-matrice-59a6f-e-aux-largeurs-320-390-1440/home-390-personal-photo.png",
+      "test-results/evening-ritual-le-rituel-o-bf030-texte-sans-inventer-le-jour/evening-ritual-mobile.png"
+    ],
+    "phoneInstallOrAirplaneModeTested": false
+  },
+  "cards": [
+    {"id":"t_fa1579b9","phase":"P0","status":"partial","delivered":"Current branch lint/build/full Playwright/backend checks executed and passed; scoped PWA lot reconciled against base ee031a3.","pending":"Full multi-worktree P0 reconciliation/acceptance beyond this branch's bounded subset."},
+    {"id":"t_f7fee089","phase":"P1","status":"implemented-local","delivered":"Real 192/512 PNG icons; build-versioned full shell precache; failed precache rejects install and deletes incomplete cache; bounded current/previous caches; previous hashed JS/CSS lookup; API exclusion; offline reload/write path; production-only registration.","pending":"Physical phone install, install affordance visual review, and real airplane-mode gate."},
+    {"id":"t_c2445958","phase":"P1","status":"partial","delivered":"Storage quota estimate notice retained and documented as not a backup.","pending":"Media remain data URLs in localStorage; IndexedDB migration, old-data rollback, and tested restore remain pending."},
+    {"id":"t_17cf2d5d","phase":"P1","status":"partial","delivered":"Evening flow retains selected trip context and avoids invented date/context; covered by acceptance test.","pending":"Voice simplification/one-voice-three-photo flow and human review not delivered."}
+  ],
+  "notInScope": ["P2 benchmark/backend/trip research", "P3 planned-to-lived links/photo composition/multipage share", "P4 PDF and physical continuity", "Authentication and retention gates"],
+  "privacy": "Service worker does not precache /api/ or audio/private response paths. No personal user data was added to evidence.",
+  "commit": "to be recorded in git HEAD after local commit",
+  "remainingGates": ["Phone installation and offline reload", "Media IndexedDB migration/rollback/restore", "Voice simplification", "Parent integration/review of separate continuity spike; no active sync claim"]
+}

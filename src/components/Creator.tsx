@@ -31,6 +31,7 @@ export default function Creator({ initialDraft, onSave, localStore = true, recov
   const [pickerLaunch, setPickerLaunch] = useState<PickerLaunch>()
   const [notice, setNotice] = useState('')
   const [showVoice, setShowVoice] = useState(false)
+  const [online, setOnline] = useState(() => navigator.onLine)
   const [error, setError] = useState(recovery.error)
   const storyRef = useRef<HTMLTextAreaElement>(null)
   const previewRef = useRef<HTMLElement>(null)
@@ -39,6 +40,13 @@ export default function Creator({ initialDraft, onSave, localStore = true, recov
   const picker = googlePhotosAvailability()
 
   useEffect(() => () => pickerAbort.current?.abort(), [])
+
+  useEffect(() => {
+    const updateOnline = () => setOnline(navigator.onLine)
+    window.addEventListener('online', updateOnline)
+    window.addEventListener('offline', updateOnline)
+    return () => { window.removeEventListener('online', updateOnline); window.removeEventListener('offline', updateOnline) }
+  }, [])
 
   useEffect(() => {
     if (!changedSinceOpen || recoveryPending) return
@@ -217,7 +225,7 @@ export default function Creator({ initialDraft, onSave, localStore = true, recov
   </section>
 
   return <section className="creator page-width" data-testid="creator">
-    <header className="workspace-heading"><p className="eyebrow">L’atelier du soir <span className="divider">/</span> Créer une journée</p><h1>Les instants passent.<br /><em>Écrivons la suite.</em></h1><p>Vos photos, vos mots. Dix minutes pour ne rien oublier.</p><span className="privacy-note"><Icon name="check" /> Vos choix sont copiés dans le carnet, jamais publiés.</span></header>
+    <header className="workspace-heading"><p className="eyebrow">L’atelier du soir <span className="divider">/</span> Créer une journée</p><h1>Les instants passent.<br /><em>Écrivons la suite.</em></h1><p>Vos photos, vos mots. Dix minutes pour ne rien oublier.</p><span className="privacy-note"><Icon name="check" /> Vos choix sont copiés dans le carnet, jamais publiés.</span>{personalDestination && <p className="local-note">Carnet de {personalDestination} sélectionné. Rien n’est enregistré avant votre validation.</p>}</header>
     <div className="creator-layout"><div className="media-workspace"><div className="step-heading"><span>01</span><div><h2>Les images du jour</h2><p>Choisissez celles qui racontent vraiment.</p></div></div>
       {!personalDestination && <aside className="trip-source" aria-labelledby="trip-source-title"><p className="eyebrow">L’album commun</p><h3 id="trip-source-title">{tripAlbum.title}</h3><p>Les deux téléphones, le drone et les appareils photo s’y retrouvent. Ouvrez-le pour vérifier que les souvenirs du jour sont bien réunis.</p><a href={tripAlbum.url} target="_blank" rel="noopener noreferrer">Ouvrir l’album <span aria-hidden="true">↗</span></a></aside>}
       {__GOOGLE_PHOTOS_PUBLIC_BUILD__ && !picker.enabled && picker.reason === 'missing-client-id' ? <div className="google-import" role="note"><div><p className="eyebrow">Souvenirs du jour</p><h3>Ajoutez vos photos au carnet</h3><p>Le sélecteur Google Photos n’est pas configuré sur cette version publique. {personalDestination ? 'Importez vos images depuis cet appareil.' : 'Ouvrez l’album commun ci-dessus pour retrouver vos images, ou importez-les directement depuis cet appareil.'}</p></div></div> : <div className="google-import" aria-labelledby="google-import-title"><div><p className="eyebrow">Photos choisies, seulement</p><h3 id="google-import-title">Votre sélection Google Photos</h3><p>Choisissez les images de cette journée. Elles seront préparées localement pour le carnet, sans publication.</p></div><div className="google-import-actions"><button className="button button-outline" onClick={pickerBusy ? cancelGoogleImport : importFromGoogle} disabled={busy || (!picker.enabled && !pickerBusy)}>{pickerBusy ? 'Annuler l’import Google Photos' : 'Choisir dans Google Photos'}</button>{pickerLaunch && <a className="button" href={pickerLaunch.url} target="_blank" rel="noopener noreferrer" onClick={pickerLaunch.open}>Ouvrir Google Photos pour choisir</a>}{!picker.enabled && <p className="local-note">{picker.reason === 'insecure-context' ? 'La connexion Google nécessite l’adresse sécurisée. Importez les images depuis cet appareil.' : personalDestination ? 'La connexion sécurisée Google Photos reste à activer. En attendant, importez depuis cet appareil.' : 'La connexion sécurisée Google Photos reste à activer. En attendant, ouvrez l’album puis importez depuis cet appareil.'}</p>}</div></div>}
@@ -234,7 +242,7 @@ export default function Creator({ initialDraft, onSave, localStore = true, recov
       <label className="field-label story-label" htmlFor="story">Votre récit, à votre façon</label><textarea ref={storyRef} id="story" rows={10} value={story} onChange={event => { setStory(event.target.value); changed() }} aria-describedby="story-hint" /><p className="field-hint" id="story-hint">Chaque phrase est modifiable. Vous pouvez aussi tout écrire vous-même.</p>
       <div className="editor-actions"><button className="button button-outline" onClick={showPreview}>Prévisualiser <Icon name="book" /></button><span className="local-note">Rien n’est enregistré avant votre validation.</span></div>
     </div></div>
-    <div className="feedback" role="status" aria-live="polite">{busy && <p>Préparation en cours…</p>}{pickerBusy && <p>Connexion à Google Photos en cours…</p>}{notice && <p className="success-message"><Icon name="check" />{notice}</p>}</div>{error && <p role="alert" className="error-message">{error}</p>}
+    <div className="feedback" role="status" aria-live="polite">{!online && <p>Hors ligne : la transcription et le récit vocal ne sont pas garantis. La saisie manuelle et la proposition locale restent disponibles.</p>}{busy && <p>Préparation en cours…</p>}{pickerBusy && <p>Connexion à Google Photos en cours…</p>}{notice && <p className="success-message"><Icon name="check" />{notice}</p>}</div>{error && <p role="alert" className="error-message">{error}</p>}
     {preview && <section className="day-preview" data-testid="day-preview" tabIndex={-1} ref={previewRef}><div className="preview-ribbon"><span className="eyebrow">03 / Votre nouvelle page</span><span className="status draft"><i />Brouillon</span></div>{cover && <img className="preview-cover" src={cover.src} alt={`Couverture : ${cover.name}`} />}<div className="preview-prose"><p className="eyebrow">{personalDestination ? `${personalDestination} · Carnet personnel` : 'Philippines · Carnet personnel'}</p><h2>{title}</h2>{story.split('\n').filter(Boolean).map((paragraph, index) => <p key={index}>{paragraph}</p>)}</div>{media.length > 1 && <div className="preview-album">{media.filter(item => item.id !== cover?.id).map(item => <img key={item.id} src={item.src} alt={`Souvenir : ${item.name}`} />)}</div>}<div className="save-bar"><span>Une page de plus.<br /><small>Enregistrée après validation, jamais publiée.</small></span><button className="button" onClick={save} disabled={busy || pickerBusy}>Ajouter au voyage <Icon name="plus" /></button></div></section>}
   </section>
 }
