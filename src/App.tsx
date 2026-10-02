@@ -104,8 +104,9 @@ export default function App() {
     window.addEventListener('popstate', updateView)
     window.addEventListener('hashchange', updateView)
     window.addEventListener('storage', updateStorage)
-    void refreshStorage()
+    const bootstrap = window.setTimeout(() => { void refreshStorage() }, 0)
     return () => {
+      window.clearTimeout(bootstrap)
       releaseHydratedMedia()
       window.removeEventListener('trip-journals-updated', updateStorage)
       window.removeEventListener('upcoming-trips-updated', updateStorage)
