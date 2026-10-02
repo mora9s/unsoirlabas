@@ -339,6 +339,28 @@ def _draft_prompt(segments: list[dict[str, Any]]) -> str:
             "--- DATA START ---\n" + data + "\n--- DATA END ---")
 
 
+def _number_values(text: str) -> set[str]:
+    """Return digit values and a deliberately bounded French cardinal vocabulary.
+
+    Only standalone whole-number words zéro and deux through vingt are mapped.
+    Compound numbers, ordinal words, decimals, durations, and unit conversion are
+    intentionally out of scope; `un`/`une` are omitted because they are commonly
+    articles in short titles.
+    """
+    french = {
+        "zéro": "0", "zero": "0", "deux": "2", "trois": "3", "quatre": "4",
+        "cinq": "5", "six": "6", "sept": "7", "huit": "8", "neuf": "9",
+        "dix": "10", "onze": "11", "douze": "12", "treize": "13",
+        "quatorze": "14", "quinze": "15", "seize": "16", "dix-sept": "17",
+        "dix-huit": "18", "dix-neuf": "19", "vingt": "20",
+    }
+    values = set(re.findall(r"(?<![\w.])\d+(?:[.,]\d+)?(?![\w.])", text))
+    for word in re.findall(r"(?<![\w])[A-Za-zÀ-ÖØ-öø-ÿ]+(?:-[A-Za-zÀ-ÖØ-öø-ÿ]+)?(?![\w])", text.casefold()):
+        if word in french:
+            values.add(french[word])
+    return values
+
+
 def _candidate_names(text: str) -> set[str]:
     # A deliberately rough lexical signal, not named-entity recognition.
     common = {"Le", "La", "Les", "Un", "Une", "Des", "Du", "De", "À", "Au", "Aux", "Et", "En", "On", "Je", "Nous", "Il", "Elle", "Ils", "Elles", "Quelqu'un", "Quelqu’une", "C'était", "Peut-être", "Ignore", "Invent", "Inventez", "Écris", "Écrivez"}
@@ -381,9 +403,9 @@ def validate_draft(value: Any, segments: list[dict[str, Any]]) -> dict[str, Any]
         # A verbatim reported utterance is evidence that someone said those words,
         # not evidence that its imperative content describes the trip.
         direct_report = any(paragraph_text == segment["text"] for segment in cited_segments) and bool(re.search(r"\b(?:a dit|a répondu|a demandé|a raconté)\b", cited_text, re.IGNORECASE))
-        paragraph_digits = set(re.findall(r"\b\d+\b", paragraph_text))
-        cited_digits = set(re.findall(r"\b\d+\b", cited_text))
-        if paragraph_digits - cited_digits:
+        paragraph_numbers = _number_values(paragraph_text)
+        cited_numbers = _number_values(cited_text)
+        if paragraph_numbers - cited_numbers:
             raise ValueError("paragraph introduces a number absent from its cited evidence")
         if not direct_report:
             for candidate in sorted(_candidate_names(paragraph_text) - cited_supported_names):
@@ -393,10 +415,10 @@ def validate_draft(value: Any, segments: list[dict[str, Any]]) -> dict[str, Any]
                     warnings.append(f"Human review required: {term} appears only in a quoted instruction, not factual trip evidence.")
         clean.append({"text": paragraph_text, "supportingSegmentIds": ids})
     title_text = title.strip()
-    title_digits = set(re.findall(r"\b\d+\b", title_text))
-    source_digits = set(re.findall(r"\b\d+\b", factual_source))
-    for number in sorted(title_digits - source_digits):
-        warnings.append(f"Human review required: title introduces unsupported number candidate {number}.")
+    title_numbers = _number_values(title_text)
+    source_numbers = _number_values(factual_source)
+    if title_numbers - source_numbers:
+        raise ValueError("title introduces a number absent from source evidence")
     for candidate in sorted(_candidate_names(title_text) - supported_names):
         warnings.append(f"Human review required: title introduces unsupported proper-name candidate {candidate}; lexical check is approximate.")
     for term in sorted(command_only):

@@ -30,7 +30,7 @@ L’audio local et la copie serveur ont deux suppressions séparées. Le texte b
 - Les uploads sont bornés, hachés, écrits dans un fichier temporaire puis promus atomiquement.
 - Les tâches sont persistées dans SQLite et exécutées une par une.
 - Les instructions prononcées dans l’audio sont traitées comme des données, pas comme des commandes du modèle.
-- Chaque paragraphe doit citer des segments existants. Les nombres absents des preuves citées sont refusés. Les citations facilitent la revue humaine mais ne prouvent pas à elles seules qu’une reformulation est exacte.
+- Chaque paragraphe doit citer des segments existants. Les nombres absents des preuves citées sont refusés, y compris les nombres écrits en chiffres ou en mots français reconnus. Le contrôle lexical accepte les cardinaux isolés `zéro` et `deux` à `vingt` (avec ou sans accents pour zéro), sans convertir les unités. `un`/`une`, les composés au-delà de vingt et les ordinaux ne sont pas normalisés. Décimaux, durées et unités ne sont comparés que comme texte/chiffres littéraux : le validateur ne les interprète pas et ne prouve aucune équivalence, durée ou conversion d’unité. Les titres sont comparés à l’ensemble des preuves source ; un nombre non attesté entraîne le rejet du brouillon. Les citations facilitent la revue humaine mais ne prouvent pas à elles seules qu’une reformulation est exacte.
 
 ## Modèles validés sur cette machine
 

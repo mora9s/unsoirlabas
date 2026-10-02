@@ -180,12 +180,17 @@ def test_validator_preserves_french_names_uncertainty_and_flags_unsupported_fact
     assert not any("Maëlle" in w or "Joël" in w or "Collioure" in w for w in valid["warnings"])
 
     unsupported = validate_draft({
-        "title": "Collioure 2030",
+        "title": "Collioure",
         "paragraphs": [{"text": "Nous avons rencontré Ada à Collioure.", "supportingSegmentIds": ["S1"]}],
         "uncertainty": [], "warnings": [],
     }, segments)
     assert any("Ada" in warning and "review" in warning.lower() for warning in unsupported["warnings"])
-    assert any("2030" in warning and "review" in warning.lower() for warning in unsupported["warnings"])
+    with pytest.raises(ValueError, match="title introduces a number absent from source evidence"):
+        validate_draft({
+            "title": "Collioure 2030",
+            "paragraphs": [{"text": "Nous sommes à Collioure.", "supportingSegmentIds": ["S1"]}],
+            "uncertainty": [], "warnings": [],
+        }, segments)
 
     misattributed = validate_draft({
         "title": "Arles",
@@ -227,8 +232,33 @@ def test_adversarial_drafts_rejected_and_warnings_added(tmp_path):
     assert upload(c).status_code == 200
     response = c.post("/api/voice/recordings/abcdefgh/drafts", json={"idempotencyKey": "title-number", "transcriptVersion": 1, "segments": segments}, headers={"X-Un-Soir-Request": "voice-v1"})
     title_result = wait_job(c, response.json()["jobId"])
-    assert title_result["status"] == "completed"
-    assert any("99" in warning and "review" in warning.lower() for warning in title_result["result"]["warnings"])
+    assert title_result["status"] == "failed"
+    assert title_result["error"] == "generation_invalid"
+
+
+def test_numeric_words_are_bounded_and_title_numbers_use_all_source_evidence():
+    segments = [{"id": "S1", "start": 0, "end": 2, "text": "Nous avons parcouru trois kilomètres."}]
+    normalized = validate_draft({
+        "title": "3 kilomètres",
+        "paragraphs": [{"text": "Nous avons parcouru 3 kilomètres.", "supportingSegmentIds": ["S1"]}],
+        "uncertainty": [], "warnings": [],
+    }, segments)
+    assert normalized["title"] == "3 kilomètres"
+    assert normalized["paragraphs"][0]["text"] == "Nous avons parcouru 3 kilomètres."
+
+    with pytest.raises(ValueError, match="paragraph introduces a number absent from its cited evidence"):
+        validate_draft({
+            "title": "Trois kilomètres",
+            "paragraphs": [{"text": "Nous avons parcouru quatre kilomètres.", "supportingSegmentIds": ["S1"]}],
+            "uncertainty": [], "warnings": [],
+        }, segments)
+
+    with pytest.raises(ValueError, match="title introduces a number absent from source evidence"):
+        validate_draft({
+            "title": "Nîmes 2030",
+            "paragraphs": [{"text": "À Nîmes.", "supportingSegmentIds": ["S1"]}],
+            "uncertainty": [], "warnings": [],
+        }, segments)
 
 
 def test_oversize_no_truncation_retry_cancel_delete_and_no_content_logs(tmp_path, caplog):
