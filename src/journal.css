@@ -669,6 +669,41 @@
 .planner-notes label { display: block; max-width: 850px; }
 .planner-empty { padding: 50px 0; }
 .planner > .local-note { margin-top: 20px; }
+
+/* A short, local-first first chapter; the full Creator remains one tap away. */
+.evening-ritual { max-width: 960px; padding-bottom: 64px; }
+.evening-ritual .workspace-heading { padding-top: 42px; padding-bottom: 32px; }
+.evening-ritual .workspace-heading h1 { font-size: clamp(42px, 7vw, 78px); }
+.ritual-photos, .ritual-choices, .ritual-editor, .ritual-review { min-width: 0; margin-top: 24px; padding: clamp(18px, 4vw, 34px); border: 1px solid var(--line); background: #f5f3eb; }
+.ritual-photos > .eyebrow { margin: 0 0 14px; }
+.ritual-photos .upload-zone { min-height: 136px; padding: 20px; }
+.ritual-photos .upload-zone svg { width: 22px; height: 22px; margin-bottom: 10px; }
+.ritual-photos .upload-zone strong { font-size: 22px; }
+.ritual-photos .upload-zone small { margin-top: 8px; }
+.ritual-photos .media-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.ritual-photo { min-width: 0; }
+.ritual-photo .media-photo { aspect-ratio: 4 / 3; }
+.ritual-photo .media-photo img { width: 100%; height: 100%; object-fit: cover; }
+.ritual-choices, .ritual-choices .field-hint { margin-bottom: 0; }
+.ritual-choices { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.ritual-choices > .field-hint { flex-basis: 100%; }
+.ritual-editor .voice-narration { max-width: 100%; }
+.ritual-editor textarea, .ritual-review textarea { width: 100%; min-width: 0; box-sizing: border-box; }
+.ritual-review h2 { margin: 0 0 22px; font-family: var(--serif); font-size: 36px; font-weight: 400; }
+.ritual-review .field-label { display: block; margin-top: 18px; }
+.ritual-review .editor-actions { margin-top: 20px; }
+.ritual-workshop-link { margin-top: 24px; }
+.evening-ritual .button, .evening-ritual .text-button { min-height: 44px; }
+.evening-ritual input, .evening-ritual textarea { max-width: 100%; }
+@media (max-width: 480px) {
+  .evening-ritual { padding-bottom: 44px; }
+  .evening-ritual .workspace-heading { padding-top: 28px; padding-bottom: 22px; }
+  .evening-ritual .workspace-heading h1 { font-size: 42px; }
+  .ritual-photos, .ritual-choices, .ritual-editor, .ritual-review { padding: 16px; }
+  .ritual-choices > button, .ritual-review .editor-actions > .button, .ritual-editor .editor-actions > .button { flex: 1 1 100%; }
+  .ritual-photos .media-grid { gap: 8px; }
+}
+
 .planner-hero .button { margin-top: 24px; }
 @media (max-width: 700px) {
   .planner { padding-block: 28px 55px; }

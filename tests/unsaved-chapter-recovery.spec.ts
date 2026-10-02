@@ -12,6 +12,9 @@ const story = 'Le vent frais du matin et le premier café partagé. Ce sont nos 
 async function openChapterEditor(page: import('@playwright/test').Page, destination: string) {
   await page.getByTestId('upcoming-trip').filter({ hasText: destination }).getByRole('button', { name: /^(?:Ouvrir le carnet|Carnet)$/ }).click()
   await page.getByRole('button', { name: new RegExp(`Écrire un chapitre pour ${destination}`) }).click()
+  await page.reload()
+  const workshop = page.getByRole('button', { name: 'Ouvrir l’atelier complet' })
+  if (await workshop.isVisible().catch(() => false)) await workshop.click()
 }
 
 async function seed(page: import('@playwright/test').Page) {
@@ -74,6 +77,7 @@ test('isolates recovery by trip and can explicitly discard without creating a sa
   await expect(page.getByRole('heading', { name: 'Reprendre votre chapitre ?' })).toBeVisible()
   await page.getByRole('button', { name: 'Abandonner ce brouillon' }).click()
   await expect(page.getByRole('heading', { name: 'Reprendre votre chapitre ?' })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Ouvrir l’atelier complet' }).click()
   await expect(page.getByLabel('Le titre de votre journée')).toHaveValue('Une nouvelle journée à Tokyo')
   const saved = await page.evaluate(key => localStorage.getItem(key), journalsKey)
   expect(saved).toBeNull()

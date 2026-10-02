@@ -124,7 +124,7 @@ test('archive invalide ou annulée ne modifie jamais le stockage', async ({ page
   await page.getByLabel('Choisir une sauvegarde ZIP').setInputFiles({ name: 'faux.zip', mimeType: 'application/zip', buffer: Buffer.from('pas une archive') })
   await expect(page.getByRole('alert')).toContainText('ne peut pas être ouverte')
   expect(await page.evaluate(key => localStorage.getItem(key), key)).toBe(migrated)
-  await page.getByLabel('Choisir une sauvegarde ZIP').setInputFiles({ name: 'trop-grand.zip', mimeType: 'application/zip', buffer: Buffer.alloc(25 * 1024 * 1024 + 1) })
+  await page.getByLabel('Choisir une sauvegarde ZIP').setInputFiles({ name: 'trop-grand.zip', mimeType: 'application/zip', buffer: Buffer.alloc(25 * 1024 * 1024 + 1) }, { timeout: 15_000 })
   await expect(page.getByRole('alert')).toContainText('moins de 25 Mo')
   expect(await page.evaluate(key => localStorage.getItem(key), key)).toBe(migrated)
   const pending = page.waitForEvent('download')

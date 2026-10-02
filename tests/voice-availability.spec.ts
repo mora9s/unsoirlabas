@@ -25,3 +25,16 @@ test('atelier vocal fidèle au contexte de déploiement', async ({ page }) => {
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1)
   expect(errors).toEqual([])
 })
+
+test('le rituel public ne présente pas la voix privée', async ({ page }) => {
+  const publicBuild = (globalThis as { process?: { env?: Record<string, string> } }).process?.env?.VERCEL === '1'
+  test.skip(!publicBuild, 'Le test exige le build public VERCEL=1.')
+  await page.goto('/')
+  await page.evaluate(() => localStorage.setItem('un-soir-la-bas-upcoming-v1', JSON.stringify([{ id: 'tokyo', destination: 'Tokyo', departure: '2027-04-12' }])))
+  await page.goto('/#trip-create/tokyo')
+  const ritual = page.locator('.evening-ritual')
+  await expect(ritual.getByRole('button', { name: 'Raconter à voix haute' })).toHaveCount(0)
+  await expect(ritual.getByText(/voix|vocal/i)).toHaveCount(0)
+  await expect(ritual.getByTestId('voice-narration')).toHaveCount(0)
+  await expect(ritual.getByRole('button', { name: 'Écrire quelques lignes' })).toBeVisible()
+})

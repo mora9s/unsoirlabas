@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "scope": "Verified P0/P1 subset: PWA/offline plus durable IndexedDB personal media, Web Locks serialization, conservative orphan cleanup, portable ZIP restore, and preserved evening-trip-context UX",
+  "scope": "Verified P0/P1 subset: PWA/offline, durable IndexedDB personal media, Web Locks serialization, conservative cleanup, portable ZIP restore, short evening ritual, and trip-scoped voice isolation",
   "worktree": "/home/smora/Workspace/unsoirlabas-long",
   "branch": "feat/personal-roadmap-long",
   "base": "9093761c90f04eee78ab459976a3fa7095186138",
@@ -10,35 +10,45 @@
     "status": "bounded local spike only; not active sync"
   },
   "verification": {
+    "status": "final settled P1 commit; current branch HEAD",
     "commands": [
       {"command":"npm run lint","result":"passed"},
-      {"command":"npm run build","result":"passed; build-generated service worker hashes shell paths and deployed asset bytes"},
-      {"command":"PLAYWRIGHT_EXECUTABLE_PATH=/usr/bin/google-chrome npm run test:acceptance","result":"95 passed, 3 skipped; 98 total. Production-preview project runs the regular suite; durability-dev project runs four source-module regressions on Vite dev."},
-      {"command":"PLAYWRIGHT_EXECUTABLE_PATH=/usr/bin/google-chrome npx playwright test --config=tests/media-durability.config.ts","result":"4 passed; isolated re-run of invalid-envelope cleanup, concurrent cross-tab saves/cleanup, crash-recovery migration, and unsupported Web Locks"},
-      {"command":"PLAYWRIGHT_EXECUTABLE_PATH=/usr/bin/google-chrome npx playwright test tests/archive.spec.ts:167","result":"1 passed; historical archive retains current Oslo and legacy Philippines journals/counts"},
-      {"command":"python3 -m pytest -q tests/backend","result":"9 passed, 64 FastAPI on_event deprecation warnings; final code"},
-      {"command":"PLAYWRIGHT_EXECUTABLE_PATH=/usr/bin/google-chrome npx playwright test tests/pwa-offline.spec.ts tests/storage-estimate.spec.ts tests/evening-ritual.spec.ts","result":"6 passed; final source specs (PWA update/offline test also passed separately 4/4)"},
-      {"command":"Vite dev + Google Chrome registration check at http://127.0.0.1:4674","result":"registrations=0, controller=false; dev server stopped"},
-      {"command":"PLAYWRIGHT_EXECUTABLE_PATH=/usr/bin/google-chrome npx playwright test tests/archive.spec.ts tests/multi-trip-journals.spec.ts","result":"15 passed; legacy data migration, corruption/unavailable-IDB/quota recovery, portable archive and fresh-browser restore exercised"},
-      {"command":"PLAYWRIGHT_EXECUTABLE_PATH=/usr/bin/google-chrome npx playwright test tests/google-photos-picker.spec.ts --grep 'album partagé explicite'","result":"1 passed; asynchronous durable save waits for the canonical receipt before storage inspection"},
-      {"command":"PLAYWRIGHT_EXECUTABLE_PATH=/usr/bin/google-chrome npx playwright test tests/personal-chapters.spec.ts --grep 'sans randomUUID'","result":"1 passed; durable Blob rendering/reload/edit/share/export path exercised without duplicate object URLs"},
-      {"command":"python3 -m pytest -q tests/backend","result":"9 passed; 64 existing FastAPI on_event deprecation warnings"},
-      {"command":"git diff --check","result":"passed; final committed-scope edits are whitespace-clean"}
+      {"command":"npm run build","result":"passed after restoring the private build following public-build smoke"},
+      {"command":"VERCEL=1 PLAYWRIGHT_EXECUTABLE_PATH=/usr/bin/google-chrome npx playwright test tests/voice-availability.spec.ts --grep 'rituel public' --workers=1","result":"1 passed against the actual Vercel-built production preview; short ritual had no voice wording, CTA, VoiceNarration component, or voice request"},
+      {"command":"PLAYWRIGHT_EXECUTABLE_PATH=/usr/bin/google-chrome npx playwright test tests/evening-ritual.spec.ts tests/voice.spec.ts tests/voice-availability.spec.ts tests/multi-trip-journals.spec.ts tests/personal-story-context.spec.ts --workers=1","result":"21 passed, 1 skipped (public-only test skipped on the private build)"},
+      {"command":"PLAYWRIGHT_EXECUTABLE_PATH=/usr/bin/google-chrome npm run test:acceptance -- --workers=1","result":"102 passed, 4 skipped; 106 total, both production-preview and durability-dev projects"},
+      {"command":"python3 -m pytest -q tests/backend","result":"9 passed, 64 existing FastAPI on_event deprecation warnings; baseline for this branch"},
+      {"command":"git diff --check","result":"passed; tracked source/docs/tests are whitespace-clean"}
     ],
     "screenshots": [
-      "test-results/home-visual-matrix-matrice-59a6f-e-aux-largeurs-320-390-1440/home-390-personal-photo.png",
-      "test-results/evening-ritual-le-rituel-o-bf030-texte-sans-inventer-le-jour/evening-ritual-mobile.png"
+      "test-results/evening-ritual-captures-re-8dd38--le-rituel-de-chaque-voyage-production-preview/evening-ritual-320.png",
+      "test-results/evening-ritual-captures-re-8dd38--le-rituel-de-chaque-voyage-production-preview/evening-ritual-390.png",
+      "test-results/evening-ritual-captures-re-8dd38--le-rituel-de-chaque-voyage-production-preview/evening-ritual-1440.png"
     ],
     "phoneInstallOrAirplaneModeTested": false
+  },
+  "historicalVerification": {
+    "status": "older checkpoint evidence retained for history only; not the final P1 gate",
+    "commands": [
+      {"command":"PLAYWRIGHT_EXECUTABLE_PATH=/usr/bin/google-chrome npm run test:acceptance -- --workers=1","result":"100 passed, 3 skipped; 103 total at the earlier checkpoint"},
+      {"command":"PLAYWRIGHT_EXECUTABLE_PATH=/usr/bin/google-chrome npx playwright test --config=tests/media-durability.config.ts","result":"4 passed at the earlier checkpoint"},
+      {"command":"PLAYWRIGHT_EXECUTABLE_PATH=/usr/bin/google-chrome npx playwright test tests/archive.spec.ts:167","result":"1 passed at the earlier checkpoint"},
+      {"command":"PLAYWRIGHT_EXECUTABLE_PATH=/usr/bin/google-chrome npx playwright test tests/pwa-offline.spec.ts tests/storage-estimate.spec.ts tests/evening-ritual.spec.ts","result":"6 passed at the earlier checkpoint"},
+      {"command":"Vite dev + Google Chrome registration check at http://127.0.0.1:4674","result":"0 registrations and no controller in an earlier dev smoke"},
+      {"command":"PLAYWRIGHT_EXECUTABLE_PATH=/usr/bin/google-chrome npx playwright test tests/archive.spec.ts tests/multi-trip-journals.spec.ts","result":"15 passed at the earlier checkpoint"},
+      {"command":"PLAYWRIGHT_EXECUTABLE_PATH=/usr/bin/google-chrome npx playwright test tests/google-photos-picker.spec.ts --grep 'album partagé explicite'","result":"1 passed at the earlier checkpoint"},
+      {"command":"PLAYWRIGHT_EXECUTABLE_PATH=/usr/bin/google-chrome npx playwright test tests/personal-chapters.spec.ts --grep 'sans randomUUID'","result":"1 passed at the earlier checkpoint"}
+    ],
+    "supersedesAsFinal": false
   },
   "cards": [
     {"id":"t_fa1579b9","phase":"P0","status":"partial","delivered":"Current branch lint/build/full Playwright/backend checks executed and passed; scoped PWA lot reconciled against base ee031a3.","pending":"Full multi-worktree P0 reconciliation/acceptance beyond this branch's bounded subset."},
     {"id":"t_f7fee089","phase":"P1","status":"implemented-local","delivered":"Real 192/512 PNG icons; build-versioned full shell precache; failed precache rejects install and deletes incomplete cache; bounded current/previous caches; previous hashed JS/CSS lookup; API exclusion; offline reload/write path; production-only registration.","pending":"Physical phone install, install affordance visual review, and real airplane-mode gate."},
     {"id":"t_c2445958","phase":"P1","status":"local-delivered","delivered":"Validated personal media are migrated from localStorage data URLs to IndexedDB blobs with idb:media references, recovery copy/log, Blob URL hydration, bounded cleanup, and portable ZIP byte export/fresh-browser ref regeneration. Corruption, unavailable IndexedDB and quota paths preserve source and report errors.","pending":"Physical-device/browser-storage eviction and human migration review."},
-    {"id":"t_17cf2d5d","phase":"P1","status":"partial","delivered":"Evening flow retains selected trip context and avoids invented date/context; covered by acceptance test.","pending":"Voice simplification/one-voice-three-photo flow and human review not delivered."}
+    {"id":"t_17cf2d5d","phase":"P1","status":"local-delivered","delivered":"Short first-chapter ritual supports offline text or private voice, explicit review, and a three-photo cap; full-workshop transition restores the historic 12-photo cap. Upload busy state prevents overlapping imports and saving while decoding. Public Vercel build hides and omits private voice from the short ritual. Trip-scoped voice records/transcripts/proposals remain isolated on switching and reload, with active async work invalidated.","pending":"Human product review; no phone installation or physical offline test claimed."}
   ],
   "notInScope": ["P2 benchmark/backend/trip research", "P3 planned-to-lived links/photo composition/multipage share", "P4 PDF and physical continuity", "Authentication and retention gates"],
   "privacy": "Service worker does not precache /api/ or audio/private response paths. No personal user data was added to evidence.",
-  "commit": "fa8d768558704f2f9c87760acd72a3ccc3ae476e (durable-media delivery), b890f1e (final hydration bootstrap fix)",
-  "remainingGates": ["Phone installation and offline reload", "Physical-device IndexedDB retention/migration review", "Voice simplification", "Parent review of the separate continuity spike; no active sync claim"]
+  "commit": "Earlier commits: fa8d768558704f2f9c87760acd72a3ccc3ae476e (durable-media delivery), b890f1e (final hydration bootstrap fix). P1 closure commit: fix: close evening ritual regressions (see current branch HEAD).",
+  "remainingGates": ["Phone installation and offline reload", "Physical-device IndexedDB retention/migration review", "Human review of the evening ritual", "Parent review of the separate continuity spike; no active sync claim"]
 }

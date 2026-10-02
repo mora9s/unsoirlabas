@@ -7,11 +7,12 @@ type Props = { onAccept: (title: string, memories: string, story: string) => voi
 const MAX_BYTES = 64 * 1024 * 1024
 const MAX_DURATION = 5 * 60_000
 const AUDIO_TYPES = /^audio\/(mp4|webm|ogg|mpeg|wav|x-wav)$/
+function sessionKey(scopeId?: string) { return scopeId === undefined ? 'un-soir-voice-session' : `un-soir-voice-session:${encodeURIComponent(scopeId)}` }
 
 function timestamp(seconds: number) { const value = Math.max(0, Math.floor(seconds)); return `${String(Math.floor(value / 60)).padStart(2, '0')}:${String(value % 60).padStart(2, '0')}` }
 function isTerminal(status?: string) { return status === 'completed' || status === 'failed' || status === 'retryable' || status === 'cancelled' }
 
-export default function VoiceNarration({ onAccept }: Props) {
+export default function VoiceNarration({ onAccept, scopeId }: Props & { scopeId?: string }) {
   const [record, setRecord] = useState<VoiceRecord>()
   const [message, setMessage] = useState('')
   const [interrupted, setInterrupted] = useState(false)
@@ -29,7 +30,7 @@ export default function VoiceNarration({ onAccept }: Props) {
   const commit = async (next: VoiceRecord) => {
     current.current = next
     setRecord(next)
-    sessionStorage.setItem('un-soir-voice-session', next.id)
+    sessionStorage.setItem(sessionKey(scopeId), next.id)
     pendingWrites.current += 1
     setSaving(true)
     const write = writeChain.current.then(() => saveVoice(next))
@@ -47,7 +48,7 @@ export default function VoiceNarration({ onAccept }: Props) {
   useEffect(() => {
     let alive = true
     void (async () => {
-      const saved = await loadActiveVoice().catch(() => undefined)
+      const saved = await loadActiveVoice(scopeId).catch(() => undefined)
       if (!alive || !saved) return
       current.current = saved; setRecord(saved)
       if (saved.status === 'recording' || saved.status === 'saving') { setInterrupted(true); setMessage('Enregistrement interrompu : l’audio disponible n’est pas encore marqué complet.') }
@@ -55,7 +56,7 @@ export default function VoiceNarration({ onAccept }: Props) {
     const retry = () => retryRef.current()
     window.addEventListener('online', retry)
     return () => { alive = false; invalidate(); window.removeEventListener('online', retry); if (timer.current) clearTimeout(timer.current); recorder.current?.stream.getTracks().forEach(track => track.stop()) }
-  }, [])
+  }, [scopeId])
 
   async function importAudio(file?: File) {
     if (!file) return
@@ -63,7 +64,7 @@ export default function VoiceNarration({ onAccept }: Props) {
     if (!AUDIO_TYPES.test(file.type)) { setMessage('Ce fichier audio n’est pas pris en charge. Importez WebM, OGG, MP3, MP4 ou WAV.'); return }
     if (file.size > MAX_BYTES) { setMessage('Le fichier dépasse la limite de 64 MiB.'); return }
     await cancelJob(current.current)
-    const next = createVoiceRecord({ id: createId(), name: file.name, mime: file.type, size: file.size, status: 'device-only', complete: true })
+    const next = createVoiceRecord({ id: createId(), name: file.name, mime: file.type, size: file.size, status: 'device-only', complete: true, scopeId })
     await beginVoice(next); await replaceWithBlob(next, file)
     await commit(next); setInterrupted(false)
     setMessage((await storageWarning()) || 'Audio conservé sur cet appareil. Il ne sera envoyé qu’à votre demande.')
@@ -77,7 +78,7 @@ export default function VoiceNarration({ onAccept }: Props) {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       const mime = supportedRecorderMime()
       if (!mime) { stream.getTracks().forEach(track => track.stop()); setMessage('Aucun format d’enregistrement compatible. Importez un fichier audio.'); return }
-      const next = createVoiceRecord({ id: createId(), name: `recit-du-soir.${extensionForMime(mime)}`, mime, status: 'recording', complete: false })
+      const next = createVoiceRecord({ id: createId(), name: `recit-du-soir.${extensionForMime(mime)}`, mime, status: 'recording', complete: false, scopeId })
       await beginVoice(next)
       current.current = next; setRecord(next)
       let bytes = 0; let index = 0; let stopping = false; let chunkFailure = false
@@ -134,7 +135,7 @@ export default function VoiceNarration({ onAccept }: Props) {
   async function generate() { const value = current.current; if (!value?.segments.length) { setMessage('Corrigez ou ajoutez une transcription avant de demander une proposition.'); return }; const token = ++generation.current; controller.current = new AbortController(); setMessage('Rédaction IA en cours… Cela peut prendre jusqu’à deux minutes.'); try { if (!navigator.onLine) throw new Error('offline'); const start = await fetch(`/api/voice/recordings/${encodeURIComponent(value.id)}/drafts`, { method: 'POST', signal: controller.current.signal, headers: voiceHeaders(value.draftKey, { 'Content-Type': 'application/json' }), body: JSON.stringify({ idempotencyKey: value.draftKey, transcriptVersion: value.transcriptVersion, segments: value.segments.map(({ id, start, end, text }) => ({ id, start, end, text })) }) }); if (!start.ok) throw new Error('draft'); const job = await start.json(); const next = { ...value, status: 'processing' as const, pending: 'draft' as const, jobId: job.jobId }; await commit(next); await poll(next, token, 'draft') } catch { if (valid(value.id, value.revision, token)) { await commit({ ...current.current!, status: 'queued', pending: 'draft' }); setMessage('Connexion interrompue pendant la rédaction. Touchez « Réessayer l’opération ».') } } }
   async function poll(value: VoiceRecord, token: number, kind: 'transcription' | 'draft') { for (let attempt = 0; attempt < 180; attempt += 1) { await new Promise(resolve => window.setTimeout(resolve, 1000)); if (!valid(value.id, value.revision, token)) return; const response = await fetch(`/api/voice/jobs/${encodeURIComponent(current.current!.jobId!)}`, { signal: controller.current?.signal }); if (!response.ok) throw new Error('poll'); const job = await response.json(); if (!isTerminal(job.status)) continue; if (job.status !== 'completed') { const latest = current.current!; await commit(kind === 'draft' ? { ...latest, status: 'review', pending: undefined, jobId: undefined, draftKey: createId() } : { ...latest, status: 'server-received', pending: undefined, jobId: undefined, transcriptionKey: createId() }); setMessage(kind === 'draft' ? 'La rédaction IA a échoué. Touchez le bouton pour réessayer.' : 'La transcription a échoué. Touchez le bouton pour réessayer.'); return } if (!valid(value.id, value.revision, token)) return; if (kind === 'transcription') { const result = job.result ?? job; const segments: Segment[] = (result.segments ?? []).map((segment: { id: string; start: number; end: number; text: string }) => ({ ...segment, rawText: segment.text })); await commit({ ...current.current!, status: 'review', pending: undefined, jobId: undefined, transcriptVersion: Math.max(1, current.current!.transcriptVersion + 1), segments }); setMessage('Transcription reçue. Corrigez-la avant de demander une proposition.') } else { const result = job.result ?? job; if (result.transcriptVersion !== undefined && result.transcriptVersion !== current.current!.transcriptVersion) { setMessage('La transcription a changé pendant la génération : cette proposition est restée obsolète.'); return } await commit({ ...current.current!, status: 'review', pending: undefined, jobId: undefined, title: result.title ?? '', paragraphs: result.paragraphs ?? [], uncertainty: result.uncertainty ?? [], warnings: result.warnings ?? [] }); setMessage('Proposition prête : relisez les preuves avant de l’utiliser.') } return } throw new Error('timeout') }
   async function runPending(value: VoiceRecord) { if (value.pending === 'transcription') await transcribe(); if (value.pending === 'draft') await generate() }
-  async function removeLocal() { if (!record) return; if (record.uploaded) { setMessage('Supprimez d’abord la copie serveur, puis la copie de cet appareil.'); return }; invalidate(); await cancelJob(record); await deleteVoice(record.id); sessionStorage.removeItem('un-soir-voice-session'); current.current = undefined; setRecord(undefined); setInterrupted(false); setMessage('Audio supprimé de cet appareil.') }
+  async function removeLocal() { if (!record) return; if (record.uploaded) { setMessage('Supprimez d’abord la copie serveur, puis la copie de cet appareil.'); return }; invalidate(); await cancelJob(record); await deleteVoice(record.id); sessionStorage.removeItem(sessionKey(scopeId)); current.current = undefined; setRecord(undefined); setInterrupted(false); setMessage('Audio supprimé de cet appareil.') }
   async function removeServer() { if (!record?.uploaded) return; try { const response = await fetch(`/api/voice/recordings/${encodeURIComponent(record.id)}`, { method: 'DELETE', headers: voiceHeaders(createId()) }); if (!response.ok) throw new Error(); await commit({ ...record, uploaded: false, status: 'device-only', jobId: undefined, pending: undefined }); setMessage('Copie serveur supprimée. La copie de cet appareil est conservée.') } catch { setMessage('La suppression du serveur a échoué. La copie de cet appareil est conservée.') } }
   function editTranscript(text: string) { if (!record?.segments.length) return; invalidate(); const first = record.segments[0]; const last = record.segments[record.segments.length - 1]; const next = { ...record, revision: record.revision + 1, transcriptVersion: record.transcriptVersion + 1, draftKey: createId(), segments: [{ id: first.id, start: first.start, end: last.end, text, rawText: record.segments.map(segment => segment.rawText).join(' ') }], paragraphs: [], title: '', warnings: ['La proposition précédente doit être régénérée après cette correction.'] }; void commit(next) }
   function acceptDraft() { const value = current.current; if (!value) return; onAccept(value.title, value.segments.map(segment => segment.text).join(' '), value.paragraphs.map(paragraph => paragraph.text).join('\n\n')) }

@@ -81,6 +81,7 @@ test('la sauvegarde ZIP transporte le plan et la date de fin sans mélanger les 
   await (await safety).saveAs(testInfo.outputPath('securite-plan.zip'))
   await restored.getByRole('checkbox', { name: /je confirme que la copie de sécurité est téléchargée et vérifiée/i }).check()
   await restored.getByRole('button', { name: 'Restaurer ce carnet' }).click()
+  await expect(restored.getByRole('status')).toContainText('restaurées sur cet appareil')
   const trips = await restored.evaluate(() => JSON.parse(localStorage.getItem('un-soir-la-bas-upcoming-v1') || '[]'))
   expect(trips).toHaveLength(2)
   expect(trips.find((trip: { id: string }) => trip.id === 'kyoto')).toMatchObject({ endDate: '2027-04-24', plan: { ideas: [{ text: 'Les jardins' }], stops: [], notes: 'Train réservé' } })

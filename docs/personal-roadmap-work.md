@@ -1,6 +1,6 @@
 # Un soir là-bas — checkpoint P0/P1
 
-Worktree: `/home/smora/Workspace/unsoirlabas-long`, branch `feat/personal-roadmap-long`, based on `9093761`. This checkpoint covers the settled local PWA/offline lot and the P1 durable-media migration. No P2/P3/P4 implementation is claimed.
+Worktree: `/home/smora/Workspace/unsoirlabas-long`, branch `feat/personal-roadmap-long`, based on `9093761`. This checkpoint covers the settled local PWA/offline lot, P1 durable-media migration, and the bounded P1 evening ritual/voice-isolation work. No P2/P3/P4 implementation is claimed.
 
 ## Delivered locally
 
@@ -8,22 +8,24 @@ Worktree: `/home/smora/Workspace/unsoirlabas-long`, branch `feat/personal-roadma
 - P1 PWA/offline (`t_f7fee089`): production manifest with decoded 192×192 and 512×512 PNG install icons; build-generated service worker version derived from the exact shell asset paths and bundled content; required-shell `cache.addAll` fails installation and removes the incomplete cache; API paths are excluded; current/previous shell caches are bounded; previous hashed JS/CSS remain addressable for compatibility; offline navigation reads the current cache document. No automatic reload is triggered.
 - P1 durable media (`t_c2445958`): personal image bytes now live in `un-soir-la-bas-media-v1` IndexedDB and stored journal envelopes retain only versioned `idb:media:<id>` references. Migration writes blobs before replacing a validated local envelope, preserves byte-for-byte historical source under the recovery key, records migration state, and never replaces malformed storage. Rendering resolves references to stable Blob URLs; unavailable IndexedDB, missing bytes, quota, and corruption are surfaced without claiming a save. Explicit chapter updates run orphan cleanup across the legacy trip, multi-trip journals, and unsaved drafts, so a shared reference remains live until no collection retains it. Shared Web Locks now serialize media publication, storage migration, cleanup, legacy-journal migration, unsaved-draft writes/discards, and archive restoration across tabs; operations fail explicitly where Web Locks are unavailable. Cleanup fails closed on malformed/unknown envelopes, and archive restore preserves the current legacy Philippines journal when restoring an older archive without personal journals.
 - Portable archive/restore: ZIP creation resolves IndexedDB bytes into archive entries. A fresh browser restores the same chapter IDs, order, cover, tone, and binary media, then writes new IndexedDB references; the archive itself contains no Google OAuth token or photo-provider URL.
-- Related P1 subset: offline status and local writing/trip-context flow remain covered; the storage estimate explicitly is not a backup; the evening ritual opens the selected trip context without inventing dates. The trip/storage UX existed in this worktree and was preserved, not expanded into the unimplemented roadmap scope.
+- Related P1 subset (`t_17cf2d5d`): the first chapter opens in the short evening ritual (three-photo cap, voice or offline text, explicit review); “Ouvrir l’atelier complet” restores the existing 12-photo cap. Imports set a busy lock for their full asynchronous decode/normalize interval, preventing overlapping imports and saving while media is pending. In the public Vercel build, the short ritual does not render or mention private voice; text remains available. Voice records/transcripts/proposals persist by exact trip recovery scope; switching trips invalidates/aborts active async work, reload recovers only the selected trip's voice, and the generic creator loads only legacy unscoped records. The ritual adds no dates or inferred memories. Storage estimate remains explicitly not a backup.
 
 ## Verification on final code
 
 - `npm run lint` — passed.
-- `npm run build` — passed.
-- `PLAYWRIGHT_EXECUTABLE_PATH=/usr/bin/google-chrome npm run test:acceptance` — 95 passed, 3 skipped (98 total). The Playwright projects run ordinary acceptance against production preview and the four source-module durability regressions against a Vite dev server; no tests are omitted from the canonical command.
-- `PLAYWRIGHT_EXECUTABLE_PATH=/usr/bin/google-chrome npx playwright test --config=tests/media-durability.config.ts` — 4 passed (re-run independently).
-- `PLAYWRIGHT_EXECUTABLE_PATH=/usr/bin/google-chrome npx playwright test tests/archive.spec.ts:167` — 1 passed; the historical archive retains Oslo and legacy Philippines journal/counts.
+- `npm run build` — passed for the restored private build; `VERCEL=1 npm run build` also passed, then the private build was restored before final gates.
+- `VERCEL=1 PLAYWRIGHT_EXECUTABLE_PATH=/usr/bin/google-chrome npx playwright test tests/voice-availability.spec.ts --grep 'rituel public' --workers=1` — 1 passed against the actual Vercel-built production preview; short ritual contains no voice mention, CTA, component, or request path.
+- `PLAYWRIGHT_EXECUTABLE_PATH=/usr/bin/google-chrome npx playwright test tests/evening-ritual.spec.ts tests/voice.spec.ts tests/voice-availability.spec.ts tests/multi-trip-journals.spec.ts tests/personal-story-context.spec.ts --workers=1` — 21 passed, 1 skipped (private build; public-only test).
+- `PLAYWRIGHT_EXECUTABLE_PATH=/usr/bin/google-chrome npm run test:acceptance -- --workers=1` — 102 passed, 4 skipped (106 total). The one-worker run avoids browser resource contention from the suite's >25 MiB file fixture; both production-preview and durability-dev projects ran.
 - `python3 -m pytest -q tests/backend` — 9 passed; FastAPI `on_event` deprecation warnings only.
+- Evening ritual captures (no horizontal overflow or browser console errors), generated by the final acceptance run: `test-results/evening-ritual-captures-re-8dd38--le-rituel-de-chaque-voyage-production-preview/evening-ritual-320.png`, `.../evening-ritual-390.png`, `.../evening-ritual-1440.png`.
+- Focused voice isolation tests cover transcript/proposal separation through Tokyo → Lisbonne → reload → Tokyo, active-request cancellation on trip switch, and generic unscoped voice persistence through reload.
 - Vite dev browser smoke — 0 service-worker registrations, 0 controllers. No phone installation or physical network-loss test was performed.
 
 ## Pending / not claimed
 
 - `t_c2445958` physical device/browser-storage eviction testing remains a device gate; local browser migration/rollback/archive evidence is complete.
-- `t_17cf2d5d` voice/evening-ritual simplification: current voice flow is retained; no new one-voice/three-photo simplification or recording behavior is claimed.
+- `t_17cf2d5d` voice/evening-ritual simplification: implemented locally as a short first-chapter ritual (voice or offline text, explicit review/acceptance, up to three first-chapter photos, complete existing workshop and later 12-photo limit). Trip-scoped voice isolation and reload recovery verified; human product review remains pending.
 - Real phone PWA installation, icon/install affordance review, and airplane-mode reload remain human/device gates.
 - Other P0 reconciliation beyond this branch's tested baseline, all P2/P3/P4 lots, authentication/retention gates, and the separate continuity spike integration remain outside this commit. Continuity spike commit `f658745127677266c8af08b9a79572efb4c678ab` is integrated as a bounded local spike only and is explicitly not active sync.
 

@@ -24,6 +24,8 @@ async function createChapter(page: import('@playwright/test').Page, title: strin
   await page.getByRole('button', { name: new RegExp(`Écrire un chapitre pour ${destination}`) }).click()
   await page.reload()
   await expect(page.locator('[data-testid="creator"]:visible')).toHaveCount(1)
+  const workshop = page.getByRole('button', { name: 'Ouvrir l’atelier complet' })
+  if (await workshop.isVisible().catch(() => false)) await workshop.click()
   await page.getByLabel('Le titre de votre journée').fill(title)
   await page.getByLabel('Souvenirs de la journée').fill('Le vent et le café du matin.')
   await page.getByLabel('Votre récit, à votre façon').fill(story)
@@ -124,6 +126,7 @@ test('deux voyages ont des carnets indépendants : écriture, reload, édition e
   await page.getByLabel('Le titre de votre journée').fill('Tokyo, un matin clair')
   await page.getByRole('button', { name: 'Prévisualiser', exact: true }).click()
   await page.getByRole('button', { name: 'Ajouter au voyage' }).click()
+  await expect(page.getByTestId('custom-chapter').getByRole('heading', { name: 'Tokyo, un matin clair' })).toBeVisible()
   expect(await page.evaluate(key => JSON.parse(localStorage.getItem(key)!).journals.map((item: { destination: string; chapters: { title: string }[] }) => [item.destination, item.chapters.map(chapter => chapter.title)]), journalsKey)).toEqual([
     ['Lisbonne', ['Un soir à Lisbonne']], ['Tokyo', ['Tokyo, un matin clair']],
   ])
@@ -208,6 +211,7 @@ test('un stockage de carnets corrompu est conservé et empêche un faux succès'
   await page.evaluate(({ key, raw }) => localStorage.setItem(key, raw), { key: journalsKey, raw })
   await page.getByTestId('upcoming-trip').filter({ hasText: 'Tokyo' }).getByRole('button', { name: /^(?:Ouvrir le carnet|Carnet)$/ }).click()
   await page.getByRole('button', { name: /Écrire un chapitre pour Tokyo/ }).click()
+  await page.getByRole('button', { name: 'Ouvrir l’atelier complet' }).click()
   await page.getByLabel('Le titre de votre journée').fill('Une page à conserver')
   await page.getByLabel('Souvenirs de la journée').fill('Le premier café.')
   await page.getByLabel('Votre récit, à votre façon').fill(story)
@@ -222,6 +226,7 @@ test('un quota plein au moment de sauvegarder un chapitre affiche une erreur et 
   await seed(page)
   await page.getByTestId('upcoming-trip').filter({ hasText: 'Tokyo' }).getByRole('button', { name: /^(?:Ouvrir le carnet|Carnet)$/ }).click()
   await page.getByRole('button', { name: /Écrire un chapitre pour Tokyo/ }).click()
+  await page.getByRole('button', { name: 'Ouvrir l’atelier complet' }).click()
   await page.getByLabel('Le titre de votre journée').fill('Une page temporaire')
   await page.getByLabel('Souvenirs de la journée').fill('Le premier café.')
   await page.getByLabel('Votre récit, à votre façon').fill(story)
