@@ -94,7 +94,8 @@
     {"id":"t_c2445958","phase":"P1","status":"local-delivered","delivered":"Validated personal media are migrated from localStorage data URLs to IndexedDB blobs with idb:media references, recovery copy/log, Blob URL hydration, bounded cleanup, and portable ZIP byte export/fresh-browser ref regeneration. Corruption, unavailable IndexedDB and quota paths preserve source and report errors.","pending":"Physical-device/browser-storage eviction and human migration review."},
     {"id":"t_17cf2d5d","phase":"P1","status":"local-delivered","delivered":"Short first-chapter ritual supports offline text or private voice, explicit review, and a three-photo cap; full-workshop transition restores the historic 12-photo cap. Upload busy state prevents overlapping imports and saving while decoding. Public Vercel build hides and omits private voice from the short ritual. Trip-scoped voice records/transcripts/proposals remain isolated on switching and reload, with active async work invalidated.","pending":"Human product review; no phone installation or physical offline test claimed."},
     {"id":"t_e5e778cb","phase":"P3","status":"implemented-local","delivered":"Stable planned trip/step linkage on explicit chapter creation; title/context prefilled only; reorder/delete preserve references and chapters; honest orphan rendering; optional ZIP metadata roundtrips and missing legacy fields remain valid.","pending":"Parent local integration after this commit; no push, merge, or deployment."},
-    {"id":"t_271135f2","phase":"P3","status":"implemented-local","delivered":"Selected personal chapter has exact-preview-confirmed Story 9:16, ordered 4:5 ZIP carousel and photo/text postcard. Per-field date/place controls, manual name/text redaction, per-photo opt-out, neutral re-encoded files; original remains unchanged and nothing publishes automatically.","pending":"Human visual review and real-phone gate; no push, merge, or deployment."}
+    {"id":"t_271135f2","phase":"P3","status":"implemented-local","delivered":"Selected personal chapter has exact-preview-confirmed Story 9:16, ordered 4:5 ZIP carousel and photo/text postcard. Per-field date/place controls, manual name/text redaction, per-photo opt-out, neutral re-encoded files; original remains unchanged and nothing publishes automatically.","pending":"Human visual review and real-phone gate; no push, merge, or deployment."},
+    {"id":"t_c4528d40","phase":"P2","status":"partial-local","delivered":"Manual, trip-scoped cited-option preview with declared verification date/factual status, conflict warning, optional explicitly estimated transfer time, safe HTTP(S)-only URLs, explicit import without overwriting stops, reorder/cancel, persistence and ZIP portability. Free periods stay empty; manual planner remains available offline.","pending":"No live research, provider integration, automatic options, live source verification or AI. Await a suitable source/provider contract; no push, merge or deployment."}
   ],
   "voiceSecurity": {
     "card": "t_776b6981",
@@ -114,7 +115,18 @@
     ],
     "next": "Implement a private browser session boundary that never exposes the server capability; add persisted principal/scope ownership and two-scope access tests. Define and verify retention/purge across audio, job payload/results, SQLite tombstones/WAL and backups before activation."
   },
-  "notInScope": ["P2 benchmark/backend/trip research", "P4 PDF and physical continuity"],
+  "p2ManualSourcedOptions": {
+    "card": "t_c4528d40",
+    "status": "partial-local; automatic/live research pending",
+    "limits": ["Source URLs and verification dates are user-declared; sources are not fetched.", "No prices, schedules, availability, recommendation or AI output is generated.", "Conflicts are user-declared and warned; source contradiction detection is not automatic."],
+    "verification": [
+      {"command":"npm run lint","result":"passed"},
+      {"command":"npm run build","result":"passed"},
+      {"command":"PLAYWRIGHT_EXECUTABLE_PATH=/usr/bin/google-chrome npm run test:acceptance -- --workers=1","result":"117 passed, 4 skipped; 121 total"},
+      {"command":"python3 -m pytest -q tests/backend","result":"26 passed; existing FastAPI on_event deprecation warnings"}
+    ]
+  },
+  "notInScope": ["P2 live research/automatic recommendations/provider integration", "P4 PDF and physical continuity"],
   "privacy": "Service worker does not precache /api/ or audio/private response paths. No personal user data was added to evidence.",
   "commit": "Earlier commits: fa8d768558704f2f9c87760acd72a3ccc3ae476e (durable-media delivery), b890f1e (final hydration bootstrap fix). P1 closure commit: fix: close evening ritual regressions (see current branch HEAD).",
   "remainingGates": ["Phone installation and offline reload", "Physical-device IndexedDB retention/migration review", "Human review of the evening ritual", "Parent review of the separate continuity spike; no active sync claim"]

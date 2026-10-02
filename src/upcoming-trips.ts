@@ -2,8 +2,10 @@ import { createId } from './id'
 
 export const upcomingKey = 'un-soir-la-bas-upcoming-v1'
 export type PlanItem = { id: string; text: string }
-export type PlanStop = { id: string; place: string; date?: string }
-export type UpcomingTrip = { id: string; destination: string; departure: string; endDate?: string; completed?: true; plan?: { ideas: PlanItem[]; stops: PlanStop[]; notes: string } }
+export type FactualStatus = 'confirmed' | 'estimated' | 'to-check'
+export type SourcedOption = { id: string; title: string; place: string; sourceUrl: string; verifiedAt: string; status: FactualStatus; conflict: boolean; date?: string; transferMinutes?: number }
+export type PlanStop = { id: string; place: string; date?: string; sourceUrl?: string; verifiedAt?: string; status?: FactualStatus; conflict?: boolean; transferMinutes?: number }
+export type UpcomingTrip = { id: string; destination: string; departure: string; endDate?: string; completed?: true; plan?: { ideas: PlanItem[]; stops: PlanStop[]; notes: string; options?: SourcedOption[] } }
 
 function exact(value: unknown, required: string[], optional: string[] = []): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value) &&
@@ -11,14 +13,29 @@ function exact(value: unknown, required: string[], optional: string[] = []): val
     Object.keys(value).every(key => required.includes(key) || optional.includes(key))
 }
 function validPlan(value: unknown): boolean {
-  if (!exact(value, ['ideas', 'stops', 'notes']) || !Array.isArray(value.ideas) || !Array.isArray(value.stops) ||
+  if (!exact(value, ['ideas', 'stops', 'notes'], ['options']) || !Array.isArray(value.ideas) || !Array.isArray(value.stops) ||
     value.ideas.length > 30 || value.stops.length > 30 || typeof value.notes !== 'string' || value.notes.length > 4000) return false
   const id = (item: unknown) => typeof item === 'string' && item.length > 0 && item.length <= 160
   const text = (item: unknown) => typeof item === 'string' && item.trim().length > 0 && item.length <= 160
+  const status = (item: unknown) => item === 'confirmed' || item === 'estimated' || item === 'to-check'
+  const sourceUrl = (item: unknown) => {
+    if (typeof item !== 'string' || item.length > 2000) return false
+    try { const url = new URL(item); return url.protocol === 'https:' || url.protocol === 'http:' } catch { return false }
+  }
+  const validSourceFields = (item: Record<string, unknown>) =>
+    (!Object.hasOwn(item, 'sourceUrl') || sourceUrl(item.sourceUrl)) &&
+    (!Object.hasOwn(item, 'verifiedAt') || (typeof item.verifiedAt === 'string' && !!dateParts(item.verifiedAt))) &&
+    (!Object.hasOwn(item, 'status') || status(item.status)) &&
+    (!Object.hasOwn(item, 'conflict') || typeof item.conflict === 'boolean') &&
+    (!Object.hasOwn(item, 'transferMinutes') || (Number.isSafeInteger(item.transferMinutes) && Number(item.transferMinutes) >= 0 && Number(item.transferMinutes) <= 1440))
   return value.ideas.every(item => exact(item, ['id', 'text']) && id(item.id) && text(item.text)) &&
-    value.stops.every(item => exact(item, ['id', 'place'], ['date']) && id(item.id) && text(item.place) &&
-      (!Object.prototype.hasOwnProperty.call(item, 'date') || (typeof item.date === 'string' && !!dateParts(item.date)))) &&
+    value.stops.every(item => exact(item, ['id', 'place'], ['date', 'sourceUrl', 'verifiedAt', 'status', 'conflict', 'transferMinutes']) && id(item.id) && text(item.place) &&
+      (!Object.hasOwn(item, 'date') || (typeof item.date === 'string' && !!dateParts(item.date))) && validSourceFields(item)) &&
+    (!Object.hasOwn(value, 'options') || (Array.isArray(value.options) && value.options.length <= 30 && value.options.every(item =>
+      exact(item, ['id', 'title', 'place', 'sourceUrl', 'verifiedAt', 'status', 'conflict'], ['date', 'transferMinutes']) && id(item.id) && text(item.title) && text(item.place) && sourceUrl(item.sourceUrl) && typeof item.verifiedAt === 'string' && !!dateParts(item.verifiedAt) && status(item.status) && typeof item.conflict === 'boolean' &&
+      (!Object.hasOwn(item, 'date') || (typeof item.date === 'string' && !!dateParts(item.date))) && validSourceFields(item)))) &&
     new Set(value.ideas.map(item => item.id)).size === value.ideas.length && new Set(value.stops.map(item => item.id)).size === value.stops.length
+    && (!Array.isArray(value.options) || new Set(value.options.map(item => item.id)).size === value.options.length)
 }
 
 export function validateUpcomingTrips(value: unknown): value is UpcomingTrip[] {

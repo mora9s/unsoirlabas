@@ -47,6 +47,16 @@ Vérifié sur la révision finale : `npm run lint`, `npm run build`, `python3 -m
 
 Le partage reste local/non publié. Le test navigateur n’est pas une revue visuelle humaine ni une validation sur téléphone ; installation PWA et vérification physique restent à faire.
 
+## P2 · Préparation sourcée manuelle — `t_c4528d40` (tranche partielle)
+
+Faute de fournisseur IA/recherche web privé et vérifiable disponible, cette tranche n’invente aucune recommandation : la personne ajoute elle-même une proposition avec son titre, son lieu, une URL HTTP(S), une date de vérification déclarée, un statut (confirmé par la personne, estimé, à vérifier), un éventuel conflit de sources, une date facultative et un temps de transfert facultatif explicitement estimé. Un avertissement explique qu’aucune source n’est consultée automatiquement et que les horaires, prix et disponibilités restent à vérifier ; les dates déclarées ne prétendent pas être un contrôle effectué aujourd’hui. Un état contradictoire déclenche un avertissement « impossible de comparer ».
+
+Les propositions sont locales, limitées par voyage, persistées et incluses dans les archives ZIP. Elles peuvent être réordonnées/retirées ; l’ajout au parcours est une action explicite qui transfère les métadonnées de source et d’incertitude sans remplacer les étapes existantes. Le formulaire manuel existant reste intact, les étapes/dates ne sont pas générées et les plages libres ne sont jamais préremplies. Les liens refusent les schémas autres que HTTP(S), y compris `javascript:` ; une structure sauvegardée invalide est préservée et signalée plutôt que réécrite.
+
+Vérifié sur la révision finale : `npm run lint`, `npm run build`, `python3 -m pytest -q tests/backend` (26 passés, avertissements de dépréciation FastAPI existants), et suite canonique `PLAYWRIGHT_EXECUTABLE_PATH=/usr/bin/google-chrome npm run test:acceptance -- --workers=1` (117 passés, 4 ignorés sur 121). Régressions navigateur couvrent l’aperçu/import explicite, absence d’écrasement, ordre/retrait, deux voyages, persistance, liens en archive ZIP, schémas URL malveillants, dates de vérification invalides, date proposée incompatible avec le départ et avertissements de sources contradictoires. Aucun nouvel endpoint, scrape, IA, prix/horaire, réservation, serveur, profil, publication ou accès à des sources privées.
+
+**État honnête : partiel.** Le flux manuel cité est disponible localement ; la recherche live sourcée et les propositions automatiques restent en attente d’un fournisseur/contrat de sources validé. Aucun push, merge ou déploiement.
+
 ## P0 · Sécurité vocale bornée — `t_776b6981`
 
 **Livré localement, non activé sur l’instance en cours :** le backend offre maintenant une authentification bearer opt-in pour toutes les routes `/api/voice/*` sensibles (health, GET audio/jobs, uploads et autres mutations), avec comparaison constante. Auth explicitement activée sans secret = 503 (pas de repli sur les contrôles historiques); secret absent du build/frontend. GET audio renvoie seulement l’enregistrement actif et `Cache-Control: no-store`. Tests synthétiques couvrent refus sans token, refus de configuration incomplète, l’absence d’effet d’Origin/en-tête constant, et accès avec bearer.
