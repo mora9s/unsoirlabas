@@ -1,8 +1,12 @@
+import { useState } from 'react'
 import type { PersonalJournal } from '../trip-journals'
 import type { Draft } from '../journal'
 import { upcomingForJournal } from '../trip-journals'
+import ExportBook from './ExportBook'
+import './book-export.css'
 
 export default function TripJournal({ journal, open, create, edit }: { journal: PersonalJournal; open: (draft: Draft) => void; create: () => void; edit: (draft: Draft) => void }) {
+  const [exporting, setExporting] = useState(false)
   const currentPlan = upcomingForJournal(journal.tripId)?.plan
   return <section className="trip-journal page-width" data-testid="trip-journal">
     <p className="eyebrow">Carnet personnel · {journal.departure || 'sans date ajoutée'}</p>
@@ -15,6 +19,8 @@ export default function TripJournal({ journal, open, create, edit }: { journal: 
       return <li key={chapter.id} data-testid="planned-step-link"><strong>{stop ? `Étape prévue · ${stop.place}` : `Étape prévue retirée du plan · ${link.place}`}</strong><span> · {chapter.title}</span></li>
     })}</ul>}
     <button className="button" onClick={create}>Écrire un chapitre pour {journal.destination}<span aria-hidden="true">＋</span></button>
+    {journal.chapters.length > 0 && <button className="text-button book-open-button" onClick={() => setExporting(true)}>Composer le livre PDF</button>}
+    {exporting && <ExportBook destination={journal.destination} chapters={journal.chapters} close={() => setExporting(false)} />}
     {!journal.chapters.length ? <p className="journal-empty">Les pages de ce voyage apparaîtront ici.</p> : <div className="journal-chapters">{journal.chapters.map(chapter => <article key={chapter.id} data-testid="journal-chapter-card">
       <div>{chapter.media[0] && <img src={(chapter.media.find(item => item.id === chapter.coverId) ?? chapter.media[0]).src} alt="" />}<span className="eyebrow">Chapitre personnel</span><h2>{chapter.title}</h2><p>{chapter.story.replace(/\s+/g, ' ').slice(0, 180)}</p>{chapter.plannedStep && (() => { const link = chapter.plannedStep!; const stop = link.tripId === journal.tripId ? currentPlan?.stops.find(item => item.id === link.stepId) : undefined; return <p className="planned-step-link" data-testid="planned-step-link">{stop ? `Étape prévue · ${stop.place}` : `Étape prévue retirée du plan · ${link.place}`}</p> })()}</div>
       <div className="personal-actions"><button className="text-button" onClick={() => open(chapter)}>Lire</button><button className="text-button" onClick={() => edit(chapter)}>Modifier</button></div>
