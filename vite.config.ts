@@ -70,7 +70,8 @@ self.addEventListener('fetch', event => {
   const url = new URL(request.url)
   if (request.method !== 'GET' || url.origin !== self.location.origin || url.pathname.startsWith('/api/')) return
   if (request.mode === 'navigate') {
-    event.respondWith(fetch(request).then(response => response.ok ? response : caches.match('/').then(cached => cached || response)).catch(async () => (await caches.match('/')) || Response.error()))
+    const currentDocument = async () => (await caches.open(CACHE_NAME)).match('/')
+    event.respondWith(fetch(request).then(response => response.ok ? response : currentDocument().then(cached => cached || response)).catch(async () => (await currentDocument()) || Response.error()))
     return
   }
   if (SHELL.includes(url.pathname) || /^\\/assets\\/[^/]+\\.(?:js|css)$/.test(url.pathname)) event.respondWith(caches.match(url.pathname).then(cached => cached || fetch(request)))
