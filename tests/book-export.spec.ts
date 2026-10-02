@@ -49,6 +49,41 @@ test('exports selected journal only, manual order, embedded local photo and pagi
   expect(await page.evaluate(() => localStorage.getItem('un-soir-la-bas-journals-v1'))).toBe(beforeStorage)
 })
 
+test('120-character French single-token cover title is extracted within the page and leaves room for its photo', async ({ page }, testInfo) => {
+  const longTitle = 'ÉtéMontréal—Lumière'.repeat(8).slice(0, 120)
+  const chapterTitle = 'Récit—Magnifique'.repeat(8).slice(0, 120)
+  const image = `data:image/jpeg;base64,${(await readFile('public/assets/el-nido-bay.jpg')).toString('base64')}`
+  await page.addInitScript(({ image, chapterTitle }) => localStorage.setItem('un-soir-la-bas-journals-v1', JSON.stringify({ version: 1, journals: [{ tripId: 'trip-long-title', destination: 'Montréal destination très longue qui reste entièrement lisible', departure: '', chapters: [{ id: 'long-title', title: chapterTitle, story: 'Un récit pour vérifier la couverture.', memories: '', tone: '', media: [{ id: 'cover-photo', name: 'baie.jpg', src: image, width: 1400, height: 933 }], coverId: 'cover-photo', status: 'draft' }] }] })), { image, chapterTitle })
+  await page.goto('/#trip/trip-long-title')
+  await page.getByRole('button', { name: 'Composer le livre PDF' }).click()
+  const dialog = page.getByRole('dialog', { name: /Composer le livre/ })
+  await dialog.getByLabel('Titre de couverture').fill(longTitle)
+  await dialog.getByLabel('Ajouter une photo de couverture (facultatif)').check()
+  await dialog.getByRole('combobox').selectOption('cover-photo')
+  const downloadPromise = page.waitForEvent('download')
+  await dialog.getByRole('button', { name: 'Télécharger le PDF' }).click()
+  const download = await downloadPromise
+  const output = testInfo.outputPath('long-title-book.pdf')
+  await download.saveAs(output)
+  const { execFileSync } = await import('node:child_process')
+  const extracted = execFileSync('pdftotext', [output, '-'], { encoding: 'utf8' }).replace(/\s+/g, ' ')
+  expect(extracted.replace(/\s/g, '')).toContain(longTitle.replace(/\s/g, ''))
+  expect(extracted.replace(/\s/g, '')).toContain(chapterTitle.replace(/\s/g, ''))
+  expect(extracted).toContain('Montréal destination très longue qui reste entièrement lisible')
+  expect(extracted).not.toContain('Confidentiel Lisbonne')
+  const bbox = execFileSync('pdftotext', ['-bbox', output, '-'], { encoding: 'utf8' })
+  const titleLines = [...bbox.matchAll(/<word xMin="([\d.]+)" yMin="([\d.]+)" xMax="([\d.]+)" yMax="([\d.]+)">([^<]+)<\/word>/g)]
+    .filter(([, , , , , word]) => longTitle.includes(word))
+  expect(titleLines.length).toBeGreaterThan(1)
+  expect(titleLines.every(([, xMin, yMin, xMax, yMax]) => Number(xMin) >= 58 && Number(xMax) <= 537 && Number(yMin) > 0 && Number(yMax) < 842)).toBe(true)
+  const pdfSource = (await readFile(output)).toString('latin1')
+  const coverPlacement = pdfSource.match(/q ([\d.]+) 0 0 ([\d.]+) ([\d.]+) ([\d.]+) cm \/Im1 Do Q/)
+  expect(coverPlacement).not.toBeNull()
+  const imageTop = 841.89 - Number(coverPlacement![4]) - Number(coverPlacement![2])
+  const lastCoverTextY = Math.max(...titleLines.map(([, , , , yMax]) => Number(yMax)))
+  expect(lastCoverTextY).toBeLessThan(imageTop)
+})
+
 test('short authored book downloads a compact two-page PDF', async ({ page }, testInfo) => {
   await page.addInitScript(() => localStorage.setItem('un-soir-la-bas-journals-v1', JSON.stringify({ version: 1, journals: [{ tripId: 'trip-short', destination: 'Montréal', departure: '', chapters: [{ id: 'short', title: 'Un soir doux', story: 'La lumière tombe. Nous gardons ces mots.', memories: '', tone: '', media: [], coverId: '', status: 'draft' }] }] })))
   await page.goto('/#trip/trip-short')
