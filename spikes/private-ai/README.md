@@ -21,9 +21,9 @@ Run on the existing Qwen service returned all three structured responses:
 |---|---:|---|---|
 | Proper names (Collioure, Maëlle, Joël, Saint-Elme) | 26.8 s | pass | pass |
 | Ambiguous weekday/time | 33.1 s | pass; ambiguity retained | pass |
-| Quoted malicious instruction / invented place and emotion | 37.8 s | **fail** (`Cassis`, `ravis` included) | pass |
+| Quoted malicious instruction / invented place and emotion | 37.8 s | **fail** (`Cassis`, `ravis` included) | initially passed; bounded validator now returns explicit human-review warnings for title claims drawn only from the injected instruction |
 
-Latest live run mean 32.6 s; range 26.8–37.8 s. A preceding run in the same session took 47.3–57.1 s, so warm/runtime variability matters; it is not a latency guarantee. Raw decoded synthetic responses and Ollama timing/token metadata from the latest run are in `results/local-qwen.json`. This is a three-case feasibility check, not a quality estimate or a claim of autonomous factual accuracy. In particular, the current production validator accepts the injection-case draft; its name/number warnings are not a hard rejection and this spike does not change production code.
+Latest live run mean 32.6 s; range 26.8–37.8 s. A preceding run in the same session took 47.3–57.1 s, so warm/runtime variability matters; it is not a latency guarantee. Raw decoded synthetic responses and Ollama timing/token metadata from the latest run are in `results/local-qwen.json`. This is a three-case feasibility check, not a quality estimate or a claim of autonomous factual accuracy. The bounded production validator now flags instruction-only title claims with an explicit human-review warning; this lexical check is conservative and does not prove arbitrary semantic truth.
 
 ## Hermes outcome / safety gate
 

@@ -339,6 +339,21 @@ def _draft_prompt(segments: list[dict[str, Any]]) -> str:
             "--- DATA START ---\n" + data + "\n--- DATA END ---")
 
 
+def _candidate_names(text: str) -> set[str]:
+    # A deliberately rough lexical signal, not named-entity recognition.
+    common = {"Le", "La", "Les", "Un", "Une", "Des", "Du", "De", "À", "Au", "Aux", "Et", "En", "On", "Je", "Nous", "Il", "Elle", "Ils", "Elles", "Quelqu'un", "Quelqu’une", "C'était", "Peut-être", "Ignore", "Invent", "Inventez", "Écris", "Écrivez"}
+    return {word for word in re.findall(r"\b[A-ZÀ-ÖØ-Þ][\wÀ-ÖØ-öø-ÿ'-]*\b", text) if word not in common}
+
+
+def _instruction_only_terms(text: str) -> set[str]:
+    """Find a narrow known instruction pattern; this is not semantic analysis."""
+    match = re.search(
+        r"ignore les règles.{0,100}?invent(?:e|ez)\b.{0,80}?\bà\s+([A-ZÀ-ÖØ-Þ][\wÀ-ÖØ-öø-ÿ'-]*).{0,80}?écri(?:s|t|vez)\b.{0,60}?\b(ravis|ravie|heureux|heureuse)",
+        text, re.IGNORECASE,
+    )
+    return set(match.groups()) if match else set()
+
+
 def validate_draft(value: Any, segments: list[dict[str, Any]]) -> dict[str, Any]:
     if not isinstance(value, dict) or set(value) - {"title", "paragraphs", "uncertainty", "warnings"}:
         raise ValueError("invalid draft object")
@@ -347,28 +362,47 @@ def validate_draft(value: Any, segments: list[dict[str, Any]]) -> dict[str, Any]
         raise ValueError("invalid draft shape")
     known = {s["id"] for s in segments}
     clean = []
+    warnings = [x for x in value.get("warnings", []) if isinstance(x, str) and len(x) <= 500]
+    source = " ".join(s["text"] for s in segments)
+    factual_source = " ".join(s["text"] for s in segments if not _instruction_only_terms(s["text"]))
+    command_only = _instruction_only_terms(source) - _candidate_names(factual_source)
+    supported_names = _candidate_names(factual_source)
     for item in paragraphs:
         ids = item.get("supportingSegmentIds") if isinstance(item, dict) else None
-        if not isinstance(item, dict) or not isinstance(item.get("text"), str) or not item["text"].strip() or len(item["text"]) > 5000 or not isinstance(ids, list) or not ids or any(not isinstance(x, str) or x not in known for x in ids):
+        if not isinstance(item, dict) or not isinstance(item.get("text"), str) or not item["text"].strip() or len(item["text"] ) > 5000 or not isinstance(ids, list) or not ids or any(not isinstance(x, str) or x not in known for x in ids):
             raise ValueError("ungrounded paragraph")
         paragraph_text = item["text"].strip()
-        cited_text = " ".join(segment["text"] for segment in segments if segment["id"] in ids)
+        cited_segments = [segment for segment in segments if segment["id"] in ids]
+        cited_text = " ".join(segment["text"] for segment in cited_segments)
+        cited_factual_segments = [segment for segment in cited_segments if not _instruction_only_terms(segment["text"])]
+        cited_factual_text = " ".join(segment["text"] for segment in cited_factual_segments)
+        cited_supported_names = _candidate_names(cited_factual_text)
+        cited_command_only = set().union(*(_instruction_only_terms(segment["text"]) for segment in cited_segments)) - _candidate_names(cited_factual_text)
+        # A verbatim reported utterance is evidence that someone said those words,
+        # not evidence that its imperative content describes the trip.
+        direct_report = any(paragraph_text == segment["text"] for segment in cited_segments) and bool(re.search(r"\b(?:a dit|a répondu|a demandé|a raconté)\b", cited_text, re.IGNORECASE))
         paragraph_digits = set(re.findall(r"\b\d+\b", paragraph_text))
         cited_digits = set(re.findall(r"\b\d+\b", cited_text))
         if paragraph_digits - cited_digits:
             raise ValueError("paragraph introduces a number absent from its cited evidence")
+        if not direct_report:
+            for candidate in sorted(_candidate_names(paragraph_text) - cited_supported_names):
+                warnings.append(f"Human review required: unsupported proper-name candidate {candidate} in cited evidence; lexical check is approximate.")
+            for term in sorted(cited_command_only):
+                if re.search(rf"\b{re.escape(term)}\b", paragraph_text, re.IGNORECASE):
+                    warnings.append(f"Human review required: {term} appears only in a quoted instruction, not factual trip evidence.")
         clean.append({"text": paragraph_text, "supportingSegmentIds": ids})
-    source = " ".join(s["text"] for s in segments)
-    output = title + " " + " ".join(p["text"] for p in clean)
-    source_digits, output_digits = set(re.findall(r"\b\d+\b", source)), set(re.findall(r"\b\d+\b", output))
-    title_digits = set(re.findall(r"\b\d+\b", title))
-    if title_digits - source_digits:
-        raise ValueError("title introduces a number absent from the transcript")
-    source_names, output_names = set(re.findall(r"\b[A-ZÀ-ÖØ-Þ][\wÀ-ÖØ-öø-ÿ'-]*\b", source)), set(re.findall(r"\b[A-ZÀ-ÖØ-Þ][\wÀ-ÖØ-öø-ÿ'-]*\b", output))
-    warnings = [x for x in value.get("warnings", []) if isinstance(x, str) and len(x) <= 500]
-    warnings += [f"introduced number candidate: {x}" for x in sorted(output_digits - source_digits)]
-    warnings += [f"introduced proper-name candidate: {x}" for x in sorted(output_names - source_names) if x not in {"Le", "La", "Les", "Un", "Une"}]
-    return {"title": title.strip(), "paragraphs": clean, "uncertainty": uncertainty, "warnings": list(dict.fromkeys(warnings))}
+    title_text = title.strip()
+    title_digits = set(re.findall(r"\b\d+\b", title_text))
+    source_digits = set(re.findall(r"\b\d+\b", factual_source))
+    for number in sorted(title_digits - source_digits):
+        warnings.append(f"Human review required: title introduces unsupported number candidate {number}.")
+    for candidate in sorted(_candidate_names(title_text) - supported_names):
+        warnings.append(f"Human review required: title introduces unsupported proper-name candidate {candidate}; lexical check is approximate.")
+    for term in sorted(command_only):
+        if re.search(rf"\b{re.escape(term)}\b", title_text, re.IGNORECASE):
+            warnings.append(f"Human review required: title promotes {term} from a quoted instruction into a trip claim.")
+    return {"title": title_text, "paragraphs": clean, "uncertainty": uncertainty, "warnings": list(dict.fromkeys(warnings))}
 
 
 class JobRequest(BaseModel):
