@@ -69,7 +69,7 @@
   },
   "nonClaimsAndExclusions": {
     "notClaimed":["live Kanban status (CLI read blocked in child context)","CI active","production/deployed","native or phone acceptance","real voice/personal data read or changed","active sync","retention integration","Hermes API safe/isolated"],
-    "notDeleted":["three pre-existing modified screenshots/travel-library-{320,390,1440}.png","17 evidence/book-*.png renders were untracked at the first and final status; all remain unstaged. An intermediate inventory counted 18 including book-final-contact.png, absent in the final inventory; cause/provenance unknown, no manual deletion issued."],
+    "notDeleted":["three pre-existing modified screenshots/travel-library-{320,390,1440}.png","17 untracked evidence/book-*.png renders remain unstaged; evidence/book-final-contact.png is tracked and unchanged. None was deleted or added to the consolidation commit."],
     "retention":"Separate fixture/spike only; not integrated or ready. Do not integrate as part of this consolidation."
   }
 }

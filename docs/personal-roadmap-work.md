@@ -38,4 +38,4 @@ Les statuts ci-dessous qualifient le degré d’acceptation technique constaté,
 
 ## Exclusions de travail non possédé
 
-Les trois captures historiques suivies (`screenshots/travel-library-{320,390,1440}.png`) étaient déjà modifiées et 17 rendus `evidence/book-*.png` apparaissaient non suivis au premier et au dernier relevé ; ils restent intacts et exclus du commit. Un inventaire intermédiaire a momentanément compté 18 (avec `book-final-contact.png`), absent au relevé final ; la cause/provenance est inconnue et aucune suppression manuelle n’a été faite. Pas de nettoyage des Chrome/gateway/services préexistants ; seuls les processus de tests/build démarrés pour cette vérification ont été laissés se terminer normalement.
+Les trois captures historiques suivies (`screenshots/travel-library-{320,390,1440}.png`) étaient déjà modifiées. Les 17 rendus `evidence/book-*.png` non suivis sont conservés et exclus ; `evidence/book-final-contact.png` est suivi et inchangé. Aucun n’a été supprimé ou ajouté au commit. Les Chrome/gateway/services préexistants n’ont pas été nettoyés ; seuls les processus de tests/build lancés pour cette vérification ont fini normalement.
