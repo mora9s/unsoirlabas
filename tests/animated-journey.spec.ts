@@ -48,7 +48,9 @@ test('lecture complète enchaîne les trajets et s’arrête à la dernière arr
 test('localisation GPS, transport train et chapitre persistent après rechargement', async ({ page }) => {
   await seed(page, { ...trip, plan: { ...trip.plan, stops: trip.plan.stops.map(s => ({ id: s.id, place: s.place })) } })
   await page.goto('/#plan/motion-test')
-  const details = page.locator('.stop-details').nth(1)
+  const organizer = page.locator('.planner-organize')
+  await page.locator('.planner-organize > summary').click()
+  const details = organizer.locator('.stop-details').nth(1)
   await details.locator('summary').click()
   await details.getByLabel('Coordonnées GPS de Cebu').fill('10.3157, 123.8854')
   await details.getByRole('button', { name: 'Valider les coordonnées' }).click()

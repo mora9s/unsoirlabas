@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 2,
+  "purpose": "Local personal-roadmap consolidation; no publication or external state change",
+  "worktree": "/home/smora/Workspace/unsoirlabas-long",
+  "branch": "feat/personal-roadmap-long",
+  "verifiedSourceHead": "44909cc476bacc00a62173b1aec1a060836e50f2",
+  "verifiedSourceCommitAuthor": "smora <mora.stephane@gmail.com>",
+  "verifiedAt": "2026-10-03T01:56:10+02:00",
+  "boardRead": {
+    "board": "un-soir-la-bas",
+    "liveCliRead": "blocked",
+    "reason": "delegate_task child contexts cannot mutate Kanban tasks or boards",
+    "interpretation": "No live Kanban status is claimed. The local kanban-receipt.json is a historical backlog-seeding receipt, not current state. No board/card transition was attempted."
+  },
+  "cards": [
+    {"id":"t_fa1579b9","phase":"P0","status":"partial","acceptance":"Branch/code reconciliation and local gates covered; live browser-blank restore and human visual review/device gates remain.","parentEvidence":"canonical lint/build/Playwright/backend below","childClaimSha":null},
+    {"id":"t_f7fee089","phase":"P1","status":"partial","acceptance":"Local SW/offline shell behavior present; physical install, offline edit/reload/return and device guidance unverified.","parentEvidence":"canonical Playwright 121 passed; no phone test","childClaimSha":null},
+    {"id":"t_c2445958","phase":"P1","status":"partial","acceptance":"IndexedDB migration/recovery, corruption/quota, archive restore and locking tested; physical storage eviction/retention review remains.","parentEvidence":"canonical Playwright 121 passed","childClaimSha":"fa8d768558704f2f9c87760acd72a3ccc3ae476e"},
+    {"id":"t_17cf2d5d","phase":"P1","status":"partial","acceptance":"Short ritual/review/photo caps and trip-scoped voice behavior tested; human product review and device/offline gates remain.","parentEvidence":"canonical Playwright plus public-build ritual smoke","childClaimSha":"3a675ade4449ed83e470047b5e614f3e682cfbfb"},
+    {"id":"t_76c78d99","phase":"P2","status":"blocked","acceptance":"Card requires a real backend Hermes comparison on anonymous cases; no Hermes API call was attempted. Private-AI unit fixtures are not a benchmark.","parentEvidence":"4 private-AI contract tests passed; benchmark not run","childClaimSha":"6a90732d9bb5a4a23e50cda167d90ea961f6e954"},
+    {"id":"t_b588f66a","phase":"P2","status":"blocked","acceptance":"No bounded Hermes bridge, app-to-backend-to-model acceptance, or cross-trip auth test. Private browser session boundary/owner scope and retention gates remain; no shared Hermes API use.","parentEvidence":"backend suite covers opt-in voice bearer only; no Hermes bridge claim","childClaimSha":null},
+    {"id":"t_c4528d40","phase":"P2","status":"partial","acceptance":"Local manual cited options and explicit import exist; no source fetch, live verification, automatic research, schedules/prices or AI.","parentEvidence":"canonical Playwright 121 passed; backend 26 passed","childClaimSha":"af2acd1f35614e3ab3757c71ca077c4502d13457"},
+    {"id":"t_e5e778cb","phase":"P3","status":"implemented-local","acceptance":"Stable planned-step link, no fabricated day/story/date, reorder/delete preservation, archive compatibility and trip isolation covered.","parentEvidence":"canonical Playwright 121 passed","childClaimSha":"babefab308b2fa92d04535b578e4dde5d647f547"},
+    {"id":"t_4a955d5e","phase":"P3","status":"partial","acceptance":"Local editable non-mutating composition and exact duplicate/orientation handling exist; EXIF-date ambiguity, heavy-batch and interest criteria not fully evidenced.","parentEvidence":"canonical Playwright includes photo-composition tests","childClaimSha":"b8751cc032f503a6dbaa18f094e512d40b5a77b4"},
+    {"id":"t_271135f2","phase":"P3","status":"partial","acceptance":"Local reviewed Story/carousel/postcard export, redaction and immutability are tested; real-phone use and human visual review remain; no publication.","parentEvidence":"canonical Playwright 121 passed","childClaimSha":"93193dfc9608601ac651d541474ffc3b87a4fc3e"},
+    {"id":"t_a4da0d81","phase":"P4","status":"partial","acceptance":"A selected-trip local PDF is generated with embedded photo, ordering and pagination tests; complete visual/print review and short-vs-long book comparison remain.","parentEvidence":"canonical Playwright includes decoded PDF checks; no print/phone review","childClaimSha":"d3cab20f9ed15ac3dd666d0e9dc6e295f5ecd35e; fix 6ccab36160ae426ad6574e017a3a1b8acf64d574"},
+    {"id":"t_a38ba182","phase":"P4","status":"blocked","acceptance":"Continuity code is an in-memory synthetic spike only; no application sync, two-device validation, retention, encryption or recovery-after-loss.","parentEvidence":"5 continuity spike tests passed; not an integration gate","childClaimSha":"f658745127677266c8af08b9a79572efb4c678ab"}
+  ],
+  "childClaimsVsParentEvidence": {
+    "rule": "Commit SHAs identify code revisions, not an independent review. Child reports are not treated as parent verification.",
+    "parentFinalRevision": "44909cc476bacc00a62173b1aec1a060836e50f2",
+    "plannedLivedIntegratedRevision": "cbf29c469dac7c7fb2247de75a8ee225c0832ca2",
+    "otherRelevantParentCommits": {
+      "privateVoiceAuth": "8bc5e8681016c059d8c4556a5a2c743702224545",
+      "manualOptions": "af2acd1f35614e3ab3757c71ca077c4502d13457",
+      "plannerSerialization": "44909cc476bacc00a62173b1aec1a060836e50f2"
+    },
+    "independentReview": "No independently authored review report verified; none claimed."
+  },
+  "verification": {
+    "canonicalCommands": [
+      {"command":"npm run lint","result":"passed"},
+      {"command":"npm run build","result":"passed; private build restored after public smoke"},
+      {"command":"PLAYWRIGHT_EXECUTABLE_PATH=/usr/bin/google-chrome npm run test:acceptance -- --workers=1","result":"121 passed, 4 skipped; 125 total; production-preview + durability-dev projects"},
+      {"command":"python3 -m pytest -q tests/backend","result":"26 passed, 76 FastAPI lifecycle deprecation warnings"},
+      {"command":"PYTHONPATH=spikes/private-ai python3 -m unittest discover -s spikes/private-ai -v","result":"4 passed; synthetic unit/contract tests only, no model benchmark invocation"},
+      {"command":"python3 -m unittest discover -s spikes/continuity -v","result":"5 passed; synthetic in-memory continuity tests only"},
+      {"command":"VERCEL=1 PLAYWRIGHT_EXECUTABLE_PATH=/usr/bin/google-chrome npx playwright test tests/voice-availability.spec.ts --grep 'rituel public' --workers=1","result":"1 passed against actual VERCEL=1 build; ritual has no voice UI/text/component"},
+      {"command":"git diff --check","result":"passed before docs-only consolidation"}
+    ],
+    "backendTransient": "First concurrent full backend run had 25 passed/1 failed (synthetic voice-delete endpoint returned 409 while async job was active). Targeted test passed, then full backend rerun passed 26/26 without code changes. Initial failure retained here, not hidden.",
+    "acceptanceSkipBreakdown": [
+      {"count":1,"reason":"tests/public-build.spec.ts is explicitly public-build-only; skipped in private canonical run."},
+      {"count":2,"reason":"tests/google-photos-public-build.spec.ts public Vercel cases skipped in private run; configured OAuth smoke also requires a public OAuth client and was not run."},
+      {"count":1,"reason":"tests/voice-availability.spec.ts public ritual subtest requires VERCEL=1; executed separately and passed in the real public-build smoke."}
+    ],
+    "publicBuild": {"result":"VERCEL=1 npm run build passed; targeted production-preview smoke passed; private npm run build rerun afterwards.","fullPublicAcceptance":"not run"},
+    "processSafety":"Only test/build processes started for this verification were allowed to exit normally. Pre-existing Chrome/gateway/services were not stopped or altered."
+  },
+  "privateBuildSha256Manifest": {
+    "scope":"dist outputs after final private rebuild; hashes contain no personal data",
+    "files": {
+      "dist/deployment.json":"0439950861080a12b69d2ccb9fd7d6d24c4e04b2920902ce7ca8c28d0e3d3d94",
+      "dist/index.html":"e674d270f96227c5e477ee8d152c1621ef4ad76370894c622e0806b06ea16e25",
+      "dist/service-worker.js":"1132440fff1c5a89b34c736872aa29f6a9587c62915ba6e945f6bf70f1f8258d",
+      "dist/assets/index-BSgKaM8J.css":"7a6af2303b2f907ba9b54ac772d2dfbbf7bb1b995e58c16ab52f1408bdf77d50",
+      "dist/assets/index-Cxe9Xf3D.js":"86778bd685ae169f4f68ea2fd8a884f21f2356b2fab5bfa664437db6dc266178"
+    }
+  },
+  "nonClaimsAndExclusions": {
+    "notClaimed":["live Kanban status (CLI read blocked in child context)","CI active","production/deployed","native or phone acceptance","real voice/personal data read or changed","active sync","retention integration","Hermes API safe/isolated"],
+    "notDeleted":["three pre-existing modified screenshots/travel-library-{320,390,1440}.png","17 untracked evidence/book-*.png renders remain unstaged; evidence/book-final-contact.png is tracked and unchanged. None was deleted or added to the consolidation commit."],
+    "retention":"Separate fixture/spike only; not integrated or ready. Do not integrate as part of this consolidation."
+  }
+}

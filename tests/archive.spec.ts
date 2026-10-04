@@ -24,6 +24,12 @@ async function confirmSafetyCopy(page: import('@playwright/test').Page, path: st
   await page.getByRole('checkbox', { name: /je confirme que la copie de sécurité est téléchargée et vérifiée/i }).check()
 }
 
+function expectDurableMedia(media: { id: string; name: string; src: string; storageRef?: string }) {
+  expect(media).toMatchObject({ id: 'photo-source', name: 'café du matin.jpg' })
+  expect(media.src).toMatch(/^idb:media:/)
+  expect(media.storageRef).toBe(media.src.slice('idb:media:'.length))
+}
+
 test('archive ZIP réelle, prévisualisation et restauration explicite', async ({ page, browser }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.addInitScript(() => {
@@ -70,12 +76,12 @@ test('archive ZIP réelle, prévisualisation et restauration explicite', async (
   const restored = await fresh.evaluate(key => JSON.parse(localStorage.getItem(key)!), key)
   expect(restored.drafts).toHaveLength(1)
   expect(restored.drafts[0]).toMatchObject({ id: 'chapitre-source', title: 'Le départ', memories: 'Un premier café.', tone: 'Spontané', story: 'Le premier matin.', coverId: 'photo-source', status: 'draft' })
-  expect(restored.drafts[0].media).toEqual([{ id: 'photo-source', name: 'café du matin.jpg', src: photo }])
+  expectDurableMedia(restored.drafts[0].media[0])
   expect(await fresh.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1)
   expect(await fresh.evaluate(key => JSON.parse(localStorage.getItem(key)!), upcomingKey)).toEqual(upcoming)
   const restoredJournals = await fresh.evaluate(() => JSON.parse(localStorage.getItem('un-soir-la-bas-journals-v1')!))
-  expect(restoredJournals.journals[0].chapters[0].media).toEqual([{ id: 'photo-source', name: 'café du matin.jpg', src: photo }])
-  await fresh.getByRole('button', { name: 'Le carnet', exact: true }).click()
+  expectDurableMedia(restoredJournals.journals[0].chapters[0].media[0])
+  await fresh.getByRole('button', { name: 'Mes voyages', exact: true }).click()
   await expect(fresh.getByTestId('upcoming-trip')).toContainText('Kyoto')
   await freshContext.close()
 })
@@ -110,8 +116,9 @@ test('restaure les photos personnelles intégrées aux anciennes archives v2', a
   await confirmSafetyCopy(page, testInfo.outputPath('inline-safety.zip'))
   await page.getByRole('button', { name: 'Restaurer ce carnet' }).click()
   await expect(page.getByRole('status')).toContainText('restaurées sur cet appareil')
+  await page.waitForFunction(() => /^idb:media:/.test(JSON.parse(localStorage.getItem('un-soir-la-bas-journals-v1')!).journals[0].chapters[0].media[0].src))
   const restored = await page.evaluate(() => JSON.parse(localStorage.getItem('un-soir-la-bas-journals-v1')!))
-  expect(restored.journals[0].chapters[0].media).toEqual([{ id: 'photo-source', name: 'café du matin.jpg', src: photo }])
+  expectDurableMedia(restored.journals[0].chapters[0].media[0])
 })
 
 test('archive invalide ou annulée ne modifie jamais le stockage', async ({ page }, testInfo) => {
@@ -120,12 +127,15 @@ test('archive invalide ou annulée ne modifie jamais le stockage', async ({ page
     Object.defineProperty(navigator, 'canShare', { value: undefined, configurable: true })
   })
   await seed(page)
+  const migrated = await page.evaluate(key => localStorage.getItem(key), key)
+  expect(migrated).not.toBe(original)
+  expect(await page.evaluate(key => localStorage.getItem('un-soir-la-bas-media-legacy-v1:' + key), key)).toBe(original)
   await page.getByLabel('Choisir une sauvegarde ZIP').setInputFiles({ name: 'faux.zip', mimeType: 'application/zip', buffer: Buffer.from('pas une archive') })
   await expect(page.getByRole('alert')).toContainText('ne peut pas être ouverte')
-  expect(await page.evaluate(key => localStorage.getItem(key), key)).toBe(original)
-  await page.getByLabel('Choisir une sauvegarde ZIP').setInputFiles({ name: 'trop-grand.zip', mimeType: 'application/zip', buffer: Buffer.alloc(25 * 1024 * 1024 + 1) })
+  expect(await page.evaluate(key => localStorage.getItem(key), key)).toBe(migrated)
+  await page.getByLabel('Choisir une sauvegarde ZIP').setInputFiles({ name: 'trop-grand.zip', mimeType: 'application/zip', buffer: Buffer.alloc(25 * 1024 * 1024 + 1) }, { timeout: 15_000 })
   await expect(page.getByRole('alert')).toContainText('moins de 25 Mo')
-  expect(await page.evaluate(key => localStorage.getItem(key), key)).toBe(original)
+  expect(await page.evaluate(key => localStorage.getItem(key), key)).toBe(migrated)
   const pending = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Sauvegarder dans Drive' }).click()
   const download = await pending
@@ -141,13 +151,13 @@ test('archive invalide ou annulée ne modifie jamais le stockage', async ({ page
   await page.getByLabel('Choisir une sauvegarde ZIP').setInputFiles(legacyPath)
   await expect(page.getByRole('heading', { name: 'Restaurer ce carnet ?' })).toBeVisible()
   await page.getByRole('button', { name: 'Annuler' }).click()
-  expect(await page.evaluate(key => localStorage.getItem(key), key)).toBe(original)
+  expect(await page.evaluate(key => localStorage.getItem(key), key)).toBe(migrated)
   altered['media/001-chapitre-source/001-photo-source.jpg'][2] ^= 1
   const tamperedPath = testInfo.outputPath('modifie.zip')
   await writeFile(tamperedPath, zipSync(altered))
   await page.getByLabel('Choisir une sauvegarde ZIP').setInputFiles(tamperedPath)
   await expect(page.getByRole('alert')).toContainText('a été modifié')
-  expect(await page.evaluate(key => localStorage.getItem(key), key)).toBe(original)
+  expect(await page.evaluate(key => localStorage.getItem(key), key)).toBe(migrated)
   const unknownFields = unzipSync(await readFile(path))
   const unknownManifest = JSON.parse(new TextDecoder().decode(unknownFields['manifest.json']))
   unknownManifest.journal.drafts[0].unexpected = 'ne doit pas être restauré'
@@ -156,11 +166,11 @@ test('archive invalide ou annulée ne modifie jamais le stockage', async ({ page
   await writeFile(unknownPath, zipSync(unknownFields))
   await page.getByLabel('Choisir une sauvegarde ZIP').setInputFiles(unknownPath)
   await expect(page.getByRole('alert')).toContainText('champs inconnus')
-  expect(await page.evaluate(key => localStorage.getItem(key), key)).toBe(original)
+  expect(await page.evaluate(key => localStorage.getItem(key), key)).toBe(migrated)
   await page.getByLabel('Choisir une sauvegarde ZIP').setInputFiles(path)
   await expect(page.getByRole('heading', { name: 'Restaurer ce carnet ?' })).toBeVisible()
   await page.getByRole('button', { name: 'Annuler' }).click()
-  expect(await page.evaluate(key => localStorage.getItem(key), key)).toBe(original)
+  expect(await page.evaluate(key => localStorage.getItem(key), key)).toBe(migrated)
 })
 
 test('une archive historique sans voyages conserve les décomptes actuels', async ({ page }, testInfo) => {
@@ -196,6 +206,7 @@ test('une archive historique sans voyages conserve les décomptes actuels', asyn
 
 test('un échec quota sur le second stockage rétablit les deux valeurs exactes', async ({ page }, testInfo) => {
   await seed(page)
+  const beforeRestore = await page.evaluate(({ key, upcomingKey }) => [localStorage.getItem(key), localStorage.getItem(upcomingKey)], { key, upcomingKey })
   const pending = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Sauvegarder dans Drive' }).click()
   const download = await pending
@@ -213,7 +224,7 @@ test('un échec quota sur le second stockage rétablit les deux valeurs exactes'
   })
   await page.getByRole('button', { name: 'Restaurer ce carnet' }).click()
   await expect(page.locator('.backup-message[role="alert"]')).toContainText('stockage est plein')
-  expect(await page.evaluate(({ key, upcomingKey }) => [localStorage.getItem(key), localStorage.getItem(upcomingKey)], { key, upcomingKey })).toEqual([original, JSON.stringify(upcoming)])
+  expect(await page.evaluate(({ key, upcomingKey }) => [localStorage.getItem(key), localStorage.getItem(upcomingKey)], { key, upcomingKey })).toEqual(beforeRestore)
 })
 
 test('un remplacement prévisualise les différences et exige le téléchargement vérifiable de la copie de sécurité', async ({ page }, testInfo) => {
@@ -299,4 +310,34 @@ test('la sauvegarde reste disponible sans Web Crypto sur le réseau local', asyn
   const download = await pending
   expect(download.suggestedFilename()).toMatch(/\.zip$/)
   await expect(page.getByRole('status')).toContainText('Archive téléchargée')
+})
+
+test('archive ZIP preserve and restores Philippines stay wishes and accepted day schedule', async ({ page, browser }, testInfo) => {
+  const stayTrip = [{ id: 'voyage-philippines', destination: 'Philippines', departure: '2027-03-10', endDate: '2027-03-18', plan: {
+    ideas: [], stops: [], notes: '', stay: {
+      anchor: { name: 'Cebu City', latitude: 10.3157, longitude: 123.8854 },
+      places: [{ id: 'osm:node/77', name: 'Cebu Museum', category: 'activity', source: 'osm', sourceId: 'node/77', sourceUrl: 'https://www.openstreetmap.org/node/77', latitude: 10.31, longitude: 123.88 }],
+      days: [{ id: 'stay-day-1', title: 'Jour 1', placeIds: ['osm:node/77'], locked: true }], daysCount: 1,
+    },
+  } }]
+  await seed(page, original, stayTrip)
+  const pending = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Sauvegarder dans Drive' }).click()
+  const download = await pending
+  const path = testInfo.outputPath('stay-composer.zip')
+  await download.saveAs(path)
+  const zip = unzipSync(await readFile(path))
+  const manifest = JSON.parse(new TextDecoder().decode(zip['manifest.json']))
+  expect(manifest.upcoming.trips).toEqual(stayTrip)
+
+  const context = await browser.newContext()
+  const fresh = await context.newPage()
+  await fresh.goto('/')
+  await fresh.getByRole('button', { name: 'Outils et sauvegarde du carnet' }).click()
+  await fresh.getByLabel('Choisir une sauvegarde ZIP').setInputFiles(path)
+  await confirmSafetyCopy(fresh, testInfo.outputPath('stay-safety.zip'))
+  await fresh.getByRole('button', { name: 'Restaurer ce carnet' }).click()
+  await expect(fresh.getByRole('status')).toContainText('restaurées sur cet appareil')
+  expect(await fresh.evaluate(() => JSON.parse(localStorage.getItem('un-soir-la-bas-upcoming-v1')!))).toEqual(stayTrip)
+  await context.close()
 })

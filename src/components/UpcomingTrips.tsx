@@ -1,10 +1,11 @@
-import { saveUpcomingMetadata } from '../trip-journals'
+import { saveUpcomingMetadataUnlocked } from '../trip-journals'
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { calendarDate, daysUntil, newUpcoming, readUpcoming, tripIsPast, upcomingKey } from '../upcoming-trips'
 import type { UpcomingTrip } from '../upcoming-trips'
 import type { PersonalJournal } from '../trip-journals'
 import { coverOf } from '../journal'
+import { withDurabilityLock } from '../durability-lock'
 
 function dateLabel(date: string): string {
   const [year, month, day] = date.split('-').map(Number)
@@ -65,18 +66,18 @@ export default function UpcomingTrips({ openJournal, openPlanner, journals = [] 
     setOpen(false); setEditing(null); setMessage(''); setAnnouncement(notice)
     window.requestAnimationFrame(() => openerRef.current?.focus())
   }
-  function save(tripsToSave: UpcomingTrip[]): boolean {
+  async function save(update: (latest: UpcomingTrip[]) => UpcomingTrip[] | null): Promise<boolean> {
     try {
-      const latest = readUpcoming()
-      if (latest.error || JSON.stringify(latest.trips) !== JSON.stringify(stored.trips)) {
-        setStored(latest)
-        setMessage('Les voyages ont changé dans un autre onglet. Vérifiez la liste puis recommencez.')
-        return false
-      }
-      saveUpcomingMetadata(tripsToSave)
-      setStored({ trips: tripsToSave, error: '' }); setMessage(''); window.dispatchEvent(new Event('upcoming-trips-updated'))
-      return true
-    } catch { setMessage('Impossible d’enregistrer les voyages sur cet appareil. Libérez de l’espace ou autorisez le stockage local.'); return false }
+      return await withDurabilityLock(async () => {
+        const latest = readUpcoming()
+        if (latest.error) { setStored(latest); setMessage(latest.error); return false }
+        const tripsToSave = update(latest.trips)
+        if (!tripsToSave) { setStored(latest); setMessage('Les voyages ont changé ou une limite est atteinte. Vérifiez la liste avant de recommencer.'); return false }
+        saveUpcomingMetadataUnlocked(tripsToSave)
+        setStored({ trips: tripsToSave, error: '' }); setMessage(''); window.dispatchEvent(new Event('upcoming-trips-updated'))
+        return true
+      })
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'Enregistrement multi-onglets indisponible ; aucune modification n’a été écrite.'); return false }
   }
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -88,22 +89,24 @@ export default function UpcomingTrips({ openJournal, openPlanner, journals = [] 
     if (endDate && (daysUntil(endDate, now) === null || endDate < departure)) {
       setMessage('La date de fin doit être valide et ne peut pas précéder le départ.'); return
     }
-    if (!editing && trips.length >= 12) { setMessage('Douze voyages sont déjà enregistrés. Retirez-en un pour en ajouter un autre.'); return }
-    const updated = editing
-      ? stored.trips.map(trip => {
+    const successMessage = editing ? `${name} a été modifié dans le décompte.` : `${name} a été ajouté au décompte.`
+    void save(latest => {
+      if (!editing && latest.length >= 12) return null
+      if (editing && !latest.some(item => item.id === editing)) return null
+      return editing
+      ? latest.map(trip => {
         if (trip.id !== editing) return trip
         const updatedTrip = { ...trip, destination: name, departure }
         if (endDate) updatedTrip.endDate = endDate
         else delete updatedTrip.endDate
         return updatedTrip
       })
-      : [...stored.trips, { ...newUpcoming(name, departure), ...(endDate ? { endDate } : {}) }]
-    const successMessage = editing ? `${name} a été modifié dans le décompte.` : `${name} a été ajouté au décompte.`
-    if (save(updated)) closeForm(successMessage)
+      : [...latest, { ...newUpcoming(name, departure), ...(endDate ? { endDate } : {}) }]
+    }).then(success => { if (success) closeForm(successMessage) })
   }
 
   function setCompleted(tripId: string, completed: boolean) {
-    save(stored.trips.map(trip => {
+    void save(latest => latest.map(trip => {
       if (trip.id !== tripId) return trip
       if (completed) return { ...trip, completed: true }
       const reopened = { ...trip }
@@ -129,7 +132,7 @@ export default function UpcomingTrips({ openJournal, openPlanner, journals = [] 
       {next ? <article className="next-departure" data-testid="upcoming-trip" aria-label={`Prochain départ : ${next.destination}`}>
         <div className="next-landscape" aria-hidden="true">{nextCover ? <img src={nextCover.src} alt="" /> : <><span className="landscape-sun"/><span className="landscape-ridge ridge-back"/><span className="landscape-ridge ridge-front"/></>}</div>
         <div className="next-copy"><span className="eyebrow">{underway ? 'Vous y êtes' : 'Votre prochain ailleurs'}</span><h3>{next.destination}</h3><p className="upcoming-date">Départ le {dateLabel(next.departure)}{next.endDate ? ` · retour le ${dateLabel(next.endDate)}` : ''}</p><div className="next-actions">{underway ? <a className="button button-light" href={`#today/${encodeURIComponent(next.id)}`}>Voir ma journée →</a> : <button className="button button-light" onClick={() => openPlanner(next.id)} aria-label={`Planifier ${next.destination}`}>Continuer à préparer →</button>}
-          <details className="trip-actions-menu"><summary>Autres actions</summary><button className="text-button" onClick={() => openJournal(next)}>Ouvrir le carnet</button><button className="text-button" onClick={() => openPlanner(next.id)}>Programme et carte</button><button className="text-button" onClick={event => startEdit(next, event.currentTarget)} disabled={!!stored.error} aria-label={`Modifier ${next.destination}`}>Modifier</button>{underway && <button className="text-button" onClick={() => setCompleted(next.id,true)}>Terminer le voyage</button>}<button className="text-button" onClick={() => save(stored.trips.filter(item => item.id !== next.id))} disabled={!!stored.error} aria-label={`Retirer ${next.destination}`}>Retirer de la liste</button></details></div></div>
+          <details className="trip-actions-menu"><summary>Autres actions</summary><button className="text-button" onClick={() => openJournal(next)}>Ouvrir le carnet</button><button className="text-button" onClick={() => openPlanner(next.id)}>Programme et carte</button><button className="text-button" onClick={event => startEdit(next, event.currentTarget)} disabled={!!stored.error} aria-label={`Modifier ${next.destination}`}>Modifier</button>{underway && <button className="text-button" onClick={() => setCompleted(next.id,true)}>Terminer le voyage</button>}<button className="text-button" onClick={() => void save(latest => latest.filter(item => item.id !== next.id))} disabled={!!stored.error} aria-label={`Retirer ${next.destination}`}>Retirer de la liste</button></details></div></div>
         <div className="departure-badge">{underway ? 'Votre voyage en cours' : `J−${daysUntil(next.departure, now)}`} · {next.plan?.stops.length ?? 0} étapes</div>
       </article> : <div className="library-empty"><span className="eyebrow">L’horizon vous attend</span><p>Le prochain départ se prépare ici.</p><span>Ajoutez une destination pour commencer votre collection.</span></div>}
       {compactTrips.length > 0 && <div className="trip-card-grid" aria-label="Autres voyages à venir">{compactTrips.map(trip => {
@@ -138,7 +141,7 @@ export default function UpcomingTrips({ openJournal, openPlanner, journals = [] 
         return <article key={trip.id} data-testid="upcoming-trip" className="trip-card trip-card-future">
           <div className="trip-card-art" aria-hidden="true">{cover ? <img src={cover.src} alt="" /> : <><span>{trip.destination.slice(0, 1).toLocaleUpperCase('fr-FR')}</span><i/></>}</div>
           <div className="trip-card-body"><span className="eyebrow">{remaining < 0 ? 'Voyage en cours · fin non renseignée' : remaining === 0 ? 'Départ aujourd’hui' : `J−${remaining}`}</span><h3>{trip.destination}</h3><div className="upcoming-trip-copy"><p>{dateLabel(trip.departure)}{trip.endDate ? ` — ${dateLabel(trip.endDate)}` : ''}</p></div>
-            <div className="trip-card-actions upcoming-actions"><button className="text-button" onClick={() => openPlanner(trip.id)} aria-label={`Planifier ${trip.destination}`}>Planifier</button><details className="trip-actions-menu"><summary>Autres actions</summary><a className="text-button" href={`#today/${encodeURIComponent(trip.id)}`}>Aujourd’hui</a><button className="text-button" onClick={() => openJournal(trip)}>Carnet</button><button className="text-button" onClick={event => startEdit(trip, event.currentTarget)} disabled={!!stored.error} aria-label={`Modifier ${trip.destination}`}>Modifier</button>{remaining < 0 && <button className="text-button" onClick={() => setCompleted(trip.id, true)} disabled={!!stored.error} aria-label={`Terminer ${trip.destination}`}>Terminer</button>}<button className="text-button" onClick={() => save(stored.trips.filter(item => item.id !== trip.id))} disabled={!!stored.error} aria-label={`Retirer ${trip.destination}`}>Retirer</button></details></div>
+            <div className="trip-card-actions upcoming-actions"><button className="text-button" onClick={() => openPlanner(trip.id)} aria-label={`Planifier ${trip.destination}`}>Planifier</button><details className="trip-actions-menu"><summary>Autres actions</summary><a className="text-button" href={`#today/${encodeURIComponent(trip.id)}`}>Aujourd’hui</a><button className="text-button" onClick={() => openJournal(trip)}>Carnet</button><button className="text-button" onClick={event => startEdit(trip, event.currentTarget)} disabled={!!stored.error} aria-label={`Modifier ${trip.destination}`}>Modifier</button>{remaining < 0 && <button className="text-button" onClick={() => setCompleted(trip.id, true)} disabled={!!stored.error} aria-label={`Terminer ${trip.destination}`}>Terminer</button>}<button className="text-button" onClick={() => void save(latest => latest.filter(item => item.id !== trip.id))} disabled={!!stored.error} aria-label={`Retirer ${trip.destination}`}>Retirer</button></details></div>
           </div>
         </article>
       })}</div>}

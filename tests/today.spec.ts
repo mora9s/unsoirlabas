@@ -26,6 +26,7 @@ test('journée mobile, photo, association et ajout au même chapitre sans perte'
   await expect(page.getByRole('status')).toContainText('Souvenir enregistré')
   await page.getByLabel('Quelques mots').fill('Puis une promenade.')
   await page.getByRole('button',{name:'Garder ce souvenir'}).click()
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('un-soir-la-bas-journals-v1'))).toContain('Puis une promenade.')
   const data=await page.evaluate(()=>({journal:JSON.parse(localStorage.getItem('un-soir-la-bas-journals-v1')!),trip:JSON.parse(localStorage.getItem('un-soir-la-bas-upcoming-v1')!)[0]}))
   expect(data.journal.journals[0].chapters).toHaveLength(1)
   const chapter=data.journal.journals[0].chapters[0]
@@ -38,7 +39,7 @@ test('journée mobile, photo, association et ajout au même chapitre sans perte'
   await expect(page).toHaveURL(/#journey\/today\//)
   await expect(page.getByText(/Puis une promenade/).first()).toBeVisible()
   await page.goto('/')
-  await page.getByRole('link',{name:'Aujourd’hui',exact:true}).click()
+  await page.getByRole('link',{name:'Voir ma journée →',exact:true}).click()
   await expect(page).toHaveURL(/#today\/today/)
 })
 

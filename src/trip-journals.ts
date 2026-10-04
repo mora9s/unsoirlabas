@@ -1,5 +1,6 @@
 import type { Draft } from './journal'
 import { validateTrip } from './journal'
+import { cleanupOrphanedMediaUnlocked, persistDraftMediaUnlocked, storedDraft, withMediaDurabilityLock } from './media-store'
 import { readUpcoming, upcomingKey, validateUpcomingTrips } from './upcoming-trips'
 import type { UpcomingTrip } from './upcoming-trips'
 
@@ -39,11 +40,12 @@ export function readJournals(): { data: Journals; error: string } {
       const old = localStorage.getItem('philippines-trip')
       if (old !== null) {
         const parsed: unknown = JSON.parse(old)
-        if (validateTrip(parsed) && parsed.drafts.length) {
+        if (!validateTrip(parsed)) throw new Error('historical format')
+        if (parsed.drafts.length) {
           const next = { version: 1 as const, journals: [...data.journals, { tripId: legacyId, destination: 'Philippines', departure: '', chapters: parsed.drafts }] }
           // Keep the original journal readable even when the personal-journal cap is reached.
           if (!validateJournals(next)) return { data, error: '' }
-          localStorage.setItem(journalsKey, JSON.stringify(next))
+          // Read-only projection: the next locked save will persist the legacy journal with new data.
           return { data: next, error: '' }
         }
       }
@@ -52,7 +54,8 @@ export function readJournals(): { data: Journals; error: string } {
     const rawLegacy = localStorage.getItem('philippines-trip')
     if (legacy && rawLegacy) {
       const historical: unknown = JSON.parse(rawLegacy)
-      if (validateTrip(historical)) {
+      if (!validateTrip(historical)) throw new Error('historical format')
+      {
         const chapters = [...legacy.chapters]
         for (const chapter of historical.drafts) {
           const current = chapters.find(item => item.id === chapter.id)
@@ -74,7 +77,7 @@ export function readJournals(): { data: Journals; error: string } {
       return trip ? { ...journal, destination: trip.destination, departure: trip.departure } : journal
     }) }, error: '' }
   } catch {
-    return { data: { version: 1, journals: [] }, error: 'Les carnets personnels ne peuvent pas être lus. Les données originales sont conservées ; vérifiez le stockage avant tout enregistrement.' }
+    return { data: { version: 1, journals: [] }, error: 'Les carnets personnels ne peuvent pas être lus. Vos données n’ont pas été modifiées ; les données originales sont conservées. Vérifiez le stockage avant tout enregistrement.' }
   }
 }
 
@@ -82,23 +85,43 @@ export function journalForTrip(data: Journals, trip: UpcomingTrip): PersonalJour
   return data.journals.find(item => item.tripId === trip.id) ?? { tripId: trip.id, destination: trip.destination, departure: trip.departure, chapters: [] }
 }
 
-export function saveChapter(tripId: string, destination: string, departure: string, chapter: Draft): Journals {
+export function persistLegacyJournalUnlocked() {
   const current = readJournals()
   if (current.error) throw new Error(current.error)
-  const index = current.data.journals.findIndex(item => item.tripId === tripId)
-  const existing = index < 0 ? undefined : current.data.journals[index]
-  const chapters = replaceChapter(existing?.chapters ?? [], chapter)
-  const entry: PersonalJournal = { tripId, destination: existing?.destination ?? destination, departure: existing?.departure ?? departure, chapters }
-  const journals = [...current.data.journals.filter(item => item.tripId !== tripId), entry]
-  if (!validateJournals({ version: 1, journals })) throw new Error('Ce carnet a atteint sa limite de pages ou son format est invalide.')
-  const next = { version: 1 as const, journals }
-  try {
-    if (tripId === legacyId) writeLegacyAndJournals({ version: 1, drafts: chapters }, next)
-    else localStorage.setItem(journalsKey, JSON.stringify(next))
+  if (!current.data.journals.some(item => item.tripId === legacyId)) return
+  const raw = localStorage.getItem(journalsKey)
+  if (raw !== null) {
+    const stored: unknown = JSON.parse(raw)
+    if (!validateJournals(stored)) throw new Error('Les carnets personnels ne peuvent pas être lus. Les données originales sont conservées ; vérifiez le stockage avant tout enregistrement.')
+    if (stored.journals.some(item => item.tripId === legacyId)) return
   }
-  catch { throw new Error('L’enregistrement n’a pas abouti : le stockage est plein ou indisponible. Vos données restent ouvertes ici.') }
-  window.dispatchEvent(new Event('trip-journals-updated'))
-  return next
+  localStorage.setItem(journalsKey, JSON.stringify(current.data))
+}
+
+export async function saveChapter(tripId: string, destination: string, departure: string, chapter: Draft): Promise<Journals> {
+  return withMediaDurabilityLock(async () => {
+    const before = readJournals()
+    if (before.error) throw new Error(before.error)
+    const durableChapter = storedDraft(await persistDraftMediaUnlocked(chapter))
+    // Re-read after IndexedDB awaits, while still holding the cross-tab lock.
+    const current = readJournals()
+    if (current.error) throw new Error(current.error)
+    const index = current.data.journals.findIndex(item => item.tripId === tripId)
+    const existing = index < 0 ? undefined : current.data.journals[index]
+    const chapters = replaceChapter(existing?.chapters ?? [], durableChapter)
+    const entry: PersonalJournal = { tripId, destination: existing?.destination ?? destination, departure: existing?.departure ?? departure, chapters }
+    const journals = [...current.data.journals.filter(item => item.tripId !== tripId), entry]
+    if (!validateJournals({ version: 1, journals })) throw new Error('Ce carnet a atteint sa limite de pages ou son format est invalide.')
+    const next = { version: 1 as const, journals }
+    try {
+      if (tripId === legacyId) writeLegacyAndJournals({ version: 1, drafts: chapters }, next)
+      else localStorage.setItem(journalsKey, JSON.stringify(next))
+    }
+    catch { throw new Error('L’enregistrement n’a pas abouti : le stockage est plein ou indisponible. Vos données restent ouvertes ici.') }
+    await cleanupOrphanedMediaUnlocked()
+    window.dispatchEvent(new Event('trip-journals-updated'))
+    return next
+  })
 }
 
 export function upcomingForJournal(tripId: string): UpcomingTrip | undefined {
@@ -128,23 +151,12 @@ function writeLegacyAndJournals(trip: { version: 1; drafts: Draft[] }, journals:
   }
 }
 
-export function savePersonalChapter(chapter: Draft) {
-  const current = readJournals()
-  if (current.error) throw new Error(current.error)
-  if (current.data.journals.some(item => item.tripId === legacyId)) {
-    saveChapter(legacyId, 'Philippines', '', chapter)
-    return
-  }
-  const raw = localStorage.getItem('philippines-trip')
-  const trip: unknown = raw === null ? { version: 1, drafts: [] } : JSON.parse(raw)
-  if (!validateTrip(trip)) throw new Error('Le carnet enregistré ne peut pas être lu.')
-  const next = { version: 1 as const, drafts: replaceChapter(trip.drafts, chapter) }
-  if (!validateTrip(next)) throw new Error('La limite de 40 journées ou de 20 000 caractères par récit est dépassée. Aucun enregistrement effectué.')
-  localStorage.setItem('philippines-trip', JSON.stringify(next))
+export async function savePersonalChapter(chapter: Draft) {
+  return saveChapter(legacyId, 'Philippines', '', chapter)
 }
 
 /** Keep a retained journal's identity current even after its planning card is removed. */
-export function saveUpcomingMetadata(trips: UpcomingTrip[]) {
+export function saveUpcomingMetadataUnlocked(trips: UpcomingTrip[]) {
   if (!validateUpcomingTrips(trips)) throw new Error('Voyages invalides.')
   const previous = localStorage.getItem(journalsKey)
   if (previous === null) {
@@ -160,4 +172,8 @@ export function saveUpcomingMetadata(trips: UpcomingTrip[]) {
   localStorage.setItem(journalsKey, JSON.stringify(next))
   try { localStorage.setItem(upcomingKey, JSON.stringify(trips)) }
   catch (error) { localStorage.setItem(journalsKey, previous); throw error }
+}
+
+export async function saveUpcomingMetadata(trips: UpcomingTrip[]) {
+  return withMediaDurabilityLock(async () => saveUpcomingMetadataUnlocked(trips))
 }

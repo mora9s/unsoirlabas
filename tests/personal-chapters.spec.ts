@@ -68,7 +68,8 @@ test('sans randomUUID : créer, importer, lire, recharger, modifier et partager'
   const trip = await page.evaluate(key => JSON.parse(localStorage.getItem(key)!), key)
   expect(new Set([trip.drafts[0].id, ...trip.drafts[0].media.map((item: { id: string }) => item.id)]).size).toBe(3)
   const cover = trip.drafts[0].media[1].src
-  await expect(chapter.locator('.chapter-cover img')).toHaveAttribute('src', cover)
+  expect(cover).toMatch(/^idb:media:/)
+  await expect(chapter.locator('.chapter-cover img')).toHaveAttribute('src', /^blob:/)
   const chapterPhotos = chapter.locator('.chapter-cover img, .photo-mosaic img')
   await expect.poll(() => chapterPhotos.evaluateAll(images => images.every(image => (image as HTMLImageElement).naturalWidth > 0))).toBe(true)
   const ratios = await chapterPhotos.evaluateAll(images => images.map(image => {
@@ -108,7 +109,7 @@ test('sans randomUUID : créer, importer, lire, recharger, modifier et partager'
     const preview = studio.getByTestId(`${format}-preview`)
     await expect(preview).toContainText(revised)
     await expect(preview).toContainText('Un café sur le pont')
-    await expect(preview.locator('img')).toHaveAttribute('src', cover)
+    await expect(preview.locator('img')).toHaveAttribute('src', /^blob:/)
   }
   await expect(page.getByLabel('La légende proposée')).toHaveValue(`${revised}\n\n${story.replace(/\s+/g, ' ')}`)
   await fits(page)
@@ -152,10 +153,13 @@ test('sans randomUUID : créer, importer, lire, recharger, modifier et partager'
   const calls = await page.evaluate(() => (window as unknown as { exportCalls: { texts: string[]; images: string[] } }).exportCalls)
   expect(calls.texts.join(' ')).toContain(revised)
   expect(calls.texts.join(' ')).toContain('Un café sur le pont')
-  expect(calls.images).toEqual([cover, cover])
+  expect(calls.images).toHaveLength(2)
+  expect(calls.images.every(image => image.startsWith('blob:'))).toBe(true)
+  expect(new Set(calls.images).size).toBe(1)
   await page.getByRole('link', { name: 'Retour à cette journée' }).click()
   await expect(page).toHaveURL(chapterURL)
-  expect(await page.evaluate(() => (window as unknown as { pendingObjectURLs: Set<string> }).pendingObjectURLs.size)).toBe(0)
+  // Persistent media remain live only while this rendered chapter needs them; reloads and share navigation must not leak duplicates.
+  expect(await page.evaluate(() => (window as unknown as { pendingObjectURLs: Set<string> }).pendingObjectURLs.size)).toBe(2)
   await page.getByRole('button', { name: 'Créer une journée', exact: true }).click()
   await expect(page.getByLabel('Le titre de votre journée')).toHaveValue('Une nouvelle journée aux Philippines')
   await expect(page.getByLabel('Votre récit, à votre façon')).toHaveValue('')
@@ -217,7 +221,7 @@ for (const raw of ['', '{broken', 'null', JSON.stringify({ version: 1, drafts: [
   test(`stockage invalide préservé : ${raw.slice(0, 35)}`, async ({ page }) => {
     await seed(page, raw)
     await page.goto('/#draft/notre-page')
-    await expect(page.getByRole('alert')).toContainText('Vos données n’ont pas été modifiées')
+    await expect(page.getByRole('alert')).toContainText('données originales sont conservées')
     await page.getByRole('button', { name: 'Créer une journée', exact: true }).click()
     await page.getByLabel('Votre récit, à votre façon').fill(story)
     await page.getByRole('button', { name: 'Prévisualiser', exact: true }).click()

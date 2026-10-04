@@ -1,0 +1,30 @@
+{
+  "base": "a4d7b36",
+  "roadmap": "f290306",
+  "stayComposerPortedFrom": "4019031",
+  "canonicalPlaywright": {
+    "startTime": "2026-10-04T16:46:45.804Z",
+    "duration": 306027.80299999996,
+    "expected": 189,
+    "skipped": 5,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "publicUnconfigured": {
+    "passed": 4,
+    "skipped": 1
+  },
+  "publicConfiguredFixture": {
+    "passed": 1,
+    "skipped": 0
+  },
+  "python": {
+    "passed": 35
+  },
+  "lint": "passed",
+  "build": "passed",
+  "liveMapSmoke": "not_run",
+  "deviceValidation": "not_run",
+  "push": "not_performed",
+  "deployment": "not_performed"
+}

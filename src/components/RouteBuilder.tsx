@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import './route-builder.css'
+import { mergeStopUpdate } from '../plan-updates'
 import { createId } from '../id'
 import { transportModes } from '../upcoming-trips'
 import type { PlanStop, TransportMode } from '../upcoming-trips'
@@ -12,7 +13,7 @@ type Point = { lat: number; lon: number }
 type Found = Point & { name: string; context: string }
 const blank = () => ({ name: '', date: '', transport: '' as TransportMode | '', chapterId: '' })
 
-export default function RouteBuilder({ stops, chapters, save, tripId }: { tripId?: string; stops: PlanStop[]; chapters: Draft[]; save: (update: (stops: PlanStop[]) => PlanStop[]) => boolean }) {
+export default function RouteBuilder({ stops, chapters, save, tripId }: { tripId?: string; stops: PlanStop[]; chapters: Draft[]; save: (update: (stops: PlanStop[]) => PlanStop[]) => Promise<boolean> }) {
   const target = useRef<HTMLDivElement>(null)
   const map = useRef<L.Map | null>(null)
   const layer = useRef<L.LayerGroup | null>(null)
@@ -105,7 +106,7 @@ export default function RouteBuilder({ stops, chapters, save, tripId }: { tripId
     finally { clearTimeout(timeout); if (request.current === controller) setBusy(false) }
   }
   function reset() { setSelected(null); setPoint(null); setFields({...blank(),date:day==='*'?'':day}); setMessage(''); setFound([]) }
-  function persist() {
+  async function persist() {
     if (!point || !fields.name.trim() || (!first && !fields.transport)) { setMessage('Choisissez une position, un nom et le transport pour y arriver.'); return }
     const stop: PlanStop = { ...(selected ? stops.find(s => s.id === selected) : {}), id: selected ?? createId(), place: fields.name.trim(), point }
     delete stop.date; delete stop.transport; delete stop.chapterId
@@ -113,11 +114,11 @@ export default function RouteBuilder({ stops, chapters, save, tripId }: { tripId
     if (fields.transport) stop.transport = fields.transport
     if (fields.chapterId) stop.chapterId = fields.chapterId
     if (selected && chosenIndex < 0) { setMessage('Cette étape a été retirée. Choisissez une autre étape.'); return }
-    if (save(current => selected ? current.map(s => s.id === selected ? stop : s) : [...current, stop])) { reset(); setMessage(selected ? 'Étape mise à jour.' : 'Étape ajoutée. Choisissez la prochaine escale.'); setUndo(null) }
+    if (await save(current => selected ? mergeStopUpdate(current, stops.find(s => s.id === selected)!, stop) : [...current, stop])) { reset(); setMessage(selected ? 'Étape mise à jour.' : 'Étape ajoutée. Choisissez la prochaine escale.'); setUndo(null) }
   }
-  function remove() {
+  async function remove() {
     const after = stops.filter(s => s.id !== selected)
-    if (save(() => after)) { setUndo({ before: stops, after }); reset(); setMessage('Étape retirée. Vous pouvez annuler ce retrait.') }
+    if (await save(current => { if (JSON.stringify(current) !== JSON.stringify(stops)) throw new Error('Le parcours a changé dans un autre onglet. Rechargez-le avant de retirer une étape.'); return after })) { setUndo({ before: stops, after }); reset(); setMessage('Étape retirée. Vous pouvez annuler ce retrait.') }
   }
   return <section className="route-builder" aria-label="Construire le parcours sur la carte">
     <div className="route-builder-heading"><div><p className="eyebrow">Le parcours</p><h2>Une escale, puis la suivante.</h2></div><button className="text-button" onClick={() => fit()}>{day==='*'?'Tout voir sur la carte':'Cadrer cette journée'}</button></div>
@@ -142,7 +143,7 @@ export default function RouteBuilder({ stops, chapters, save, tripId }: { tripId
       {selected && (() => {const stop=stops.find(s=>s.id===selected);const chapter=chapters.find(c=>c.id===stop?.chapterId);return <aside className="route-practical" aria-label="Fiche de l’escale">{stop?.time && <p>{stop.time}</p>}{stop?.address && <p>{stop.address}</p>}{stop?.booking && <p>Réservation : {stop.booking}</p>}{stop?.notes && <p>{stop.notes}</p>}{chapter && <><div className="route-memory-photos">{chapter.media.slice(0,3).map(photo=><img key={photo.id} src={photo.src} alt={photo.name}/>)}</div>{tripId && <a href={`#journey/${encodeURIComponent(tripId)}/${encodeURIComponent(chapter.id)}`}>Lire les souvenirs de cette escale →</a>}</>}</aside>})()}
       {selected && <button className="text-button" onClick={remove}>Retirer cette escale</button>}
       {message && <p role="status" className="route-message">{message}</p>}
-      {undo && <button className="text-button" onClick={() => { if (JSON.stringify(stops) !== JSON.stringify(undo.after)) { setMessage('Le parcours a changé depuis ce retrait. Annulation indisponible.'); setUndo(null); return }; if (save(() => undo.before)) { setUndo(null); setMessage('Étape rétablie.') } }}>Annuler le retrait</button>}
+      {undo && <button className="text-button" onClick={async () => { if (JSON.stringify(stops) !== JSON.stringify(undo.after)) { setMessage('Le parcours a changé depuis ce retrait. Annulation indisponible.'); setUndo(null); return }; if (await save(current => { if (JSON.stringify(current) !== JSON.stringify(undo.after)) throw new Error('Le parcours a changé dans un autre onglet. Annulation indisponible.'); return undo.before })) { setUndo(null); setMessage('Étape rétablie.') } }}>Annuler le retrait</button>}
     </div></div>
     <ol className="route-stop-strip">{stops.map((stop, index) => (day === '*' || (stop.date ?? '') === day) && <li key={stop.id}><button aria-pressed={selected === stop.id} onClick={() => select(stop.id)}><span>{index + 1}</span><strong>{stop.place}</strong><small>{!stop.point ? 'À situer' : index === 0 ? 'Départ' : stop.transport ? transportModes[stop.transport] : 'Transport à choisir'}</small></button></li>)}</ol>
     <p className="route-map-note">La recherche de lieux utilise Photon / OpenStreetMap. Après avoir changé l’ordre des étapes, vérifiez le transport vers chacune.</p>

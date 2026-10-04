@@ -34,7 +34,7 @@ test('copie complète, dates, préservation, sauvegarde ZIP et photos embarquée
   expect(data.trips[1].plan.stops).toHaveLength(25)
   expect(new Set(data.trips[1].plan.stops.map((s:{date:string})=>s.date)).size).toBe(20)
   expect(data.journals.journals[0].chapters).toHaveLength(20)
-  expect(data.journals.journals[0].chapters.every((c:{media:{src:string}[]})=>c.media[0].src.startsWith('data:image/jpeg;base64,'))).toBe(true)
+  expect(data.journals.journals[0].chapters.every((c:{media:{src:string}[]})=>c.media[0].src.startsWith('idb:media:'))).toBe(true)
   expect(data.bytes).toBeLessThan(3_000_000)
   await page.reload();await expect(page.getByRole('button',{name:'Ajouter cet exemple à mes voyages'})).toHaveCount(0)
   await page.getByRole('link',{name:'Carnet, photos et copie de lecture'}).click()

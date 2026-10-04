@@ -26,7 +26,7 @@ export default function OfflineAccess() {
   async function prepare() {
     setBusy(true);setMessage('')
     try {
-      const registration=await navigator.serviceWorker.register('/offline-worker.js',{scope:'/',updateViaCache:'none'})
+      const registration=await navigator.serviceWorker.register('/service-worker.js',{scope:'/',updateViaCache:'none'})
       await registration.update()
       const worker=registration.installing || registration.waiting
       if(worker && worker.state!=='activated')await new Promise<void>((resolve,reject)=>{

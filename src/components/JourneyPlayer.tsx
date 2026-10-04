@@ -2,14 +2,14 @@ import { makeVisayas, visayasId } from '../visayas-demo'
 import FilmExport from './FilmExport'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { readUpcoming, transportModes } from '../upcoming-trips'
-import { readJournals } from '../trip-journals'
+import { useHydratedJournals } from '../use-hydrated-journals'
 import { journeyDemo, journeyDemoChapters } from '../journey-demo'
 import './journey-player.css'
 
 const icons = { plane: '✈', train: '🚆', car: '🚗', walk: '🚶', boat: '⛴' }
 export default function JourneyPlayer({ id, back, plan }: { id: string; back: () => void; plan: () => void }) {
   const [stored, setStored] = useState(readUpcoming)
-  const [journals, setJournals] = useState(readJournals)
+  const journals = useHydratedJournals()
   const visayas = useMemo(() => id === 'visayas' ? makeVisayas() : null, [id])
   const demo = id === 'demo' || id === 'visayas'
   const trip = visayas ? visayas.trip : demo ? journeyDemo : stored.trips.find(t => t.id === id)
@@ -43,7 +43,7 @@ export default function JourneyPlayer({ id, back, plan }: { id: string; back: ()
   function send(data: Record<string, unknown>) { iframe.current?.contentWindow?.postMessage({ source: 'travel-journal', ...data }, location.origin) }
   function seek(value: number) { position.current = value; setProgress(value); send({ type: 'seek', id: requestId.current, progress: Math.min(1, value) }) }
   useEffect(() => {
-    const refresh = () => { setStored(readUpcoming()); setJournals(readJournals()); setPlaying(false); sequence.current = false; setLeg(0) }
+    const refresh = () => { setStored(readUpcoming()); setPlaying(false); sequence.current = false; setLeg(0) }
     const visibility = () => { if (document.hidden) { setPlaying(false); sequence.current = false } }
     const preference = matchMedia('(prefers-reduced-motion: reduce)')
     const change = () => { setReduced(preference.matches); setPlaying(false); sequence.current = false }

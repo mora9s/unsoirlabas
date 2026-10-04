@@ -88,6 +88,23 @@ Les brouillons utilisent la clé `philippines-trip` de `localStorage`, sous la f
 Les quotas du navigateur peuvent limiter le nombre de journées ; un échec
 d’enregistrement laisse le travail ouvert et affiche une explication.
 
+## Emporter le carnet hors ligne
+
+L’application est installable comme PWA depuis une origine HTTPS (ou `localhost`) :
+ouvrez-la une première fois en ligne, puis utilisez **Ajouter à l’écran d’accueil**
+sur iPhone/iPad (Safari → Partager) ou **Installer l’application** dans Chrome sur
+Android. Le service worker conserve seulement l’enveloppe de l’application et ses
+fichiers JavaScript/CSS statiques ; il ne met jamais en cache les API vocales, les
+réponses IA, ni l’audio privé. Les voyages, brouillons et photos importées restent
+stockés localement dans le navigateur. L’écriture manuelle et les imports de photos
+depuis l’appareil restent disponibles sans réseau ; les services distants ne le sont
+pas.
+
+Le stockage navigateur peut être supprimé par le système ou l’utilisateur et n’est
+pas une sauvegarde durable. Exportez régulièrement une archive ZIP et gardez-la
+séparément. iOS/Android peuvent évincer des données ; l’application ne promet ni
+conservation permanente ni synchronisation entre appareils.
+
 Les voyages à venir sont conservés séparément, uniquement sur cet appareil, sous
 `un-soir-la-bas-upcoming-v1`. Leur date suit le calendrier local (pas un nombre
 d’heures restant) et se recalcule à l’ouverture, au retour dans l’onglet et chaque
@@ -136,8 +153,13 @@ utilisateur. `npm run preview` reste une solution de repli sans API vocale.
 
 Le service stocke ses fichiers privés dans `voice-data/` (ignoré par Git), exige
 l’origine/hôte configurés (`VOICE_ALLOWED_ORIGINS`, `VOICE_ALLOWED_HOSTS`) et
-`X-Un-Soir-Request: voice-v1` sur toute mutation. Les uploads sont limités à
-64 MiB, vérifiés par SHA-256 et les tâches SQLite sont exécutées une par une.
+`X-Un-Soir-Request: voice-v1` sur toute mutation. Ce sont des contrôles d’origine,
+pas une identité. Une protection bearer serveur opt-in existe mais n’est pas
+activée; l’atelier navigateur n’a pas encore de connexion sûre, donc l’activation
+bloquerait le vocal. Il n’existe pas de route serveur de téléchargement audio :
+`GET /api/voice/recordings/{rid}/audio` répond 404, avec ou sans bearer. Aucun secret ne va dans le build. Voir la limite explicite et
+la configuration privée dans [`docs/voice-ai.md`](docs/voice-ai.md). Les uploads
+sont limités à 64 MiB, vérifiés par SHA-256 et les tâches SQLite sont exécutées une par une.
 
 Installation, architecture, limites, modèles validés et commandes de vérification :
 [`docs/voice-ai.md`](docs/voice-ai.md).

@@ -1,3 +1,4 @@
+import { withMediaDurabilityLock, persistDraftMediaUnlocked, storedDraft } from './media-store'
 import { visayasDays } from './visayas-days'
 import credits from '../public/assets/visayas/credits.json'
 import type { UpcomingTrip, PlanStop, TransportMode } from './upcoming-trips'
@@ -43,15 +44,19 @@ async function localPhoto(key:string):Promise<string>{
 export async function installVisayas(departure:string):Promise<string>{
   if(!/^\d{4}-\d{2}-\d{2}$/.test(departure))throw new Error('Choisissez une date de départ valide.')
   const images=Object.fromEntries(await Promise.all(Object.keys(credits).map(async key=>[key,await localPhoto(key)])))
+  return withMediaDurabilityLock(async () => {
   // Read after asynchronous downloads so another tab's edits are preserved.
   const upcoming=readUpcoming(),stored=readJournals()
   if(upcoming.error||stored.error)throw new Error(upcoming.error||stored.error)
   if(upcoming.trips.some(t=>t.id===visayasId)||stored.data.journals.some(j=>j.tripId===visayasId))throw new Error('Une copie de cet exemple existe déjà. Ouvrez-la depuis vos voyages : elle n’a pas été remplacée.')
-  const {trip,journal}=makeVisayas(departure,images),trips=[...upcoming.trips,trip],journals={version:1 as const,journals:[...stored.data.journals,journal]}
+  const {trip,journal}=makeVisayas(departure,images)
+  journal.chapters = await Promise.all(journal.chapters.map(async chapter => storedDraft(await persistDraftMediaUnlocked(chapter))))
+  const trips=[...upcoming.trips,trip],journals={version:1 as const,journals:[...stored.data.journals,journal]}
   if(!validateUpcomingTrips(trips)||!validateJournals(journals))throw new Error('Date invalide ou limite de voyages atteinte. Aucun voyage ajouté.')
   const previous=localStorage.getItem(journalsKey)
   try{localStorage.setItem(journalsKey,JSON.stringify(journals));try{localStorage.setItem(upcomingKey,JSON.stringify(trips))}catch(error){if(previous===null)localStorage.removeItem(journalsKey);else localStorage.setItem(journalsKey,previous);throw error}}
   catch{throw new Error('Stockage insuffisant ou indisponible. Vos voyages existants sont conservés ; libérez de l’espace puis réessayez.')}
   window.dispatchEvent(new Event('trip-journals-updated'));window.dispatchEvent(new Event('upcoming-trips-updated'))
   return visayasId
+  })
 }

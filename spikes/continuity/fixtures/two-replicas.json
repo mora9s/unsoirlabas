@@ -1,0 +1,19 @@
+{
+  "contractVersion": 1,
+  "synthetic": true,
+  "base": {
+    "contractVersion": 1,
+    "replica": "replica-a",
+    "chapters": {"chapter-1": {"title": "Lagoon", "text": "shared baseline"}},
+    "deleted": [],
+    "appliedTransfers": []
+  },
+  "concurrentEditReplicas": {
+    "a": {"contractVersion": 1, "replica": "replica-a", "chapters": {"chapter-1": {"title": "Lagoon", "text": "A-side recollection"}}, "deleted": [], "appliedTransfers": []},
+    "b": {"contractVersion": 1, "replica": "replica-b", "chapters": {"chapter-1": {"title": "Lagoon", "text": "B-side recollection"}}, "deleted": [], "appliedTransfers": []}
+  },
+  "independentEditReplicas": {
+    "a": {"contractVersion": 1, "replica": "replica-a", "chapters": {"chapter-1": {"title": "Lagoon", "text": "A-side recollection"}, "chapter-2": {"title": "Market", "text": "shared second baseline"}}, "deleted": [], "appliedTransfers": []},
+    "b": {"contractVersion": 1, "replica": "replica-b", "chapters": {"chapter-1": {"title": "Lagoon", "text": "shared baseline"}, "chapter-2": {"title": "Market", "text": "B-side recollection"}}, "deleted": [], "appliedTransfers": []}
+  }
+}

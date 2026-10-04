@@ -27,6 +27,7 @@ test('prepare-trip form opens accessibly and returns focus after cancel, save, a
   await expect(opener).toBeFocused()
 
   const edit = page.getByRole('button', { name: 'Modifier Kyoto' })
+  await page.locator('.next-actions details summary').click()
   await edit.click()
   await expect(page.getByLabel('Destination')).toBeFocused()
   await page.getByRole('button', { name: 'Annuler' }).click()

@@ -3,8 +3,10 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import {categories,symbols,discoveries,nearby,distance,categoryFor,isCategory} from '../discovery'
 import type {Place,Category} from '../discovery'
-import {readUpcoming,upcomingKey} from '../upcoming-trips'
-import {readJournals} from '../trip-journals'
+import {readUpcoming} from '../upcoming-trips'
+import {saveUpcomingMetadataUnlocked} from '../trip-journals'
+import {withDurabilityLock} from '../durability-lock'
+import {useHydratedJournals} from '../use-hydrated-journals'
 import {createId} from '../id'
 import {coverOf} from '../journal'
 import {nearLongitude,routeLongitudeOrigin} from '../route-geography'
@@ -12,7 +14,7 @@ import './discovery-map.css'
 
 export default function DiscoveryMap({id}:{id?:string}) {
  const [stored,setStored]=useState(readUpcoming)
- const [journals,setJournals]=useState(readJournals)
+ const journals=useHydratedJournals()
  const [tripId,setTripId]=useState(id??'')
  const trip=stored.trips.find(t=>t.id===tripId)
  const [mode,setMode]=useState<'explore'|'trip'|'memories'>(id?'trip':'explore')
@@ -58,7 +60,7 @@ export default function DiscoveryMap({id}:{id?:string}) {
  useEffect(()=>{selectRef.current=select})
  useEffect(()=>{
    live.current=true
-   const refresh=()=>{setStored(readUpcoming());setJournals(readJournals())}
+   const refresh=()=>{setStored(readUpcoming())}
    window.addEventListener('storage',refresh);window.addEventListener('upcoming-trips-updated',refresh);window.addEventListener('trip-journals-updated',refresh)
    return()=>{live.current=false;request.current?.abort();window.removeEventListener('storage',refresh);window.removeEventListener('upcoming-trips-updated',refresh);window.removeEventListener('trip-journals-updated',refresh)}
  },[])
@@ -121,9 +123,10 @@ export default function DiscoveryMap({id}:{id?:string}) {
    }catch(error){if(request.current===controller)setMessage(controller.signal.aborted?'La recherche a expiré. Réessayez ; vos données sont conservées.':error instanceof TypeError?'Connexion au service impossible. Recherchez plus tard ; vos lieux enregistrés restent accessibles.':error instanceof Error?error.message:'Recherche indisponible.')}
    finally{clearTimeout(timeout);if(request.current===controller)setBusy(false)}
  }
- function save(asStop:boolean){
+ async function save(asStop:boolean){
    if(!selected)return
    try{
+    await withDurabilityLock(async () => {
     const latest=readUpcoming();if(latest.error)throw new Error(latest.error)
     const current=latest.trips.find(t=>t.id===tripId);if(!current)throw new Error('Choisissez un voyage pour y garder ce lieu.')
     const plan=current.plan??{ideas:[],stops:[],notes:''},point={lat:selected.lat,lon:selected.lon}
@@ -139,7 +142,8 @@ export default function DiscoveryMap({id}:{id?:string}) {
     }
     // Validate the full store, including capacity, before the single atomic write.
     if(!validate(latest.trips))throw new Error('Limite atteinte : 30 envies et 30 étapes par voyage. Retirez un élément dans le programme.')
-    localStorage.setItem(upcomingKey,JSON.stringify(latest.trips));setStored(latest);window.dispatchEvent(new Event('upcoming-trips-updated'));setMessage(asStop?'Étape ajoutée au programme. Choisissez ensuite son transport si nécessaire.':'Envie enregistrée dans votre voyage et incluse dans les sauvegardes ZIP.')
+    saveUpcomingMetadataUnlocked(latest.trips);setStored(latest);window.dispatchEvent(new Event('upcoming-trips-updated'));setMessage(asStop?'Étape ajoutée au programme. Choisissez ensuite son transport si nécessaire.':'Envie enregistrée dans votre voyage et incluse dans les sauvegardes ZIP.')
+    })
    }catch(error){setMessage(error instanceof DOMException?'Stockage indisponible ou plein. Rien n’a été ajouté.':error instanceof Error?error.message:'Enregistrement impossible.')}
  }
  function locate(){

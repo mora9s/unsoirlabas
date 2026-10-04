@@ -13,7 +13,7 @@ export default function ReadingCopy({ journal }: { journal: PersonalJournal }) {
       const {readingCopy}=await import('../reading-copy')
       const stored=readUpcoming()
       if(stored.error) throw new Error('Le parcours ne peut pas être lu. Vérifiez les données avant de créer cette copie.')
-      const blob=readingCopy(journal,stored.trips.find(t=>t.id===journal.tripId)?.plan?.stops??[])
+      const blob=await readingCopy(journal,stored.trips.find(t=>t.id===journal.tripId)?.plan?.stops??[])
       if(url.current)URL.revokeObjectURL(url.current)
       url.current=URL.createObjectURL(blob)
       const anchor=document.createElement('a');anchor.href=url.current;anchor.download=`carnet-${journal.destination.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9_-]+/g,'-').slice(0,65)}.html`;anchor.click()

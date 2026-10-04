@@ -7,6 +7,7 @@ import { readJournals, validateJournals } from './trip-journals'
 import type { Journals, PersonalJournal } from './trip-journals'
 import { readUpcoming, validateUpcomingTrips } from './upcoming-trips'
 import type { UpcomingTrip } from './upcoming-trips'
+import { mediaBytes } from './media-store'
 
 export const archiveFormat = 'les-jours-au-large-journal'
 export const archiveVersion = 2
@@ -51,14 +52,7 @@ function exactObject(value: unknown, keys: readonly string[]): value is Record<s
   return actual.length === keys.length && keys.every(key => Object.prototype.hasOwnProperty.call(value, key))
 }
 function safeSegment(value: string) { return value.replace(/[^a-zA-Z0-9_-]/g, '-').replace(/-+/g, '-').slice(0, 80) || 'item' }
-function dataUrlBytes(src: string): { mime: string; bytes: Uint8Array } {
-  const match = /^data:(image\/(jpeg|png|webp));base64,([A-Za-z0-9+/]+={0,2})$/.exec(src)
-  if (!match) fail('Une image du carnet ne peut pas être sauvegardée.')
-  const binary = atob(match[3])
-  const bytes = new Uint8Array(binary.length)
-  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index)
-  return { mime: match[1], bytes }
-}
+
 function bytesDataUrl(mime: string, bytes: Uint8Array) {
   let binary = ''
   for (const value of bytes) binary += String.fromCharCode(value)
@@ -108,7 +102,8 @@ function parseManifest(value: unknown): Manifest {
   }
   if (manifest.journal.drafts.length > MAX_RECORDS) fail('Cette sauvegarde contient trop de chapitres.')
   for (const draft of manifest.journal.drafts) {
-    if (!exactObject(draft, ['id', 'title', 'memories', 'tone', 'story', 'coverId', 'status', 'media']) || !Array.isArray(draft.media)) fail('Un chapitre du manifeste contient des champs inconnus ou incomplets.')
+    if (!exactObject(draft, ['id', 'title', 'memories', 'tone', 'story', 'coverId', 'status', 'media']) &&
+      !exactObject(draft, ['id', 'title', 'memories', 'tone', 'story', 'coverId', 'status', 'media', 'plannedStep']) || !Array.isArray(draft.media)) fail('Un chapitre du manifeste contient des champs inconnus ou incomplets.')
     for (const media of draft.media) {
       if (!exactObject(media, ['id', 'name', 'mime', 'path', 'bytes', 'sha256'])) fail('Un média du manifeste contient des champs inconnus ou incomplets.')
     }
@@ -136,7 +131,8 @@ async function restorePersonalJournals(value: Journals | PersonalJournalDescript
     const chapters: Draft[] = []
     const chapterIds = new Set<string>()
     for (const chapter of journal.chapters) {
-      if (!chapter || typeof chapter !== 'object' || Array.isArray(chapter) || !exactObject(chapter, ['id', 'title', 'memories', 'tone', 'story', 'coverId', 'status', 'media']) || typeof chapter.id !== 'string' || chapterIds.has(chapter.id) || !Array.isArray(chapter.media)) fail('Un chapitre personnel de l’archive est invalide.')
+      const baseChapterKeys = ['id', 'title', 'memories', 'tone', 'story', 'coverId', 'status', 'media']
+      if (!chapter || typeof chapter !== 'object' || Array.isArray(chapter) || (!exactObject(chapter, baseChapterKeys) && !exactObject(chapter, [...baseChapterKeys, 'plannedStep'])) || typeof chapter.id !== 'string' || chapterIds.has(chapter.id) || !Array.isArray(chapter.media)) fail('Un chapitre personnel de l’archive est invalide.')
       chapterIds.add(chapter.id)
       const media: Draft['media'] = []
       const ids = new Set<string>()
@@ -215,7 +211,7 @@ export async function createArchive(trip: Trip, createdAt = new Date().toISOStri
     const media: ArchiveMedia[] = []
     for (let mediaIndex = 0; mediaIndex < draft.media.length; mediaIndex += 1) {
       const item = draft.media[mediaIndex]
-      const decoded = dataUrlBytes(item.src)
+      const decoded = await mediaBytes(item)
       if (decoded.bytes.byteLength > MAX_MEDIA_BYTES) fail(`« ${item.name} » est trop volumineuse pour cette sauvegarde.`)
       const path = `media/${String(chapterIndex + 1).padStart(3, '0')}-${safeSegment(draft.id)}/${String(mediaIndex + 1).padStart(3, '0')}-${safeSegment(item.id)}.${extension(decoded.mime)}`
       if (files[path]) fail('Deux médias produisent le même chemin de sauvegarde.')
@@ -237,7 +233,7 @@ export async function createArchive(trip: Trip, createdAt = new Date().toISOStri
       const media: ArchiveMedia[] = []
       for (let mediaIndex = 0; mediaIndex < chapter.media.length; mediaIndex += 1) {
         const item = chapter.media[mediaIndex]
-        const decoded = dataUrlBytes(item.src)
+        const decoded = await mediaBytes(item)
         if (decoded.bytes.byteLength > MAX_MEDIA_BYTES) fail(`« ${item.name} » est trop volumineuse pour cette sauvegarde.`)
         const path = `personal/${String(journalIndex + 1).padStart(3, '0')}-${safeSegment(journal.tripId)}/${String(chapterIndex + 1).padStart(3, '0')}-${safeSegment(chapter.id)}/${String(mediaIndex + 1).padStart(3, '0')}-${safeSegment(item.id)}.${extension(decoded.mime)}`
         if (files[path]) fail('Deux médias produisent le même chemin de sauvegarde.')

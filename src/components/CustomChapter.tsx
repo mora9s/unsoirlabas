@@ -2,9 +2,9 @@ import { coverOf } from '../journal'
 import type { Draft } from '../journal'
 import Icon from './Icon'
 
-type Props = { draft: Draft; home: () => void; edit: () => void; share: () => void }
+type Props = { draft: Draft; home: () => void; edit: () => void; share: () => void; plannedStepLabel?: string }
 
-export default function CustomChapter({ draft, home, edit, share }: Props) {
+export default function CustomChapter({ draft, home, edit, share, plannedStepLabel }: Props) {
   const cover = coverOf(draft)
   const album = draft.media.filter(item => item.id !== cover?.id)
 
@@ -16,6 +16,7 @@ export default function CustomChapter({ draft, home, edit, share }: Props) {
     <header className="chapter-heading page-width">
       <p className="eyebrow">Les mots que l’on garde</p>
       <h1>{draft.title}</h1>
+      {plannedStepLabel && <p className="local-note" data-testid="planned-step-context">{plannedStepLabel}</p>}
       <div className="personal-metadata">
         <span>Enregistré sur cet appareil</span>
         <span>Ton choisi : {draft.tone}</span>
