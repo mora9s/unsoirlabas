@@ -168,6 +168,7 @@
 .departure-badge{position:absolute;top:24px;left:32px;padding:8px 14px;border-radius:30px;background:#173e39e8;font-size:14px}
 .next-actions{gap:16px}.next-actions .button{background:#fff8e9;color:#173e39;min-height:48px}
 .trip-actions-menu summary{cursor:pointer;min-height:44px;display:flex;align-items:center;gap:8px;font-size:14px}.trip-actions-menu summary:after{content:'⌄'}
+.departure-badge.next-count{display:block;min-height:0;padding:8px 12px;font-size:12px;border:0;grid-row:auto;grid-column:auto}.departure-badge.next-count strong{font:inherit;font-weight:700}.trip-actions-menu[open] .text-button{display:inline-flex;align-items:center;margin-right:14px}.trip-actions-menu[open] summary{font-size:12px;opacity:.85}
 .trip-actions-menu[open]{padding:0 12px 12px;border:1px solid currentColor;border-radius:10px}.trip-actions-menu .text-button{display:block;min-height:44px;text-align:left}
 .trip-card-art{height:160px}.trip-card-art img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:2}
 .trip-card,.memory-card,.personal-memory-card{border-radius:14px;overflow:hidden}.memory-cover{padding:0}.memory-cover img,.personal-memory-card>img{object-fit:cover}

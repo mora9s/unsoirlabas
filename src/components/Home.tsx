@@ -3,9 +3,11 @@ import type { Draft } from '../journal'
 import Icon from './Icon'
 import UpcomingTrips from './UpcomingTrips'
 import '../travel-library.css'
+import './family-planner.css'
 
-export default function Home({ openTools, create, drafts, openDraft, editDraft, onOpenJournal, openPlanner, journals }: { openDay: (day: number) => void; openTools: () => void; create: () => void; drafts: Draft[]; openDraft: (draft: Draft) => void; editDraft: (draft: Draft) => void; onOpenJournal: (trip: import('../upcoming-trips').UpcomingTrip) => void; openPlanner: (id: string) => void; journals: import('../trip-journals').PersonalJournal[] }) {
+export default function Home({ openDay, openTools, create, drafts, openDraft, editDraft, onOpenJournal, openPlanner, journals }: { openDay: (day: number) => void; openTools: () => void; create: () => void; drafts: Draft[]; openDraft: (draft: Draft) => void; editDraft: (draft: Draft) => void; onOpenJournal: (trip: import('../upcoming-trips').UpcomingTrip) => void; openPlanner: (id: string) => void; journals: import('../trip-journals').PersonalJournal[] }) {
   return <>
+    <section className="fp-home-entry page-width"><div><p className="eyebrow">NOTRE PROCHAIN GRAND VOYAGE</p><h2>Notre grande échappée.</h2><p>Six escales, vingt nuits et du temps pour nous quatre. Hôtels, activités, restaurants : construisons notre voyage.</p><a href="#philippines">Préparer les Philippines 2027 →</a></div><figure><img src="/assets/visayas/apo.jpg" alt="Apo Island dans les Visayas"/><small>CariolaMinze · CC BY-SA 4.0 · <a href="https://creativecommons.org/licenses/by-sa/4.0/" style={{background:'none',color:'inherit',padding:0,margin:0,fontSize:'inherit'}}>licence</a></small></figure></section>
     <UpcomingTrips openJournal={onOpenJournal} openPlanner={openPlanner} journals={journals} />
     <div className="discover-demo inspiration-card page-width"><img src="/assets/visayas/apo.jpg" alt="Apo Island, au large de Negros" /><div><p className="eyebrow">Une envie d’ailleurs</p><h2>20 jours dans les Visayas</h2><p>D’île en île, un exemple à explorer puis à adapter à vos envies.</p><small>Apo Island · CariolaMinze · <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a></small></div><a className="button" href="#visayas">Explorer cet exemple →</a></div>
     <section className="home-pages page-width" aria-labelledby="home-pages-title">
@@ -19,6 +21,7 @@ export default function Home({ openTools, create, drafts, openDraft, editDraft, 
       })}</div> : <div className="pages-empty"><p>Une journée, une page.</p><span>Gardez les mots et les images que vous voudrez retrouver.</span></div>}
 
       <button className="text-button home-tools-link" onClick={openTools}>Outils et sauvegarde du carnet <Icon name="arrow" /></button>
+      <button className="text-button home-tools-link" onClick={() => openDay(0)}>Découvrir le carnet de démonstration</button>
     </section>
   </>
 }
