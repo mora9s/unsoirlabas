@@ -19,6 +19,7 @@ import type { Draft } from './journal'
 import './journal.css'
 
 const DiscoveryMap = lazy(() => import('./components/DiscoveryMap'))
+const FamilyPlanner = lazy(() => import('./components/FamilyPlanner'))
 const VisayasShowcase = lazy(() => import('./components/VisayasShowcase'))
 const JourneyPlayer = lazy(() => import('./components/JourneyPlayer'))
 
@@ -27,7 +28,7 @@ function currentView(): View {
   const hash = window.location.hash.slice(1)
   if (/^(draft|share|share-trip|trip|plan|motion|journey|journal-share|trip-create|today|explore)\//.test(hash)) return hash
   const base = hash.split('/')[0]
-  if (['explore', 'create', 'share', 'share-demo', 'demo', 'visayas', 'tools', 'day-1', 'day-3', 'day-8'].includes(base)) return base
+  if (['philippines', 'explore', 'create', 'share', 'share-demo', 'demo', 'visayas', 'tools', 'day-1', 'day-3', 'day-8'].includes(base)) return base
   return ['', 'carnet', 'main'].includes(hash) ? 'home' : 'missing'
 }
 
@@ -99,7 +100,7 @@ export default function App() {
   const destinationTitle = tripCreateContext?.destination
   useEffect(() => {
     const title = view.startsWith('explore') ? 'Explorer la carte' : view.startsWith('today/') ? `Aujourd’hui — ${upcomingForJournal(journalTripId)?.destination ?? 'Voyage'}` : view.startsWith('motion/') ? `Voyage animé — ${journalTripId === 'visayas' ? '20 jours dans les Visayas' : journalTripId === 'demo' ? 'Cap sur les Philippines' : upcomingForJournal(journalTripId)?.destination ?? 'Voyage'}` : missing ? 'Cette page est introuvable' : draft ? `${sharing ? 'Partager — ' : ''}${draft.title}` : view === 'visayas' ? '20 jours dans les Visayas' : view === 'home' ? 'La bibliothèque des voyages' : view === 'demo' ? 'Démonstration Philippines' : view === 'tools' ? 'Outils du carnet' : view === 'create' ? 'Créer une journée' : sharing ? 'Studio de partage' : journalChapter ? `${journalChapter.title} — ${journal?.destination}` : tripCreating ? `Écrire — ${destinationTitle}` : journal ? `Carnet — ${journal.destination}` : view.startsWith('plan/') ? `Préparer — ${upcomingForJournal(journalTripId)?.destination ?? 'Voyage'}` : `Jour ${view.slice(4)} — Philippines`
-    document.title = `${title} · Un soir là-bas`
+    document.title = `${view === 'philippines' ? 'Notre voyage aux Philippines 2027' : title} · Un soir là-bas`
     if (lastView.current !== view) {
       mainRef.current?.focus({ preventScroll: true })
       const anchor = document.getElementById(window.location.hash.slice(1))
@@ -154,16 +155,18 @@ export default function App() {
         <span>un soir <em>là-bas</em><small>RACONTÉ SUR PLACE. PARTAGÉ EN DIX MINUTES.</small></span>
       </button>
       <nav aria-label="Navigation principale">
+        <button aria-current={view === 'philippines' ? 'page' : undefined} onClick={() => navigate('philippines')}><span>Philippines 2027</span></button>
         <button className={view === 'home' ? 'active' : ''} aria-current={view === 'home' ? 'page' : undefined} onClick={() => navigate('home')}><Icon name="book" /><span>Mes voyages</span></button>
-        {view !== 'home' && <button className={view === 'create' ? 'active' : ''} aria-label="Créer une journée" aria-current={view === 'create' ? 'page' : undefined} onClick={() => contextTrip ? navigate(`trip-create/${contextId}`) : newDay()}><Icon name="plus" /><span>Créer</span></button>}
-        <button onClick={() => navigate(contextTrip ? `explore/${contextId}` : 'explore')} aria-current={view.startsWith('explore') ? 'page' : undefined}><span>Carte</span></button>
-        <button className={`share-nav ${sharing ? 'active' : ''}`} aria-current={sharing ? 'page' : undefined} onClick={() => navigate('share')}><Icon name="share" /><span>Partager</span></button>
+        {view !== 'home' && view !== 'philippines' && <button className={view === 'create' ? 'active' : ''} aria-label="Créer une journée" aria-current={view === 'create' ? 'page' : undefined} onClick={() => contextTrip ? navigate(`trip-create/${contextId}`) : newDay()}><Icon name="plus" /><span>Créer</span></button>}
+        <button onClick={() => view === 'philippines' ? window.dispatchEvent(new Event('family-show-map')) : navigate(contextTrip ? `explore/${contextId}` : 'explore')} aria-current={view.startsWith('explore') ? 'page' : undefined}><span>Carte</span></button>
+        {view !== 'philippines' && <button className={`share-nav ${sharing ? 'active' : ''}`} aria-current={sharing ? 'page' : undefined} onClick={() => navigate('share')}><Icon name="share" /><span>Partager</span></button>}
       </nav>
     </header>
     {contextTrip && <nav className="trip-navigation page-width" aria-label="Navigation du voyage"><span>{contextTrip.destination}</span><div>{[
-      ['Programme', `plan/${contextId}`], ['Carte', `explore/${contextId}`], ['Carnet', `trip/${contextId}`], ['Film', `motion/${contextId}`], ['Aujourd’hui', `today/${contextId}`],
+      ...(journalTripId === 'family-philippines-2027' ? [['Préparation familiale', 'philippines']] : []), ['Programme', `plan/${contextId}`], ['Carte', `explore/${contextId}`], ['Carnet', `trip/${contextId}`], ['Film', `motion/${contextId}`], ['Aujourd’hui', `today/${contextId}`],
     ].map(([label,route]) => <a key={route} href={`#${route}`} aria-current={view === route ? 'page' : undefined}>{label}</a>)}</div></nav>}
     <main id="main" ref={mainRef} tabIndex={-1}>
+      {view === 'philippines' && <Suspense fallback={<p className="page-width" role="status">Préparation du voyage…</p>}><FamilyPlanner /></Suspense>}
       {journals.error && !stored.error && <p role="alert" className="error-message page-width">{journals.error}</p>}
       {stored.error && <p role="alert" className="error-message page-width">{stored.error}</p>}
       {view === 'home' && (
@@ -237,6 +240,7 @@ export default function App() {
     <footer className="site-footer page-width">
       <div className="footer-brand">
         un soir <em>là-bas</em><p>Vos voyages, vos images, vos histoires.</p>
+        <button className="text-button" onClick={() => navigate('home')}>Le carnet</button>
       </div>
       <div>
         <span>La bibliothèque de vos voyages</span>

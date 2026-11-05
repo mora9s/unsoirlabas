@@ -6,7 +6,7 @@ function offlineShell(): Plugin {
   return {
     name: 'offline-shell',
     generateBundle(_, bundle) {
-      const files = ['/','/favicon.svg','/icons.svg', ...Object.keys(bundle).filter(name => /\.(js|css)$/.test(name)).map(name=>`/${name}`)]
+      const files = ['/','/favicon.svg','/icons.svg','/assets/visayas/apo.jpg', ...Object.keys(bundle).filter(name => /\.(js|css)$/.test(name)).map(name=>`/${name}`)]
       const revision=createHash('sha256').update(JSON.stringify(files)).digest('hex').slice(0,16)
       this.emitFile({type:'asset',fileName:'offline-worker.js',source:`
 const NAME='unsoirlabas-offline-${revision}';

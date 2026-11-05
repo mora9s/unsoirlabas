@@ -159,6 +159,7 @@ export default function Backup({ trip, onRestore }: { trip: Trip; onRestore: (tr
   }
 
   return <section className="backup page-width" aria-labelledby="backup-title">
+    <p className="local-note">La préparation familiale Philippines 2027 possède son propre export (choix, budget et checklist). <a href="#philippines">Ouvrir la préparation pour l’exporter</a>. Le ZIP ci-dessous sauvegarde les carnets et les voyages classiques.</p>
     <div className="backup-copy"><p className="eyebrow">Conserver le carnet</p><h2 id="backup-title">Une copie pour la route.</h2><p>Déposez l’archive dans Drive, dans le dossier de votre choix. Gardez-y vos originaux ; cette copie contient les photos sélectionnées et redimensionnées des carnets, vos récits et les préparatifs de vos voyages.</p></div>
     <div className="backup-actions">
       <OfflineAccess />

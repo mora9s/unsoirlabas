@@ -43,10 +43,10 @@ export default function OfflineAccess() {
     finally{setBusy(false)}
   }
   return <aside className="offline-access" aria-label="Disponibilité hors connexion">
-    <details><summary>{online ? 'Connexion disponible' : 'Vous êtes hors connexion'} · {ready ? 'Application téléchargée' : 'Application non préparée'}</summary>
+    <details open><summary>{online ? 'Connexion disponible' : 'Vous êtes hors connexion'} · {ready ? 'Application téléchargée' : 'Application non préparée'}</summary>
     <p>Emportez le programme, les adresses, les notes et les photos déjà enregistrées dans vos carnets. Les cartes, la recherche de lieux, Google Photos et les services en ligne nécessitent une connexion.</p>
     {supported ? <button className="text-button" disabled={busy || !online} onClick={prepare}>{busy ? 'Téléchargement en cours…' : ready ? 'Actualiser la copie hors connexion' : 'Télécharger pour le hors connexion'}</button> : <p>Le téléchargement nécessite HTTPS ou localhost dans un navigateur compatible.</p>}
     {message && <p role="status">{message}</p>}
-    <small>Le navigateur peut libérer ce stockage. Vérifiez l’accès avant le départ et conservez aussi une sauvegarde ZIP.</small>
+    <small>Le navigateur peut libérer ce stockage. Vérifiez l’accès avant le départ et conservez une sauvegarde JSON de la préparation familiale et ZIP des carnets.</small>
   </details></aside>
 }
