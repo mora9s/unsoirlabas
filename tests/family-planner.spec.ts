@@ -325,8 +325,6 @@ test("favoris, comparaison, réservation et budget survivent au rechargement", a
     "Pescadores Suites",
     "",
     "",
-    "",
-    "",
   ]);
   const saved = await page.evaluate(
     (k) => JSON.parse(localStorage.getItem(k)!),
@@ -496,6 +494,24 @@ test("le planning illustré ouvre sur 21 journées dont trois nuits à Bohol", a
   await expect(page.locator(".fp-day-sequence dt")).toHaveCount(63);
   await expect(page.locator(".fp-day h3").first()).toBeInViewport();
   await expect(page.locator(".fp-program-photo img")).toHaveCount(6);
+  const route = page.getByRole("navigation", { name: "Étapes du voyage" });
+  for (const [place, nights] of [
+    ["Moalboal", 3],
+    ["Dauin", 5],
+    ["Siquijor", 7],
+    ["Bohol", 3],
+    ["Mactan", 2],
+  ] as const) {
+    await expect(
+      route.getByRole("button", { name: new RegExp(place) }),
+    ).toContainText(nights + " nuits");
+  }
+  await route.getByRole("button", { name: /Moalboal/ }).click();
+  await expect(page.locator(".fp-day")).toHaveCount(3);
+  await expect(page.locator("#plan-2027-02-19")).toContainText("sardines");
+  await route.getByRole("button", { name: /Mactan/ }).click();
+  await expect(page.locator("#plan-2027-03-07")).toContainText("ferry");
+  await expect(page.locator("#plan-2027-03-08")).toContainText("Alegre");
   await page
     .getByRole("navigation", { name: "Étapes du voyage" })
     .getByRole("button", { name: /Bohol/ })
@@ -549,7 +565,9 @@ test("les dates et paiements de l’ancien circuit Bohol restent consultables et
     "2027-03-02",
   );
   await expect(
-    page.getByRole("dialog").getByRole("textbox", { name: "Nos notes", exact: true }),
+    page
+      .getByRole("dialog")
+      .getByRole("textbox", { name: "Nos notes", exact: true }),
   ).toHaveValue("Acompte versé");
   await page.getByRole("button", { name: "Fermer la fiche" }).click();
   const event = page.waitForEvent("download");

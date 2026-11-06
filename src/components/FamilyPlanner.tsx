@@ -692,15 +692,10 @@ export default function FamilyPlanner() {
         <details>
           <summary>Pourquoi ces cinq bases ?</summary>
           <p>
-            Moalboal conserve cinq nuits pour récupérer du voyage. Les quatre
-            nuits libérées à Bohol vont à Dauin et Siquijor, deux chacune : un
-            créneau de report pour Apo et du temps pour les cascades, le récif
-            et la plage.
+            À Moalboal, trois nuits laissent deux journées pleines : récupération et plage, puis sardines de Panagsama si la mer le permet. Dauin garde cinq nuits pour pouvoir reporter Apo.
           </p>
           <p>
-            À Bohol, les trois nuits se passent dans le même hôtel à Panglao.
-            Loboc se visite en journée. La dernière nuit à Mactan laisse une
-            marge avant le vol.
+            Une des deux nuits libérées va à San Juan : sept nuits au même hôtel pour séparer cascades, récif et jeux sur la plage. Bohol conserve trois nuits à Panglao. L’autre nuit va à Mactan : en quittant Bohol le 7 mars, la journée du 8 peut servir à une visite en famille ou au report du ferry avant le vol du 9.
           </p>
         </details>
       </header>

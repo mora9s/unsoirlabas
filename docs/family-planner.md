@@ -2,7 +2,7 @@
 
 Route : `/#philippines`, accessible depuis l’accueil et la navigation principale.
 
-Le scénario familial couvre 20 nuits du 17 février au 9 mars 2027 : Moalboal (5), Dauin/Zamboanguita (5), Siquijor (6), Bohol / Panglao (3), Mactan (1). Deux adultes, deux enfants de 5 et 8 ans, sans vol intérieur. Ces dates restent envisagées.
+Le scénario familial couvre 20 nuits du 17 février au 9 mars 2027 : Moalboal (3), Dauin/Zamboanguita (5), Siquijor (7), Bohol / Panglao (3), Mactan (2). Deux adultes, deux enfants de 5 et 8 ans, sans vol intérieur. Ces dates restent envisagées.
 
 ## Utilisation
 

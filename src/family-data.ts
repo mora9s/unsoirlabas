@@ -38,8 +38,8 @@ export const stages: Stage[] = [
     name: "Moalboal",
     island: "Cebu",
     start: "2027-02-17",
-    end: "2027-02-22",
-    nights: 5,
+    end: "2027-02-20",
+    nights: 3,
     intro:
       "Prendre le temps d’arriver. Puis entrer dans le bleu, entre sardines, tortues et plages de sable.",
     photo: "moalboal",
@@ -56,8 +56,8 @@ export const stages: Stage[] = [
     id: "negros",
     name: "Dauin & Apo",
     island: "Negros oriental",
-    start: "2027-02-22",
-    end: "2027-02-27",
+    start: "2027-02-20",
+    end: "2027-02-25",
     nights: 5,
     intro:
       "Cinq nuits près de la mer pour rencontrer les tortues d’Apo et découvrir un autre visage des Visayas.",
@@ -67,7 +67,7 @@ export const stages: Stage[] = [
     lat: 9.19,
     lon: 123.27,
     transfer:
-      "22 février · Voiture Moalboal → Liloan/Santander, ferry vers Sibulan, puis chauffeur vers Dauin ou Zamboanguita. Prévoir une demi-journée avec attente au port ; opérateur et horaires à confirmer.",
+      "20 février · Voiture Moalboal → Liloan/Santander, ferry vers Sibulan, puis chauffeur vers Dauin ou Zamboanguita. Prévoir une demi-journée avec attente au port ; opérateur et horaires à confirmer.",
     fallback:
       "Si Apo est impraticable : reporter au lendemain et choisir Dumaguete ou une journée au resort. Ne pas cumuler sortie en mer et longue excursion.",
   },
@@ -75,9 +75,9 @@ export const stages: Stage[] = [
     id: "siquijor",
     name: "Siquijor",
     island: "San Juan",
-    start: "2027-02-27",
-    end: "2027-03-05",
-    nights: 6,
+    start: "2027-02-25",
+    end: "2027-03-04",
+    nights: 7,
     intro:
       "Cascades, petites routes et couchers de soleil. Une base à San Juan pour rayonner sans refaire les valises.",
     photo: "siquijor",
@@ -86,7 +86,7 @@ export const stages: Stage[] = [
     lat: 9.15,
     lon: 123.5,
     transfer:
-      "27 février · Chauffeur vers Dumaguete, ferry vers Siquijor puis transfert San Juan. Confirmer le port d’arrivée exact et les bagages auprès de l’opérateur.",
+      "25 février · Chauffeur vers Dumaguete, ferry vers Siquijor puis transfert San Juan. Confirmer le port d’arrivée exact et les bagages auprès de l’opérateur.",
     fallback:
       "Mer agitée : patrimoine à Lazi ou repos. Fortes pluies : éviter cascades et baignade, rester près de l’hébergement.",
   },
@@ -94,8 +94,8 @@ export const stages: Stage[] = [
     id: "bohol",
     name: "Bohol",
     island: "Base à Panglao",
-    start: "2027-03-05",
-    end: "2027-03-08",
+    start: "2027-03-04",
+    end: "2027-03-07",
     nights: 3,
     intro:
       "Trois nuits dans le même hôtel près de Dumaluan. Une journée à l’intérieur de Bohol, une autre les pieds dans le sable. Les lodges de Loboc sont une alternative pour les trois nuits.",
@@ -105,28 +105,28 @@ export const stages: Stage[] = [
     lat: 9.55,
     lon: 123.8,
     transfer:
-      "5 mars · Ferry envisagé de Siquijor à Tagbilaran, puis chauffeur jusqu’à Panglao. Confirmer la traversée du jour et le lieu de prise en charge avant de réserver.",
+      "4 mars · Ferry envisagé de Siquijor à Tagbilaran, puis chauffeur jusqu’à Panglao. Confirmer la traversée du jour et le lieu de prise en charge avant de réserver.",
     fallback:
-      "En cas d’annulation, contacter les hébergements et chercher la prochaine traversée. Raccourcir le programme de Bohol pour préserver le retour à Cebu le 8.",
+      "En cas d’annulation, contacter les hébergements et chercher la prochaine traversée. Raccourcir le programme de Bohol pour préserver le retour à Cebu le 7.",
   },
   {
     id: "mactan",
     name: "Mactan",
     island: "Cebu · retour serein",
-    start: "2027-03-08",
+    start: "2027-03-07",
     end: "2027-03-09",
-    nights: 1,
+    nights: 2,
     intro:
-      "Une dernière nuit près du départ. Se reposer, faire les valises et garder de la marge pour le vol retour.",
+      "Deux nuits au même hôtel pour profiter d’une journée complète à Mactan et garder de la marge avant le vol.",
     photo: "cebu",
     credit: "Kingphoto23 · CC BY-SA 3.0 · patrimoine de Cebu",
     license: "https://creativecommons.org/licenses/by-sa/3.0/",
     lat: 10.3,
     lon: 123.99,
     transfer:
-      "8 mars · Route vers le port de Bohol, ferry vers Cebu, chauffeur vers Mactan. Vol retour étudié le 9 mars à 19h35 ; horaire non confirmé.",
+      "7 mars · Route vers le port de Bohol, ferry vers Cebu, chauffeur vers Mactan. Vol retour étudié le 9 mars à 19h35 ; horaire non confirmé.",
     fallback:
-      "Surveiller les traversées dès le 7 mars et avancer le retour si nécessaire. Demander douche, bagagerie ou départ tardif pour le 9.",
+      "Surveiller les traversées dès le 6 mars et avancer le retour si nécessaire. Demander douche, bagagerie ou départ tardif pour le 9.",
   },
 ];
 export const kindLabels: Record<Kind, string> = {
@@ -184,12 +184,12 @@ export const places: Place[] = [
     123.368,
     "Le favori déjà repéré, sur le littoral de Basdiot. Une base pour les sorties autour de Panagsama.",
     "Demander l’Executive Deluxe pour deux adultes et deux enfants, avec détail des couchages.",
-    "Confirmer piscine, repas, arrivée anticipée et tarif total des cinq nuits.",
+    "Confirmer piscine, repas, arrivée anticipée et tarif total des trois nuits.",
     "https://www.pescadorescebu.com/",
     ["Favori initial", "Bord de mer"],
-    "5 nuits",
+    "3 nuits",
     true,
-    "Repère transmis : 380–460 € / 5 nuits / famille. Non revérifié pour 2027.",
+    "Ancien repère pour cinq nuits : 380–460 € pour quatre. Demander le devis des trois nuits du 17 au 20 février.",
   ),
   p(
     "moalboal",
@@ -203,7 +203,7 @@ export const places: Place[] = [
     "Disponibilité, piscine, petit-déjeuner et conditions enfants à confirmer.",
     "https://www.parrot-resort.com/index-our_rooms-family_room",
     ["Chambre familiale", "Panagsama"],
-    "5 nuits",
+    "3 nuits",
   ),
   p(
     "moalboal",
@@ -217,9 +217,9 @@ export const places: Place[] = [
     "Prévoir les trajets vers Panagsama ; vérifier l’accès à la baignade et les équipements inclus.",
     "https://www.halemanna.com/",
     ["Calme", "Jardins"],
-    "5 nuits",
+    "3 nuits",
     true,
-    "Repère transmis : 110–115 € / nuit familiale, soit 550–575 € / 5 nuits. À vérifier.",
+    "Repère transmis : 110–115 € / nuit familiale, soit 330–345 € pour trois nuits à ce prix indicatif. Tarif 2027 à vérifier.",
   ),
   p(
     "moalboal",
@@ -453,7 +453,7 @@ export const places: Place[] = [
     "Accès au sanctuaire, couchages, piscines et frais additionnels à confirmer.",
     "https://www.cocogrovebeachresort.com/",
     ["Tubod", "Confort"],
-    "6 nuits",
+    "7 nuits",
   ),
   p(
     "siquijor",
@@ -467,7 +467,7 @@ export const places: Place[] = [
     "Piscine, couchages et disponibilité à demander directement.",
     "https://siquijorprovince.com/restaurants/",
     ["San Juan", "À comparer"],
-    "6 nuits",
+    "7 nuits",
   ),
   p(
     "siquijor",
@@ -481,7 +481,7 @@ export const places: Place[] = [
     "Position sur la carte = secteur San Juan ; vérifier l’adresse et les équipements exacts.",
     "https://www.cocogrovebeachresort.com/",
     ["Alternative", "À comparer"],
-    "6 nuits",
+    "7 nuits",
   ),
   p(
     "siquijor",
@@ -852,7 +852,7 @@ export const places: Place[] = [
     "Demander chambre pour quatre, navette vers le bon terminal, douche et départ tardif.",
     "https://www.waterfronthotels.com.ph/waterfront-airport-hotel-casino/",
     ["Aéroport", "Pratique"],
-    "1 nuit",
+    "2 nuits",
   ),
   p(
     "mactan",
@@ -866,7 +866,7 @@ export const places: Place[] = [
     "Inclure le transfert aéroport, la circulation et le coût du départ tardif.",
     "https://bluewatermaribago.com.ph/",
     ["Resort", "Repos"],
-    "1 nuit",
+    "2 nuits",
   ),
   p(
     "mactan",
@@ -880,7 +880,7 @@ export const places: Place[] = [
     "À comparer au budget restant ; ne pas présumer qu’une chambre standard suffit.",
     "https://www.shangri-la.com/cebu/mactanresort/",
     ["Confort", "Resort"],
-    "1 nuit",
+    "2 nuits",
   ),
   p(
     "mactan",
@@ -991,7 +991,7 @@ places.push(
     "Dîner au Waterfront Airport Hotel",
     10.316,
     123.978,
-    "Une solution pratique si vous choisissez l’hôtel de l’aéroport pour la dernière nuit.",
+    "Une solution pratique si vous choisissez l’hôtel de l’aéroport pour les deux nuits à Mactan.",
     "Dîner sur place pour garder la soirée simple après la traversée.",
     "Demander quelle table est ouverte, la carte et les conditions pour les enfants.",
     "https://www.waterfronthotels.com.ph/waterfront-airport-hotel-casino/",
