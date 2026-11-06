@@ -1,3 +1,11 @@
+import {
+  validFlightPacket,
+  validTransfers,
+  transferFields,
+  transferRoutes,
+  transferStatuses,
+} from "./family-logistics";
+import type { FlightPacket, Transfer } from "./family-logistics";
 import { daily } from "./family-programme";
 import { kindLabels, places, stages, tasks } from "./family-data";
 import type { Place, StageId } from "./family-data";
@@ -18,6 +26,9 @@ export type Choice = {
   reference: string;
   priceType: "estimate" | "quote" | "confirmed";
   checked: string;
+  room?: string;
+  included?: string;
+  cancelBy?: string;
 };
 export type Expense = {
   id: string;
@@ -28,6 +39,10 @@ export type Expense = {
 };
 export type FamilyState = {
   version: 1;
+  flights?: FlightPacket;
+  transfers?: Partial<Record<StageId, Transfer>>;
+  alternatives?: string[];
+  decisions?: Record<string, { due: string; answer: string }>;
   choices: Record<string, Choice>;
   custom: Place[];
   checks: string[];
@@ -113,10 +128,38 @@ export function validateFamily(v: unknown): v is FamilyState {
   )
     return false;
   if (
-    Object.keys(v).sort().join() !==
+    Object.keys(v)
+      .filter(
+        (k) =>
+          !["flights", "transfers", "alternatives", "decisions"].includes(k),
+      )
+      .sort()
+      .join() !==
     ["version", "choices", "custom", "checks", "budget", "expenses", "dayNotes"]
       .sort()
       .join()
+  )
+    return false;
+  if (
+    "decisions" in v &&
+    (!object(v.decisions) ||
+      !Object.entries(v.decisions).every(
+        ([id, x]) =>
+          tasks.some((t) => t[0] === id) &&
+          object(x) &&
+          str(x.answer, 1000) &&
+          (x.due === "" || validDate(x.due)),
+      ))
+  )
+    return false;
+  if (
+    ("flights" in v && !validFlightPacket(v.flights)) ||
+    ("transfers" in v && !validTransfers(v.transfers)) ||
+    ("alternatives" in v &&
+      (!Array.isArray(v.alternatives) ||
+        v.alternatives.length > daily.length ||
+        !v.alternatives.every((date) => daily.some((d) => d.date === date)) ||
+        new Set(v.alternatives).size !== v.alternatives.length))
   )
     return false;
   if (
@@ -167,6 +210,11 @@ export function validateFamily(v: unknown): v is FamilyState {
         object(c) &&
         Object.hasOwn(statusLabels, String(c.status)) &&
         str(c.notes, 4000) &&
+        (c.room === undefined || str(c.room, 500)) &&
+        (c.included === undefined || str(c.included, 500)) &&
+        (c.cancelBy === undefined ||
+          c.cancelBy === "" ||
+          validDate(c.cancelBy)) &&
         str(c.reference, 300) &&
         str(c.cost, 20) &&
         str(c.paid, 20) &&
@@ -350,7 +398,16 @@ export function exportReading(data: FamilyState) {
   const sums = totals(data);
   function optionCard(p: Place) {
     const c = data.choices[p.id] ?? emptyChoice();
-    return `<article><h3>${escape(p.name)}</h3><p>${kindLabels[p.kind]} · ${statusLabels[c.status]} ${c.date ? "· " + dateLabel(c.date) : ""}</p><p>${escape(p.description)}</p><p>${escape(p.family)}</p><p>${escape(p.caution)}</p><p>${c.cost ? money(Number(c.cost)) + " pour quatre · " + (c.priceType === "estimate" ? "estimation" : c.priceType === "quote" ? "devis" : "prix déclaré confirmé") : escape(p.price ?? "Prix non renseigné")}</p>${c.paid ? `<p>Payé déclaré : ${money(Number(c.paid))}</p>` : ""}<p>${escape(c.notes).replace(/\n/g, "<br>")}</p>${c.reference ? `<p>Référence : ${escape(c.reference)}</p>` : ""}${safeUrl(p.source) ? `<a href="${escape(p.source)}">Source / établissement</a>` : ""}</article>`;
+    return `<article><h3>${escape(p.name)}</h3><p>${kindLabels[p.kind]} · ${statusLabels[c.status]} ${c.date ? "· " + dateLabel(c.date) : ""}</p><p>${escape(p.description)}</p><p>${escape(p.family)}</p><p>${escape(p.caution)}</p><p>${c.cost ? money(Number(c.cost)) + " pour quatre · " + (c.priceType === "estimate" ? "estimation" : c.priceType === "quote" ? "devis" : "prix déclaré confirmé") : escape(p.price ?? "Prix non renseigné")}</p>${c.paid ? `<p>Payé déclaré : ${money(Number(c.paid))}</p>` : ""}<p>${escape(c.notes).replace(/\n/g, "<br>")}</p>${c.reference ? `<p>Référence : ${escape(c.reference)}</p>` : ""}${[
+      c.room,
+      c.included,
+      c.cancelBy,
+    ]
+      .filter(Boolean)
+      .map((x) => `<p>${escape(x!)}</p>`)
+      .join(
+        "",
+      )}${safeUrl(p.source) ? `<a href="${escape(p.source)}">Source / établissement</a>` : ""}</article>`;
   }
   const body = stages
     .map(
@@ -381,6 +438,32 @@ export function exportReading(data: FamilyState) {
           .join("")}</details></section>`,
     )
     .join("");
+  const transfers = stages
+    .map((s) => {
+      const t = data.transfers?.[s.id];
+      const fields = t
+        ? Object.entries(transferFields)
+            .map(
+              ([k, label]) =>
+                `<p><b>${escape(label)}</b> · ${escape(t[k as keyof typeof transferFields] || "À confirmer")}</p>`,
+            )
+            .join("")
+        : "";
+      return `<article><h3>${dateLabel(s.start)} · ${escape(s.name)}</h3><p>${escape(transferRoutes[s.id].join(" → "))}</p><p>${t ? transferStatuses[t.status] : "À organiser"}</p>${fields}<p>${escape(s.fallback)}</p></article>`;
+    })
+    .join("");
+  const flights = data.flights
+    ? [
+        data.flights.source,
+        data.flights.outbound,
+        data.flights.inbound,
+        data.flights.baggage,
+        data.flights.seats,
+        data.flights.followUp,
+      ]
+        .map((s) => `<p>${escape(s).replace(/\n/g, "<br>")}</p>`)
+        .join("")
+    : "<p>Confirmation privée à importer sur cet appareil.</p>";
   const notes = Object.entries(data.dayNotes)
     .filter(([, n]) => n.trim())
     .map(
@@ -389,7 +472,7 @@ export function exportReading(data: FamilyState) {
     )
     .join("");
   downloadFile(
-    `<!doctype html><html lang="fr"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Philippines 2027 — notre préparation</title><style>body{font:16px/1.65 system-ui;max-width:850px;margin:40px auto;padding:0 24px;color:#243e35;background:#faf8f0}h1,h2,h3{font-family:Georgia}h1{font-size:44px}section{border-top:1px solid #aaa;margin-top:32px}article{padding:12px 20px;border-left:3px solid #45796b;margin:16px 0;break-inside:avoid}a{color:inherit}p{overflow-wrap:anywhere}@media print{body{margin:0;background:white}a{color:black}}</style><h1>Philippines, ensemble.</h1><p>17 février – 9 mars 2027 · 20 nuits · 2 adultes et 2 enfants</p><p>Copie de lecture personnelle. Les statuts sont ceux saisis par la famille ; aucune réservation n’est réalisée par l’application.</p><p>Budget cible ${money(data.budget)} · montants renseignés ${money(sums.estimated)} · payé déclaré ${money(sums.paid)}.</p>${body}<h2>Notes quotidiennes</h2>${notes}<h2>Avant le départ</h2>${tasks.map((t) => `<p>${data.checks.includes(t[0]) ? "✓" : "□"} ${escape(t[1])} — ${escape(t[2])}</p>`).join("")}<h2>Autres dépenses</h2>${data.expenses.map((e) => `<p>${escape(e.label)} : ${money(e.cost)} · payé ${money(e.paid)} · ${e.confirmed ? "confirmé par vous" : "estimation"}</p>`).join("")}<p>Exporté le ${new Date().toLocaleDateString("fr-FR")}. Montants pour quatre. Liens externes nécessitant Internet.</p></html>`,
+    `<!doctype html><html lang="fr"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Philippines 2027 — notre préparation</title><style>body{font:16px/1.65 system-ui;max-width:850px;margin:40px auto;padding:0 24px;color:#243e35;background:#faf8f0}h1,h2,h3{font-family:Georgia}h1{font-size:44px}section{border-top:1px solid #aaa;margin-top:32px}article{padding:12px 20px;border-left:3px solid #45796b;margin:16px 0;break-inside:avoid}a{color:inherit}p{overflow-wrap:anywhere}@media print{body{margin:0;background:white}a{color:black}}</style><h1>Philippines, ensemble.</h1><p>17 février – 9 mars 2027 · 20 nuits · 2 adultes et 2 enfants</p><p>Copie de lecture personnelle. Les statuts sont ceux saisis par la famille ; aucune réservation n’est réalisée par l’application.</p><p>Budget cible ${money(data.budget)} · montants renseignés ${money(sums.estimated)} · payé déclaré ${money(sums.paid)}.</p>${body}<h2>Vols internationaux</h2>${flights}<h2>Fiches de transfert</h2>${transfers}<h2>Alternatives utilisées</h2>${(data.alternatives ?? []).map((date) => `<p>${dateLabel(date)} · ${escape(daily.find((d) => d.date === date)!.alternative)}</p>`).join("")}<h2>Notes quotidiennes</h2>${notes}<h2>Avant le départ</h2>${tasks.map((t) => `<p>${data.checks.includes(t[0]) ? "✓" : "□"} ${escape(t[1])} — ${escape(t[2])} · ${escape(data.decisions?.[t[0]]?.due || "")} ${escape(data.decisions?.[t[0]]?.answer || "")}</p>`).join("")}<h2>Autres dépenses</h2>${data.expenses.map((e) => `<p>${escape(e.label)} : ${money(e.cost)} · payé ${money(e.paid)} · ${e.confirmed ? "confirmé par vous" : "estimation"}</p>`).join("")}<p>Exporté le ${new Date().toLocaleDateString("fr-FR")}. Montants pour quatre. Liens externes nécessitant Internet.</p></html>`,
     "philippines-2027-copie-de-lecture.html",
     "text/html",
   );

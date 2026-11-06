@@ -1,3 +1,4 @@
+import { DecisionForm, FlightCard, TransferSheet } from "./FamilyLogistics";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import { daily, photoLabels, credits } from "../family-programme";
@@ -281,6 +282,35 @@ function ChoiceEditor({
             onChange={(e) => patch({ notes: e.target.value })}
           />
         </label>
+        {place.kind === "hotel" && (
+          <details className="fp-cost-details">
+            <summary>Chambre et conditions du devis</summary>
+            <label>
+              Couchages exacts pour quatre
+              <input
+                maxLength={500}
+                value={draft.room ?? ""}
+                onChange={(e) => patch({ room: e.target.value })}
+              />
+            </label>
+            <label>
+              Petit-déjeuner, piscine, arrivée et services inclus
+              <input
+                maxLength={500}
+                value={draft.included ?? ""}
+                onChange={(e) => patch({ included: e.target.value })}
+              />
+            </label>
+            <label>
+              Annulation gratuite jusqu’au
+              <input
+                type="date"
+                value={draft.cancelBy ?? ""}
+                onChange={(e) => patch({ cancelBy: e.target.value })}
+              />
+            </label>
+          </details>
+        )}
         <details className="fp-cost-details">
           <summary>Prix, paiement et réservation</summary>
           <div className="fp-form-grid">
@@ -692,10 +722,16 @@ export default function FamilyPlanner() {
         <details>
           <summary>Pourquoi ces cinq bases ?</summary>
           <p>
-            À Moalboal, trois nuits laissent deux journées pleines : récupération et plage, puis sardines de Panagsama si la mer le permet. Dauin garde cinq nuits pour pouvoir reporter Apo.
+            À Moalboal, trois nuits laissent deux journées pleines :
+            récupération et plage, puis sardines de Panagsama si la mer le
+            permet. Dauin garde cinq nuits pour pouvoir reporter Apo.
           </p>
           <p>
-            Une des deux nuits libérées va à San Juan : sept nuits au même hôtel pour séparer cascades, récif et jeux sur la plage. Bohol conserve trois nuits à Panglao. L’autre nuit va à Mactan : en quittant Bohol le 7 mars, la journée du 8 peut servir à une visite en famille ou au report du ferry avant le vol du 9.
+            Une des deux nuits libérées va à San Juan : sept nuits au même hôtel
+            pour séparer cascades, récif et jeux sur la plage. Bohol conserve
+            trois nuits à Panglao. L’autre nuit va à Mactan : en quittant Bohol
+            le 7 mars, la journée du 8 peut servir à une visite en famille ou au
+            report du ferry avant le vol du 9.
           </p>
         </details>
       </header>
@@ -1122,23 +1158,52 @@ export default function FamilyPlanner() {
                           </figcaption>
                         </figure>
                       )}
-                      <dl className="fp-day-sequence">
-                        <div>
-                          <dt>Matin</dt>
-                          <dd>{day.morning}</dd>
-                        </div>
-                        <div>
-                          <dt>Après-midi</dt>
-                          <dd>{day.afternoon}</dd>
-                        </div>
-                        <div>
-                          <dt>Soir</dt>
-                          <dd>{day.evening}</dd>
-                        </div>
-                      </dl>
+                      <div hidden={data.alternatives?.includes(date)}>
+                        <dl className="fp-day-sequence">
+                          <div>
+                            <dt>Matin</dt>
+                            <dd>{day.morning}</dd>
+                          </div>
+                          <div>
+                            <dt>Après-midi</dt>
+                            <dd>{day.afternoon}</dd>
+                          </div>
+                          <div>
+                            <dt>Soir</dt>
+                            <dd>{day.evening}</dd>
+                          </div>
+                        </dl>
+                      </div>
                       <aside className="fp-day-backup">
-                        <strong>Alternative du jour</strong>
+                        <strong>
+                          {data.alternatives?.includes(date)
+                            ? "Alternative retenue pour la journée"
+                            : "Alternative du jour"}
+                        </strong>
                         <p>{day.alternative}</p>
+                        <button
+                          className="fp-inline"
+                          aria-pressed={!!data.alternatives?.includes(date)}
+                          onClick={() =>
+                            update((d) => ({
+                              ...d,
+                              alternatives: d.alternatives?.includes(date)
+                                ? d.alternatives.filter((x) => x !== date)
+                                : [...(d.alternatives ?? []), date],
+                            }))
+                          }
+                        >
+                          {data.alternatives?.includes(date)
+                            ? "Revenir au programme initial"
+                            : "Utiliser cette alternative"}
+                        </button>
+                        {data.alternatives?.includes(date) &&
+                          options.length > 0 && (
+                            <p>
+                              Vérifier les choix datés ci-dessous auprès des
+                              prestataires.
+                            </p>
+                          )}
                       </aside>
                       <p className="fp-sleep">
                         {date === "2027-03-09"
@@ -1153,11 +1218,7 @@ export default function FamilyPlanner() {
                                   : s.name)}
                       </p>
                       {date === s.start && (
-                        <details>
-                          <summary>Le transfert de cette journée</summary>
-                          <p>{s.transfer}</p>
-                          <p>{s.fallback}</p>
-                        </details>
+                        <TransferSheet stage={s} data={data} update={update} />
                       )}
                       <div className="fp-day-options">
                         {options.map((p) => (
@@ -1449,11 +1510,11 @@ export default function FamilyPlanner() {
             <details className="fp-envelope">
               <summary>Notre enveloppe de départ · 10 500 €</summary>
               <p>
-                Repères de travail, pas devis : vols 2 577,96 € · hébergements 2
-                800 € · repas 1 470 € · transports 900 € · activités 900 € ·
-                transit/sièges/bagages 500 € · assurance/connectivité/divers 300
-                € · réserve 1 052,04 €. Ces enveloppes ne s’ajoutent pas
-                automatiquement au total.
+                Répartition indicative initiale, avant devis et confirmations :
+                vols 2 577,96 € · hébergements 2 800 € · repas 1 470 € ·
+                transports 900 € · activités 900 € · transit/sièges/bagages 500
+                € · assurance/connectivité/divers 300 € · réserve 1 052,04 €.
+                Ces enveloppes ne s’ajoutent pas automatiquement au total.
               </p>
             </details>
           </section>
@@ -1469,6 +1530,30 @@ export default function FamilyPlanner() {
                 {data.checks.length} / {tasks.length} préparatifs terminés
               </p>
             </div>
+            <section className="fp-next-decisions">
+              <h3>Nos trois prochaines décisions</h3>
+              {tasks
+                .filter(([id]) => !data.checks.includes(id))
+                .slice(0, 3)
+                .map(([id, title, action]) => (
+                  <article key={id}>
+                    <strong>{title}</strong>
+                    <p>{action}</p>
+                    <DecisionForm id={id} data={data} update={update} />
+                    <button
+                      className="fp-inline"
+                      onClick={() =>
+                        document.getElementById("task-" + id)?.focus()
+                      }
+                    >
+                      Ouvrir le préparatif
+                    </button>
+                  </article>
+                ))}
+              {data.checks.length === tasks.length && (
+                <p>Préparatifs terminés.</p>
+              )}
+            </section>
             <div className="fp-checklist">
               {tasks.map(([id, title, desc], i) => (
                 <label
@@ -1477,6 +1562,7 @@ export default function FamilyPlanner() {
                 >
                   <input
                     type="checkbox"
+                    id={"task-" + id}
                     checked={data.checks.includes(id)}
                     onChange={(e) => {
                       const checked = e.target.checked;
@@ -1497,57 +1583,16 @@ export default function FamilyPlanner() {
               ))}
             </div>
             <div className="fp-backup-panel">
-              <h3>Du départ au retour.</h3>
-              <p>
-                Scénario aérien transmis pour préparer le voyage. Aucune
-                réservation confirmée et aucune disponibilité vérifiée ici.
-              </p>
-              <div className="fp-flight-grid">
-                <article>
-                  <span className="eyebrow">ALLER · 15 → 17 FÉVRIER 2027</span>
-                  <h4>Nice → Zurich → Singapour → Cebu</h4>
-                  <p>
-                    Préférence SWISS / Scoot. Départ étudié vers 19h10 ; arrivée
-                    à Cebu le 17 à 06h10.
-                  </p>
-                  <p>
-                    Escales envisagées : 2h15 à Zurich, 8h15 à Singapour. Repos
-                    en hôtel de transit pour quatre à organiser.
-                  </p>
-                </article>
-                <article>
-                  <span className="eyebrow">RETOUR · 9 → 10 MARS 2027</span>
-                  <h4>Cebu → Hong Kong → Francfort → Nice</h4>
-                  <p>
-                    Départ étudié à 19h35 ; arrivée à Nice le lendemain vers
-                    09h30.
-                  </p>
-                  <p>
-                    Correspondances envisagées : 1h15 à Hong Kong, 1h50 à
-                    Francfort. Vérifier le billet unique et la protection
-                    effective de chaque segment.
-                  </p>
-                </article>
-              </div>
-              <p className="fp-fine">
-                Offre historique : 2 577,96 € pour quatre. Bagages, sièges
-                ensemble, conditions et transferts des bagages restent à
-                confirmer avant paiement.
-              </p>
-              <details className="fp-transfer-index">
-                <summary>Les cinq arrivées, sans vol intérieur</summary>
-                {stages.map((s) => (
-                  <article key={s.id}>
-                    <h4>
-                      {dateLabel(s.start)} · {s.name}
-                    </h4>
-                    <p>{s.transfer}</p>
-                    <p className="fp-fine">
-                      Notre marge de manœuvre : {s.fallback}
-                    </p>
-                  </article>
-                ))}
-              </details>
+              <FlightCard data={data} update={update} />
+              <h3>Transferts de porte à porte</h3>
+              {stages.map((s) => (
+                <TransferSheet
+                  key={s.id}
+                  stage={s}
+                  data={data}
+                  update={update}
+                />
+              ))}
             </div>
             <div className="fp-backup-panel">
               <h3>Votre préparation vous accompagne.</h3>
@@ -1750,6 +1795,20 @@ export default function FamilyPlanner() {
                   <p>{p.family}</p>
                   <strong>À vérifier</strong>
                   <p>{p.caution}</p>
+                  {p.kind === "hotel" && (
+                    <>
+                      <strong>Couchages</strong>
+                      <p>{data.choices[p.id]?.room || "À demander"}</p>
+                      <strong>Services inclus</strong>
+                      <p>{data.choices[p.id]?.included || "À demander"}</p>
+                      <strong>Annulation gratuite jusqu’au</strong>
+                      <p>
+                        {data.choices[p.id]?.cancelBy
+                          ? dateLabel(data.choices[p.id].cancelBy!)
+                          : "À vérifier"}
+                      </p>
+                    </>
+                  )}
                   <strong>Prix pour quatre</strong>
                   <p>
                     {data.choices[p.id]?.cost

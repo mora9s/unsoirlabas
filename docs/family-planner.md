@@ -12,7 +12,7 @@ Le scénario familial couvre 20 nuits du 17 février au 9 mars 2027 : Moalboal (
 - **Idées personnelles** : ajouter, modifier ou supprimer un lieu avec lien HTTPS et coordonnées facultatives. Sans coordonnées, le repère est placé au centre de l’étape et le précise. Un changement d’étape efface une date devenue incompatible ; les autres notes restent conservées.
 - **Jour par jour** : vue d’ouverture avec 21 journées, photos locales créditées, matin/après-midi/soir, transferts et alternative quotidienne, choix datés et notes personnelles. Rien n’impose de cumuler les activités proposées.
 - **Budget** : budget cible ajustable, total des montants renseignés, payé déclaré, marge non affectée, sous-totaux par étape et options sans prix. Les hôtels se saisissent pour tout le séjour et toute la famille. Les autres dépenses sont modifiables. Seule l’offre aérienne transmise de 2 577,96 € est préremplie comme estimation non payée.
-- **Avant le départ** : checklist, scénario aérien non réservé, cinq transferts, exports et téléchargement hors connexion.
+- **Avant le départ** : checklist, confirmation aérienne importable, cinq transferts, exports et téléchargement hors connexion.
 - **Notre carnet** : création explicite d’un voyage classique avec cinq bases et les dates internationales. Aucun chapitre fictif. Le bouton réutilise le même carnet ensuite. Le programme familial détaillé et le budget restent dans la préparation ; ils ne sont pas automatiquement synchronisés avec les étapes du carnet classique.
 
 ## Données, sauvegardes et hors connexion
@@ -36,6 +36,10 @@ Les coordonnées sont des repères d’orientation approximatifs, pas des entré
 Aucune réservation, commande ou demande à un prestataire n’est effectuée. Les champs « réservé », « confirmé » et « payé » sont des déclarations de l’utilisateur. Les confirmations hôtelières pour quatre, les ferries datés, les assurances, les billets et les conditions des sorties enfants restent à obtenir. Il n’existe pas encore de coffre de documents ni de synchronisation familiale.
 
 Les photos proviennent des médias déjà présents dans le dépôt, avec crédits et licences. Les noms personnels, coordonnées privées et références de billets ne sont pas préremplis dans le code public.
+
+## Fiches privées
+
+Les fiches de transfert sont modifiables dans le planning et sous « Avant le départ ». Leur montant alimente un seul poste budgétaire par étape. Les décisions, comparatifs de chambres, alternatives et vols importés restent sur l’appareil et sont intégrés aux exports familiaux. Un récapitulatif de vols au format JSON peut être importé séparément après prévisualisation, sans écraser le reste du dossier.
 
 ## Architecture
 
