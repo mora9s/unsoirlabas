@@ -26,7 +26,7 @@ export const daily: PlanDay[] = [
     stage: "moalboal",
     title: "Arriver, souffler, se poser",
     morning:
-      "À l’arrivée envisagée à Cebu à 06h10, retrouver le chauffeur et prendre un petit-déjeuner. Prévoir environ 3h30 à 5h de route vers Moalboal, avec une pause pour les enfants.",
+      "À l’arrivée prévue à Cebu à 06h10, retrouver le chauffeur et prendre un petit-déjeuner. Prévoir environ 3h30 à 5h de route vers Moalboal, avec une pause pour les enfants.",
     afternoon:
       "Déjeuner près de l’hôtel, poser les bagages puis dormir. Demander à l’avance si une chambre sera prête tôt.",
     evening:
@@ -293,7 +293,7 @@ export const daily: PlanDay[] = [
     afternoon:
       "Déjeuner, douche ou chambre tardive selon l’accord de l’hôtel. Partir avec une marge adaptée au trafic et aux formalités.",
     evening:
-      "Départ international étudié à 19h35, arrivée à Nice envisagée le 10 mars. Prévoir des vêtements confortables pour la nuit.",
+      "Vol international prévu à 19h35. Consulter la confirmation privée pour l’arrivée à Nice le 10 mars. Prévoir des vêtements confortables pour la nuit.",
     alternative:
       "Sans départ tardif, réserver une solution de douche ou utiliser la bagagerie. Avancer le transfert si le trafic ou l’horaire de vol change.",
   },

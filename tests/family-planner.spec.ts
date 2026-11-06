@@ -583,3 +583,87 @@ test("les dates et paiements de l’ancien circuit Bohol restent consultables et
     cost: "400",
   });
 });
+
+test("transfert du 7 mars, budget et alternative restent cohérents après rechargement", async ({
+  page,
+}, info) => {
+  await page.getByRole("button", { name: "Jour par jour" }).click();
+  await page
+    .getByRole("navigation", { name: "Étapes du voyage" })
+    .getByRole("button", { name: /Mactan/ })
+    .click();
+  const day = page.locator("#plan-2027-03-07");
+  await day.locator(".fp-transfer-sheet summary").click();
+  await day.getByRole("button", { name: "Modifier le transfert" }).click();
+  await day
+    .getByLabel("Port de départ, opérateur et traversée")
+    .fill("Quai à vérifier auprès de l’opérateur");
+  await day.getByLabel("Prix total du transfert pour quatre (€)").fill("90");
+  await day.getByRole("button", { name: "Enregistrer le transfert" }).click();
+  await day.getByRole("button", { name: "Utiliser cette alternative" }).click();
+  await page.reload();
+  const persisted = page.locator("#plan-2027-03-07");
+  await expect(
+    persisted.getByRole("button", { name: "Revenir au programme initial" }),
+  ).toBeVisible();
+  await persisted.locator(".fp-transfer-sheet summary").click();
+  await expect(persisted.locator(".fp-transfer-sheet")).toContainText(
+    "Quai à vérifier",
+  );
+  const snapshot = await page.evaluate(
+    (k) => JSON.parse(localStorage.getItem(k)!),
+    key,
+  );
+  expect(
+    snapshot.expenses.filter((x: { id: string }) => x.id === "transfer-mactan"),
+  ).toHaveLength(1);
+  const pending = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Copie de lecture ↗" }).click();
+  const file = info.outputPath("transfert.html");
+  await (await pending).saveAs(file);
+  expect(await readFile(file, "utf8")).toContain("Quai à vérifier");
+});
+test("le vol privé est prévisualisé et remplace une seule dépense sans modifier les favoris", async ({
+  page,
+}) => {
+  await page
+    .getByRole("button", { name: "Garder Pescadores Suites dans les favoris" })
+    .click();
+  await page.getByRole("button", { name: "Avant le départ" }).click();
+  const file = {
+    name: "vols.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(
+      JSON.stringify({
+        format: "family-flights-v1",
+        source: "Confirmation de test",
+        outbound: "A vers B",
+        inbound: "B vers A",
+        baggage: "Bagages test",
+        seats: "Sièges test",
+        followUp: "À vérifier",
+        total: 2345.67,
+        paid: 2345.67,
+      }),
+    ),
+  };
+  for (let i = 0; i < 2; i++) {
+    await page
+      .getByLabel("Importer le récapitulatif privé de vols")
+      .setInputFiles(file);
+    await page
+      .getByRole("button", { name: "Appliquer la confirmation et son montant" })
+      .click();
+  }
+  const state = await page.evaluate(
+    (k) => JSON.parse(localStorage.getItem(k)!),
+    key,
+  );
+  expect(
+    state.expenses.filter((e: { id: string }) => e.id === "flights"),
+  ).toHaveLength(1);
+  expect(
+    state.expenses.find((e: { id: string }) => e.id === "flights"),
+  ).toMatchObject({ cost: 2345.67, paid: 2345.67, confirmed: true });
+  expect(state.choices.pescadores.status).toBe("shortlist");
+});

@@ -48,7 +48,7 @@ export const stages: Stage[] = [
     lat: 9.95,
     lon: 123.37,
     transfer:
-      "17 février · Arrivée à Cebu envisagée à 06h10. Chauffeur privé vers Moalboal : prévoir 3h30–5h, pauses comprises à organiser. Chambre disponible à l’arrivée à demander.",
+      "17 février · Arrivée à Cebu prévue à 06h10. Chauffeur privé vers Moalboal : prévoir 3h30–5h, pauses comprises à organiser. Chambre disponible à l’arrivée à demander.",
     fallback:
       "Après les vols : aucune visite imposée. Repas, sommeil et piscine ; les sorties en mer peuvent attendre.",
   },
@@ -124,7 +124,7 @@ export const stages: Stage[] = [
     lat: 10.3,
     lon: 123.99,
     transfer:
-      "7 mars · Route vers le port de Bohol, ferry vers Cebu, chauffeur vers Mactan. Vol retour étudié le 9 mars à 19h35 ; horaire non confirmé.",
+      "7 mars · Route vers le port de Bohol, ferry vers Cebu, chauffeur vers Mactan. Vol retour prévu le 9 mars à 19h35 ; consulter la confirmation privée.",
     fallback:
       "Surveiller les traversées dès le 6 mars et avancer le retour si nécessaire. Demander douche, bagagerie ou départ tardif pour le 9.",
   },
@@ -1003,7 +1003,7 @@ export const tasks = [
   [
     "flights",
     "Vols et correspondances",
-    "Billet unique, bagages jusqu’à destination, sièges ensemble, conditions de modification.",
+    "Consulter les billets. Vérifier les sièges ensemble, la prise en charge des correspondances et l’étiquetage des bagages jusqu’à destination.",
   ],
   [
     "transit",
