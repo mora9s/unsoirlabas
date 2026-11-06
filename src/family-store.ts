@@ -7,6 +7,7 @@ import {
 } from "./family-logistics";
 import type { FlightPacket, Transfer } from "./family-logistics";
 import { daily } from "./family-programme";
+import { fieldTiming, guide, stopMap } from "./field-guide";
 import { kindLabels, places, stages, tasks } from "./family-data";
 import type { Place, StageId } from "./family-data";
 
@@ -416,7 +417,7 @@ export function exportReading(data: FamilyState) {
           .filter((d) => d.stage === s.id)
           .map(
             (d) =>
-              `<p><b>${dateLabel(d.date)} · ${escape(d.title)}</b><br>${"Matin · " + escape(d.morning) + "<br>Après-midi · " + escape(d.afternoon) + "<br>Soir · " + escape(d.evening) + "<br><b>Alternative</b> · " + escape(d.alternative)}</p>`,
+              `<article><h3>${dateLabel(d.date)} · ${escape(d.title)}</h3><b>Programme principal</b><p>${fieldTiming}</p><p>Dans le sac : ${escape(guide[d.date].pack)}</p><ol>${guide[d.date].stops.map(s => `<li><b>${escape(s[0])} · ${escape(s[2])}</b> (${s[1]})<br>${escape(s[3])}${s[4] ? `<br><a href="${escape(stopMap(s)!)}">${escape(s[4])} · Maps</a>` : ""}</li>`).join("")}</ol><p><b>Prochain trajet :</b> ${escape(guide[d.date].next)}</p><details><summary>${data.alternatives?.includes(d.date) ? "Alternative retenue" : "Alternative du jour"}</summary>${escape(d.alternative)}</details></article>`,
           )
           .join("")}</details>${all
           .filter(

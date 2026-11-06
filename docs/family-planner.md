@@ -54,6 +54,10 @@ Le catalogue d’alternatives est séparé des étapes du carnet pour respecter 
 
 ## Vérification
 
+Depuis le planning principal, **Ouvrir le déroulé du jour** affiche une fiche par date avec les repas, les déplacements, les activités, les pauses et la préparation du prochain trajet. Pendant le séjour, le raccourci **Aujourd’hui aux Philippines** utilise la date de Manille. Les 21 fiches se parcourent également avec Veille / Lendemain.
+
+Les créneaux sont indicatifs. Un port de destination peut être consulté sur Maps sans proposer de navigation routière pour une traversée. Le récapitulatif privé importé et les horaires de transfert saisis restent sur l’appareil. Chaque fiche peut être téléchargée en texte autonome ; la copie de lecture HTML contient aussi les 21 déroulés.
+
 Build TypeScript/Vite privé et public, lint, parcours Playwright, contrôle visuel à 390 et 1440 pixels. Le test cartographique réel a chargé 9 tuiles sur 9, sans erreur JavaScript ; les tests automatisés simulent volontairement l’indisponibilité du fond pour vérifier le repli.
 
 Les tests historiques du studio ouvrent désormais les panneaux de personnalisation et de modification avant d’utiliser leurs champs. Leurs assertions sur l’audio, la persistance, les photos et le mobile sont conservées.

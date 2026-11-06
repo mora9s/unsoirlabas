@@ -1,0 +1,27 @@
+.field-open { margin: .4rem 0 .9rem; display: inline-flex; align-items: center; gap: 1.2rem; min-height: 44px; }
+.field-guide { overflow-wrap: anywhere; }
+.fp-dialog .field-guide p { font-size: 1rem; line-height: 1.5; }
+.fp-dialog .field-guide .fp-fine { font-size: .85rem; }
+.field-guide .field-kicker { color: #285448; font-weight: 700; }
+.field-pack, .field-callout { background: #edf4ee; border-radius: 12px; padding: .9rem 1rem; margin: 1rem 0; }
+.field-guide h3 { font: 600 1.15rem/1.3 Georgia, serif; margin: 0; color: #243e35; }
+.field-guide .field-pack p, .field-guide .field-callout p { margin: .4rem 0 0; white-space: pre-line; }
+.field-line { list-style: none; padding: 0; margin: 1.2rem 0; }
+.field-line li { display: grid; grid-template-columns: minmax(66px, 6rem) minmax(0,1fr); gap: .8rem; }
+.field-hour { padding-top: .3rem; font-size: .84rem; font-weight: 700; color: #325b50; }
+.field-stop { position: relative; padding: 0 0 1.3rem 1rem; border-left: 2px solid #c2d4cb; }
+.field-stop::before { content: ""; position: absolute; left: -5px; top: .45rem; border-radius: 50%; width: 8px; height: 8px; background: #427965; }
+.field-stop small { color: #48645c; font-weight: 650; }
+.field-stop h3 { margin: .2rem 0; }
+.field-stop p { margin: .35rem 0; }
+.field-guide .field-address { color: #425e55; font-size: .84rem; margin-top: .55rem; }
+.field-stop a { display: inline-flex; align-items: center; min-height: 44px; font-weight: 650; }
+.field-nav { display: flex; justify-content: space-between; gap: 12px; margin-top: 1rem; }
+.field-nav button { min-height: 44px; }
+.field-nav button:disabled { opacity: .5; }
+.field-notice { padding: .6rem .9rem; background: #fff0d2; }
+@media (max-width: 540px) {
+  .field-line li { grid-template-columns: 4.5rem minmax(0,1fr); gap: .4rem; }
+  .field-stop { padding-left: .75rem; }
+  .field-guide button { max-width: 100%; }
+}

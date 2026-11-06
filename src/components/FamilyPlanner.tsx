@@ -1,4 +1,6 @@
 import { DecisionForm, FlightCard, TransferSheet } from "./FamilyLogistics";
+import FieldDay from "./FieldDay";
+import type { PlanDay } from "../family-programme";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import { daily, photoLabels, credits } from "../family-programme";
@@ -553,6 +555,9 @@ export default function FamilyPlanner() {
     [staged, setStaged] = useState<FamilyState | null>(null),
     [importConfirmed, setImportConfirmed] = useState(false);
   const [editingPlace, setEditingPlace] = useState<Place | undefined>();
+  const [fieldDay, setFieldDay] = useState<PlanDay | null>(null);
+  const manilaToday = new Intl.DateTimeFormat("sv-SE", {timeZone: "Asia/Manila", year: "numeric", month: "2-digit", day: "2-digit"}).format(new Date());
+  const todayPlan = daily.find(d => d.date === manilaToday);
   const data = stored.data,
     all = useMemo(() => [...places, ...data.custom], [data.custom]),
     current = stages.find((s) => s.id === stage),
@@ -1078,6 +1083,9 @@ export default function FamilyPlanner() {
         )}
         {tab === "days" && (
           <section className="fp-days">
+            {todayPlan && <button type="button" className="fp-primary field-open" aria-haspopup="dialog" onClick={() => setFieldDay(todayPlan)}>
+              Aujourd’hui aux Philippines · ouvrir ma journée →
+            </button>}
             <label className="fp-day-jump">
               Aller à une journée
               <select
@@ -1130,6 +1138,9 @@ export default function FamilyPlanner() {
                         {daily.findIndex((d) => d.date === date) + 1}
                       </p>
                       <h3>{title}</h3>
+                      <button className="fp-primary field-open" type="button" aria-haspopup="dialog" onClick={() => setFieldDay(day)}>
+                        Ouvrir le déroulé du jour <span aria-hidden="true">→</span>
+                      </button>
                       {photo && (
                         <figure className="fp-program-photo">
                           <img
@@ -1699,6 +1710,11 @@ export default function FamilyPlanner() {
           <a href="#carnet">Retrouver mes carnets →</a>
         </footer>
       </div>
+      {fieldDay && (
+        <Modal key={fieldDay.date} title={fieldDay.title} close={() => setFieldDay(null)}>
+          <FieldDay day={fieldDay} data={data} move={setFieldDay} />
+        </Modal>
+      )}
       {chosen && (
         <ChoiceEditor
           key={chosen.id}
