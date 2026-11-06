@@ -1,5 +1,4 @@
-export type StageId =
-  "moalboal" | "negros" | "siquijor" | "loboc" | "panglao" | "mactan";
+export type StageId = "moalboal" | "negros" | "siquijor" | "bohol" | "mactan";
 export type Kind = "hotel" | "activity" | "food";
 export type Place = {
   id: string;
@@ -58,10 +57,10 @@ export const stages: Stage[] = [
     name: "Dauin & Apo",
     island: "Negros oriental",
     start: "2027-02-22",
-    end: "2027-02-25",
-    nights: 3,
+    end: "2027-02-27",
+    nights: 5,
     intro:
-      "Trois nuits près de la mer pour rencontrer les tortues d’Apo et découvrir un autre visage des Visayas.",
+      "Cinq nuits près de la mer pour rencontrer les tortues d’Apo et découvrir un autre visage des Visayas.",
     photo: "apo",
     credit: "CariolaMinze · CC BY-SA 4.0",
     license: "https://creativecommons.org/licenses/by-sa/4.0/",
@@ -76,9 +75,9 @@ export const stages: Stage[] = [
     id: "siquijor",
     name: "Siquijor",
     island: "San Juan",
-    start: "2027-02-25",
-    end: "2027-03-01",
-    nights: 4,
+    start: "2027-02-27",
+    end: "2027-03-05",
+    nights: 6,
     intro:
       "Cascades, petites routes et couchers de soleil. Une base à San Juan pour rayonner sans refaire les valises.",
     photo: "siquijor",
@@ -87,47 +86,28 @@ export const stages: Stage[] = [
     lat: 9.15,
     lon: 123.5,
     transfer:
-      "25 février · Chauffeur vers Dumaguete, ferry vers Siquijor puis transfert San Juan. Confirmer le port d’arrivée exact et les bagages auprès de l’opérateur.",
+      "27 février · Chauffeur vers Dumaguete, ferry vers Siquijor puis transfert San Juan. Confirmer le port d’arrivée exact et les bagages auprès de l’opérateur.",
     fallback:
       "Mer agitée : patrimoine à Lazi ou repos. Fortes pluies : éviter cascades et baignade, rester près de l’hébergement.",
   },
   {
-    id: "loboc",
-    name: "Loboc",
-    island: "Bohol côté rivière",
-    start: "2027-03-01",
-    end: "2027-03-04",
+    id: "bohol",
+    name: "Bohol",
+    island: "Base à Panglao",
+    start: "2027-03-05",
+    end: "2027-03-08",
     nights: 3,
     intro:
-      "Changer de couleur. Du vert, une rivière, des collines et quelques aventures à hauteur d’enfant.",
+      "Trois nuits dans le même hôtel près de Dumaluan. Une journée à l’intérieur de Bohol, une autre les pieds dans le sable. Les lodges de Loboc sont une alternative pour les trois nuits.",
     photo: "bohol",
     credit: "Wolfgang Hägele · CC BY-SA 4.0",
     license: "https://creativecommons.org/licenses/by-sa/4.0/",
-    lat: 9.64,
-    lon: 124.03,
-    transfer:
-      "1er mars · Ferry Siquijor → Bohol, puis chauffeur vers Loboc. La liaison, le port et l’horaire du jour sont à confirmer avant les engagements non remboursables.",
-    fallback:
-      "Traversée annulée : contacter hôtel et opérateur, envisager une nuit supplémentaire ; aucun trajet de remplacement n’est garanti. À Loboc, alterner visites et repos.",
-  },
-  {
-    id: "panglao",
-    name: "Panglao",
-    island: "Bohol côté plage",
-    start: "2027-03-04",
-    end: "2027-03-08",
-    nights: 4,
-    intro:
-      "La dernière parenthèse de plage. Des journées ouvertes, une sortie à Balicasag et beaucoup de temps ensemble.",
-    photo: "turtle",
-    credit: "Anna Varona · CC BY 4.0 · tortue photographiée à Apo",
-    license: "https://creativecommons.org/licenses/by/4.0/",
     lat: 9.55,
     lon: 123.8,
     transfer:
-      "4 mars · Voiture privée depuis Loboc vers l’hôtel de Panglao. Horaire souple à convenir avec les deux hébergements.",
+      "5 mars · Ferry envisagé de Siquijor à Tagbilaran, puis chauffeur jusqu’à Panglao. Confirmer la traversée du jour et le lieu de prise en charge avant de réserver.",
     fallback:
-      "Garder deux créneaux possibles pour Balicasag. En cas de mauvaise mer : plage si conditions sûres, restaurant et repos. Pas de sortie obligatoire pour voir les dauphins.",
+      "En cas d’annulation, contacter les hébergements et chercher la prochaine traversée. Raccourcir le programme de Bohol pour préserver le retour à Cebu le 8.",
   },
   {
     id: "mactan",
@@ -358,9 +338,9 @@ export const places: Place[] = [
     "Vérifier transferts, couchages et conditions d’annulation.",
     "https://wellbeach.com/",
     ["Favori initial", "Apo"],
-    "3 nuits",
+    "5 nuits",
     true,
-    "Repère transmis : 285–300 € / 3 nuits familiales, non revérifié.",
+    "Ancien repère familial pour trois nuits : 285–300 €. Demander un devis pour le séjour de cinq nuits.",
   ),
   p(
     "negros",
@@ -374,7 +354,7 @@ export const places: Place[] = [
     "Option de gamme supérieure : demander le total et les repas inclus.",
     "https://atmosphereresorts.com/",
     ["Confort", "Famille"],
-    "3 nuits",
+    "5 nuits",
   ),
   p(
     "negros",
@@ -388,7 +368,7 @@ export const places: Place[] = [
     "Ne pas présumer qu’une chambre standard accepte toute la famille.",
     "https://mikes-beachresort.com/",
     ["Bord de mer", "À comparer"],
-    "3 nuits",
+    "5 nuits",
   ),
   p(
     "negros",
@@ -473,7 +453,7 @@ export const places: Place[] = [
     "Accès au sanctuaire, couchages, piscines et frais additionnels à confirmer.",
     "https://www.cocogrovebeachresort.com/",
     ["Tubod", "Confort"],
-    "4 nuits",
+    "6 nuits",
   ),
   p(
     "siquijor",
@@ -487,7 +467,7 @@ export const places: Place[] = [
     "Piscine, couchages et disponibilité à demander directement.",
     "https://siquijorprovince.com/restaurants/",
     ["San Juan", "À comparer"],
-    "4 nuits",
+    "6 nuits",
   ),
   p(
     "siquijor",
@@ -501,7 +481,7 @@ export const places: Place[] = [
     "Position sur la carte = secteur San Juan ; vérifier l’adresse et les équipements exacts.",
     "https://www.cocogrovebeachresort.com/",
     ["Alternative", "À comparer"],
-    "4 nuits",
+    "6 nuits",
   ),
   p(
     "siquijor",
@@ -620,7 +600,7 @@ export const places: Place[] = [
     false,
   ),
   p(
-    "loboc",
+    "bohol",
     "hotel",
     "loboc-resort",
     "Loboc River Resort",
@@ -634,7 +614,7 @@ export const places: Place[] = [
     "3 nuits",
   ),
   p(
-    "loboc",
+    "bohol",
     "hotel",
     "fox",
     "Fox & The Firefly Cottages",
@@ -648,7 +628,7 @@ export const places: Place[] = [
     "3 nuits",
   ),
   p(
-    "loboc",
+    "bohol",
     "hotel",
     "nuts",
     "Nuts Huts",
@@ -663,7 +643,7 @@ export const places: Place[] = [
     false,
   ),
   p(
-    "loboc",
+    "bohol",
     "food",
     "venia",
     "Venia’s Kitchen",
@@ -677,7 +657,7 @@ export const places: Place[] = [
     "Repas",
   ),
   p(
-    "loboc",
+    "bohol",
     "food",
     "fables",
     "Food & Fables",
@@ -691,7 +671,7 @@ export const places: Place[] = [
     "Repas",
   ),
   p(
-    "loboc",
+    "bohol",
     "activity",
     "chocolate",
     "Chocolate Hills · Carmen",
@@ -705,7 +685,7 @@ export const places: Place[] = [
     "Demi-journée",
   ),
   p(
-    "loboc",
+    "bohol",
     "activity",
     "tarsiers",
     "Sanctuaire des tarsiers · Corella",
@@ -719,7 +699,7 @@ export const places: Place[] = [
     "Visite courte",
   ),
   p(
-    "loboc",
+    "bohol",
     "activity",
     "kayak",
     "La rivière en kayak",
@@ -733,7 +713,7 @@ export const places: Place[] = [
     "1–2 h proposées",
   ),
   p(
-    "loboc",
+    "bohol",
     "activity",
     "firefly",
     "Une soirée avec les lucioles",
@@ -747,7 +727,7 @@ export const places: Place[] = [
     "Soirée courte",
   ),
   p(
-    "panglao",
+    "bohol",
     "hotel",
     "bbc",
     "Bohol Beach Club",
@@ -758,10 +738,10 @@ export const places: Place[] = [
     "Couchages, piscine, accès plage et tarif complet à confirmer.",
     "https://www.boholbeachclub.com.ph/",
     ["Plage", "Confort"],
-    "4 nuits",
+    "3 nuits",
   ),
   p(
-    "panglao",
+    "bohol",
     "hotel",
     "amorita",
     "Amorita Resort",
@@ -772,10 +752,10 @@ export const places: Place[] = [
     "Vérifier le chemin jusqu’à la plage, les marches et les couchages.",
     "https://www.amoritaresort.com/",
     ["Confort", "Alona"],
-    "4 nuits",
+    "3 nuits",
   ),
   p(
-    "panglao",
+    "bohol",
     "hotel",
     "south-palms",
     "South Palms · MGallery",
@@ -786,10 +766,10 @@ export const places: Place[] = [
     "Bien distinguer l’établissement MGallery des autres noms proches ; baignade et équipements à vérifier.",
     "https://all.accor.com/hotel/C0Q8/index.en.shtml",
     ["Confort", "À comparer"],
-    "4 nuits",
+    "3 nuits",
   ),
   p(
-    "panglao",
+    "bohol",
     "food",
     "agotata",
     "Agotata · Bohol Beach Club",
@@ -803,7 +783,7 @@ export const places: Place[] = [
     "Repas",
   ),
   p(
-    "panglao",
+    "bohol",
     "food",
     "uma",
     "UMA · South Palms MGallery",
@@ -817,7 +797,7 @@ export const places: Place[] = [
     "Repas",
   ),
   p(
-    "panglao",
+    "bohol",
     "activity",
     "balicasag",
     "Balicasag · récifs et tortues",
@@ -831,7 +811,7 @@ export const places: Place[] = [
     "Demi-journée",
   ),
   p(
-    "panglao",
+    "bohol",
     "activity",
     "dumaluan",
     "Dumaluan · journée de plage",
@@ -846,7 +826,7 @@ export const places: Place[] = [
     false,
   ),
   p(
-    "panglao",
+    "bohol",
     "activity",
     "hinagdanan",
     "Hinagdanan Cave",
@@ -977,7 +957,7 @@ places.push(
     "Repas",
   ),
   p(
-    "loboc",
+    "bohol",
     "food",
     "loboc-cruise",
     "Déjeuner sur la rivière Loboc",
@@ -991,14 +971,14 @@ places.push(
     "Déjeuner",
   ),
   p(
-    "panglao",
+    "bohol",
     "food",
     "ubeco",
     "Ubeco Restaurant",
     9.578,
     123.75,
     "Une autre adresse à Panglao, hors des restaurants de resort.",
-    "Comparer le menu pour varier les repas pendant les quatre nuits.",
+    "Comparer le menu pour varier les repas pendant le séjour.",
     "Le site situe le restaurant à Poblacion ; repère de secteur, adresse exacte et transfert à vérifier.",
     "https://www.ubeco-bohol.com/",
     ["Hors resort", "À découvrir"],
@@ -1019,134 +999,6 @@ places.push(
     "Repas",
   ),
 );
-export const daily = [
-  [
-    "2027-02-17",
-    "moalboal",
-    "Arriver, souffler, se poser",
-    "Transfert privé puis repas, sommeil et piscine. Aucune excursion.",
-  ],
-  [
-    "2027-02-18",
-    "moalboal",
-    "Retrouver son rythme",
-    "Masque en piscine puis plage en fin de journée.",
-  ],
-  [
-    "2027-02-19",
-    "moalboal",
-    "Entrer dans le bleu",
-    "Sardines le matin si les conditions sont bonnes. Après-midi libre.",
-  ],
-  [
-    "2027-02-20",
-    "moalboal",
-    "Une parenthèse nature",
-    "Kawasan seulement si la formule douce est confirmée. Sinon repos.",
-  ],
-  [
-    "2027-02-21",
-    "moalboal",
-    "Ne rien presser",
-    "Plage ou Pescador, selon l’envie et la mer.",
-  ],
-  [
-    "2027-02-22",
-    "negros",
-    "Cap sur Negros",
-    "Route, ferry, route. Garder le reste de la journée libre.",
-  ],
-  [
-    "2027-02-23",
-    "negros",
-    "Les tortues d’Apo",
-    "Premier créneau possible ; report au lendemain si nécessaire.",
-  ],
-  [
-    "2027-02-24",
-    "negros",
-    "Une journée ouverte",
-    "Apo reporté, Dumaguete ou simplement le resort.",
-  ],
-  [
-    "2027-02-25",
-    "siquijor",
-    "Rejoindre Siquijor",
-    "Transfert via Dumaguete puis installation à San Juan.",
-  ],
-  [
-    "2027-02-26",
-    "siquijor",
-    "Le vert de Cambugahay",
-    "Cascade et Lazi, à ajuster à la fatigue.",
-  ],
-  [
-    "2027-02-27",
-    "siquijor",
-    "Du récif au coucher de soleil",
-    "Tubod si mer favorable ; Paliton en fin de journée.",
-  ],
-  [
-    "2027-02-28",
-    "siquijor",
-    "La liberté d’improviser",
-    "Repos, Balete facultatif et préparation de la traversée.",
-  ],
-  [
-    "2027-03-01",
-    "loboc",
-    "Bohol, côté rivière",
-    "Traversée à confirmer, chauffeur puis installation.",
-  ],
-  [
-    "2027-03-02",
-    "loboc",
-    "Collines et petits habitants",
-    "Chauffeur pour Carmen et Corella ; pauses généreuses.",
-  ],
-  [
-    "2027-03-03",
-    "loboc",
-    "Au fil de l’eau",
-    "Kayak adapté ou lucioles, sans obligation de cumuler.",
-  ],
-  [
-    "2027-03-04",
-    "panglao",
-    "Revenir à la plage",
-    "Transfert souple, installation et piscine.",
-  ],
-  [
-    "2027-03-05",
-    "panglao",
-    "Balicasag, si la mer le permet",
-    "Sortie encadrée, puis repos. Deux jours de report possibles.",
-  ],
-  [
-    "2027-03-06",
-    "panglao",
-    "Le sable et le temps libre",
-    "Dumaluan ; grotte seulement si souhaitée et adaptée.",
-  ],
-  [
-    "2027-03-07",
-    "panglao",
-    "Notre journée sans programme",
-    "Profiter, ou replacer une excursion annulée.",
-  ],
-  [
-    "2027-03-08",
-    "mactan",
-    "Revenir sans courir",
-    "Ferry pour Cebu la veille du vol ; route vers Mactan.",
-  ],
-  [
-    "2027-03-09",
-    "mactan",
-    "Encore un peu de vacances",
-    "Repos, douche et transfert. Vol étudié à 19h35.",
-  ],
-] as const;
 export const tasks = [
   [
     "flights",
@@ -1165,7 +1017,7 @@ export const tasks = [
   ],
   [
     "rooms",
-    "Six chambres, six confirmations",
+    "Vérifier les chambres des cinq bases",
     "Couchages pour quatre, annulation, petit-déjeuner, piscine, arrivée anticipée.",
   ],
   [

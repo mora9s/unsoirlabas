@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
-import { daily, kindLabels, places, stages, tasks } from "../family-data";
+import { daily, photoLabels, credits } from "../family-programme";
+import { kindLabels, places, stages, tasks } from "../family-data";
 import type { Kind, Place, StageId } from "../family-data";
 import {
   dateLabel,
@@ -131,11 +132,19 @@ function ChoiceEditor({
 }) {
   const [draft, setDraft] = useState(choice),
     [error, setError] = useState("");
-  const original = useRef(choice);
+  const [original] = useState(choice);
   const stage = stages.find((s) => s.id === place.stage)!;
   const patch = (v: Partial<Choice>) => setDraft((c) => ({ ...c, ...v }));
   function submit(e: FormEvent) {
     e.preventDefault();
+    if (
+      draft.date &&
+      draft.date !== original.date &&
+      (draft.date < stage.start || draft.date > stage.end)
+    ) {
+      setError("Choisissez une date pendant cette étape.");
+      return;
+    }
     if (Number(draft.paid) > Number(draft.cost)) {
       setError("Le montant payé ne peut pas dépasser le total renseigné.");
       return;
@@ -149,7 +158,7 @@ function ChoiceEditor({
       );
       return;
     }
-    if (onSave(draft, original.current)) close();
+    if (onSave(draft, original)) close();
     else
       setError(
         "Enregistrement impossible. Consultez le message de stockage et exportez votre copie si nécessaire.",
@@ -227,8 +236,18 @@ function ChoiceEditor({
               : "Ajouter à une journée"}
             <input
               type="date"
-              min={stage.start}
-              max={stage.end}
+              min={
+                draft.date &&
+                draft.date === original.date &&
+                draft.date < stage.start
+                  ? draft.date
+                  : stage.start
+              }
+              max={
+                draft.date === original.date && draft.date > stage.end
+                  ? draft.date
+                  : stage.end
+              }
               value={draft.date}
               onChange={(e) =>
                 patch({
@@ -242,6 +261,13 @@ function ChoiceEditor({
           </label>
         </div>
         <p className="fp-fine">
+          {draft.date &&
+            (draft.date < stage.start || draft.date > stage.end) && (
+              <strong>
+                Date de l’ancien circuit conservée. Vérifiez-la avant de
+                modifier votre choix.{" "}
+              </strong>
+            )}
           « Réservé » est votre déclaration : l’application ne réserve rien. Une
           date associe cette option à votre programme.
         </p>
@@ -482,8 +508,8 @@ function AddPlace({
 }
 export default function FamilyPlanner() {
   const [stored, setStored] = useState(readFamily),
-    [stage, setStage] = useState<StageId | "all">("moalboal"),
-    [tab, setTab] = useState<Tab>("explore");
+    [stage, setStage] = useState<StageId | "all">("all"),
+    [tab, setTab] = useState<Tab>("days");
   const [kind, setKind] = useState<Kind | "all">("all"),
     [query, setQuery] = useState(""),
     [savedOnly, setSavedOnly] = useState(false),
@@ -646,94 +672,57 @@ export default function FamilyPlanner() {
       "Copie de préparation téléchargée. Conservez-la avec vos documents de voyage.",
     );
   }
+  function outsideStay(p: Place) {
+    const date = data.choices[p.id]?.date;
+    if (!date) return false;
+    const stay = stages.find((s) => s.id === p.stage)!;
+    return date < stay.start || date > stay.end;
+  }
   const chosen = all.find((p) => p.id === selected);
   return (
     <div className="fp-page">
-      <section className="fp-hero">
-        <div className="fp-hero-copy">
-          <p className="eyebrow">NOTRE GRANDE ÉCHAPPÉE · PHILIPPINES 2027</p>
+      <header className="fp-plan-mast">
+        <div>
+          <p className="eyebrow">PHILIPPINES · FÉVRIER — MARS 2027</p>
           <h1>
-            Des îles.
-            <br />
-            Du temps.
-            <br />
-            <em>Nous quatre.</em>
+            Le planning <em>du voyage.</em>
           </h1>
-          <p className="fp-hero-description">
-            Un voyage à construire, une envie à la fois.
-            <br />
-            Les Visayas en famille, sans prendre l’avion entre les îles.
-          </p>
-          <div className="fp-trip-facts">
-            <span>
-              <strong>20</strong> nuits
-            </span>
-            <span>
-              <strong>6</strong> escales
-            </span>
-            <span>
-              <strong>2 + 2</strong> adultes & enfants
-            </span>
-          </div>
-          <p className="fp-dates">
-            17 février — 9 mars 2027 <span>· dates envisagées</span>
-          </p>
-          <button
-            className="fp-hero-start"
-            onClick={() =>
-              document
-                .getElementById("family-content")
-                ?.scrollIntoView({ behavior: "instant" })
-            }
-          >
-            Explorer nos escales ↓
-          </button>
+          <p>17 fév. — 9 mars · 21 jours · 20 nuits</p>
         </div>
-        <figure>
-          <img
-            src="/assets/visayas/apo.jpg"
-            alt="Bateaux traditionnels devant Apo Island dans les Visayas"
-          />
-          <figcaption>
-            Apo Island · CariolaMinze ·{" "}
-            <a
-              href="https://creativecommons.org/licenses/by-sa/4.0/"
-              target="_blank"
-              rel="noreferrer"
-            >
-              CC BY-SA 4.0
-            </a>{" "}
-            · photo recadrée
-          </figcaption>
-          <div className="fp-photo-note">
-            <span>
-              Le bonheur tient parfois
-              <br />
-              dans une journée sans programme.
-            </span>
-          </div>
-        </figure>
-      </section>
-      <div className="fp-body">
-        <div className="fp-topline">
+        <details>
+          <summary>Pourquoi ces cinq bases ?</summary>
           <p>
-            <i />
-            Votre espace de préparation <span>· sauvegarde locale</span>
+            Moalboal conserve cinq nuits pour récupérer du voyage. Les quatre
+            nuits libérées à Bohol vont à Dauin et Siquijor, deux chacune : un
+            créneau de report pour Apo et du temps pour les cascades, le récif
+            et la plage.
           </p>
-          <div>
-            <button onClick={doExport}>Exporter</button>
-            <button
-              onClick={() => exportReading(data)}
-              disabled={!!stored.error}
-            >
-              Copie de lecture ↗
-            </button>
-          </div>
-        </div>
+          <p>
+            À Bohol, les trois nuits se passent dans le même hôtel à Panglao.
+            Loboc se visite en journée. La dernière nuit à Mactan laisse une
+            marge avant le vol.
+          </p>
+        </details>
+      </header>
+      <div className="fp-body">
         {stored.error && (
           <p role="alert" className="fp-error">
             {stored.error}
           </p>
+        )}
+        {all.some((p) => outsideStay(p)) && (
+          <aside className="fp-calendar-review">
+            <strong>Dates à revoir dans vos choix enregistrés</strong>
+            <p>
+              Le circuit a changé. Vos dates, références et paiements ont été
+              conservés.
+            </p>
+            {all.filter(outsideStay).map((p) => (
+              <button key={p.id} onClick={() => setSelected(p.id)}>
+                {p.name} · {dateLabel(data.choices[p.id].date)} ↗
+              </button>
+            ))}
+          </aside>
         )}
         <p role="status" className="fp-notice">
           {notice}
@@ -745,8 +734,8 @@ export default function FamilyPlanner() {
         >
           {(
             [
-              ["explore", "Explorer & choisir"],
               ["days", "Jour par jour"],
+              ["explore", "Explorer & choisir"],
               ["budget", "Notre budget"],
               ["prepare", "Avant le départ"],
             ] as const
@@ -762,7 +751,10 @@ export default function FamilyPlanner() {
           <button onClick={openJournal}>Notre carnet ↗</button>
         </nav>
         {(tab === "explore" || tab === "days") && (
-          <nav className="fp-stages" aria-label="Les six étapes">
+          <nav
+            className={`fp-stages ${tab === "days" ? "fp-stage-strip" : ""}`}
+            aria-label="Étapes du voyage"
+          >
             <button
               className={stage === "all" ? "selected" : ""}
               onClick={() => changeStage("all")}
@@ -1055,19 +1047,33 @@ export default function FamilyPlanner() {
         )}
         {tab === "days" && (
           <section className="fp-days">
-            <div className="fp-section-title">
-              <p className="eyebrow">UN PROGRAMME QUI RESPIRE</p>
-              <h2>
-                Chaque jour, <em>à notre rythme.</em>
-              </h2>
-              <p>
-                La trame reste une proposition. Vos options datées et notes
-                complètent chaque journée.
-              </p>
-            </div>
+            <label className="fp-day-jump">
+              Aller à une journée
+              <select
+                defaultValue=""
+                key={stage}
+                onChange={(e) => {
+                  const card = document.getElementById(
+                    "plan-" + e.target.value,
+                  );
+                  card?.focus({ preventScroll: true });
+                  card?.scrollIntoView({ block: "start" });
+                }}
+              >
+                <option value="">Choisir une date…</option>
+                {daily
+                  .filter((d) => stage === "all" || d.stage === stage)
+                  .map((d) => (
+                    <option key={d.date} value={d.date}>
+                      {dateLabel(d.date)} · {d.title}
+                    </option>
+                  ))}
+              </select>
+            </label>
             {daily
-              .filter((d) => stage === "all" || d[1] === stage)
-              .map(([date, id, title, description]) => {
+              .filter((d) => stage === "all" || d.stage === stage)
+              .map((day) => {
+                const { date, stage: id, title, photo } = day;
                 const s = stages.find((s) => s.id === id)!;
                 const options = all.filter(
                   (p) =>
@@ -1075,7 +1081,12 @@ export default function FamilyPlanner() {
                     data.choices[p.id]?.status !== "idea",
                 );
                 return (
-                  <article key={date} className="fp-day">
+                  <article
+                    key={date}
+                    id={`plan-${date}`}
+                    tabIndex={-1}
+                    className="fp-day"
+                  >
                     <div className="fp-day-date">
                       <strong>{date.slice(8)}</strong>
                       <span>
@@ -1085,10 +1096,67 @@ export default function FamilyPlanner() {
                     <div>
                       <p className="eyebrow">
                         {s.name} · Jour{" "}
-                        {daily.findIndex((d) => d[0] === date) + 1}
+                        {daily.findIndex((d) => d.date === date) + 1}
                       </p>
                       <h3>{title}</h3>
-                      <p>{description}</p>
+                      {photo && (
+                        <figure className="fp-program-photo">
+                          <img
+                            src={`/assets/visayas/${photo}.jpg`}
+                            alt={photoLabels[photo]}
+                            loading={date === daily[0].date ? "eager" : "lazy"}
+                          />
+                          <figcaption>
+                            {photoLabels[photo]} ·{" "}
+                            <a
+                              href={credits[photo].source}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              {credits[photo].author}
+                            </a>{" "}
+                            ·{" "}
+                            <a
+                              href={credits[photo].licenseUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              {credits[photo].license}
+                            </a>{" "}
+                            · recadrage
+                          </figcaption>
+                        </figure>
+                      )}
+                      <dl className="fp-day-sequence">
+                        <div>
+                          <dt>Matin</dt>
+                          <dd>{day.morning}</dd>
+                        </div>
+                        <div>
+                          <dt>Après-midi</dt>
+                          <dd>{day.afternoon}</dd>
+                        </div>
+                        <div>
+                          <dt>Soir</dt>
+                          <dd>{day.evening}</dd>
+                        </div>
+                      </dl>
+                      <aside className="fp-day-backup">
+                        <strong>Alternative du jour</strong>
+                        <p>{day.alternative}</p>
+                      </aside>
+                      <p className="fp-sleep">
+                        {date === "2027-03-09"
+                          ? "Nuit en vol envisagée"
+                          : "Nuit à " +
+                            (id === "bohol"
+                              ? "Panglao"
+                              : id === "negros"
+                                ? "Dauin / Zamboanguita"
+                                : id === "siquijor"
+                                  ? "San Juan, Siquijor"
+                                  : s.name)}
+                      </p>
                       {date === s.start && (
                         <details>
                           <summary>Le transfert de cette journée</summary>
@@ -1472,7 +1540,7 @@ export default function FamilyPlanner() {
                 confirmer avant paiement.
               </p>
               <details className="fp-transfer-index">
-                <summary>Les six arrivées, sans vol intérieur</summary>
+                <summary>Les cinq arrivées, sans vol intérieur</summary>
                 {stages.map((s) => (
                   <article key={s.id}>
                     <h4>
@@ -1564,6 +1632,21 @@ export default function FamilyPlanner() {
             </div>
           </section>
         )}
+        <div className="fp-topline">
+          <p>
+            <i />
+            Votre espace de préparation <span>· sauvegarde locale</span>
+          </p>
+          <div>
+            <button onClick={doExport}>Exporter</button>
+            <button
+              onClick={() => exportReading(data)}
+              disabled={!!stored.error}
+            >
+              Copie de lecture ↗
+            </button>
+          </div>
+        </div>
         <footer className="fp-local-footer">
           <span>Un soir là-bas · préparer, vivre, raconter.</span>
           <p>

@@ -2,7 +2,7 @@
 
 Route : `/#philippines`, accessible depuis l’accueil et la navigation principale.
 
-Le scénario familial couvre 20 nuits du 17 février au 9 mars 2027 : Moalboal (5), Dauin/Zamboanguita (3), Siquijor (4), Loboc (3), Panglao (4), Mactan (1). Deux adultes, deux enfants de 5 et 8 ans, sans vol intérieur. Ces dates restent envisagées.
+Le scénario familial couvre 20 nuits du 17 février au 9 mars 2027 : Moalboal (5), Dauin/Zamboanguita (5), Siquijor (6), Bohol / Panglao (3), Mactan (1). Deux adultes, deux enfants de 5 et 8 ans, sans vol intérieur. Ces dates restent envisagées.
 
 ## Utilisation
 
@@ -10,10 +10,10 @@ Le scénario familial couvre 20 nuits du 17 février au 9 mars 2027 : Moalboal (
 - **Comparer** : jusqu’à trois options, avec intérêt, contraintes familiales et prix indicatifs lorsqu’un repère a été transmis. Une comparaison n’effectue aucune réservation.
 - **Fiches** : source, conseils pour les enfants, points à vérifier, statut, date, notes, montant total familial, déjà payé, nature et date de vérification du prix, référence et conditions. Les favoris ne sont pas comptés comme dépenses.
 - **Idées personnelles** : ajouter, modifier ou supprimer un lieu avec lien HTTPS et coordonnées facultatives. Sans coordonnées, le repère est placé au centre de l’étape et le précise. Un changement d’étape efface une date devenue incompatible ; les autres notes restent conservées.
-- **Jour par jour** : 21 journées proposées, transferts et solutions de repli, choix datés et notes personnelles. Rien n’impose de cumuler les activités proposées.
+- **Jour par jour** : vue d’ouverture avec 21 journées, photos locales créditées, matin/après-midi/soir, transferts et alternative quotidienne, choix datés et notes personnelles. Rien n’impose de cumuler les activités proposées.
 - **Budget** : budget cible ajustable, total des montants renseignés, payé déclaré, marge non affectée, sous-totaux par étape et options sans prix. Les hôtels se saisissent pour tout le séjour et toute la famille. Les autres dépenses sont modifiables. Seule l’offre aérienne transmise de 2 577,96 € est préremplie comme estimation non payée.
-- **Avant le départ** : checklist, scénario aérien non réservé, six transferts, exports et téléchargement hors connexion.
-- **Notre carnet** : création explicite d’un voyage classique avec six bases et les dates internationales. Aucun chapitre fictif. Le bouton réutilise le même carnet ensuite. Le programme familial détaillé et le budget restent dans la préparation ; ils ne sont pas automatiquement synchronisés avec les étapes du carnet classique.
+- **Avant le départ** : checklist, scénario aérien non réservé, cinq transferts, exports et téléchargement hors connexion.
+- **Notre carnet** : création explicite d’un voyage classique avec cinq bases et les dates internationales. Aucun chapitre fictif. Le bouton réutilise le même carnet ensuite. Le programme familial détaillé et le budget restent dans la préparation ; ils ne sont pas automatiquement synchronisés avec les étapes du carnet classique.
 
 ## Données, sauvegardes et hors connexion
 

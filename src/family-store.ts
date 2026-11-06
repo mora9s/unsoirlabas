@@ -1,4 +1,5 @@
-import { daily, kindLabels, places, stages, tasks } from "./family-data";
+import { daily } from "./family-programme";
+import { kindLabels, places, stages, tasks } from "./family-data";
 import type { Place } from "./family-data";
 
 export const familyKey = "unsoirlabas-family-planner-v1";
@@ -138,10 +139,9 @@ export function validateFamily(v: unknown): v is FamilyState {
     )
   )
     return false;
-  const ids = new Set([
-    ...places.map((p) => p.id),
-    ...v.custom.map((p) => p.id),
-  ]);
+  const ids = new Map(
+    [...places, ...(v.custom as Place[])].map((p) => [p.id, p.stage]),
+  );
   if (ids.size !== places.length + v.custom.length) return false;
   if (
     !Object.entries(v.choices).every(
@@ -163,10 +163,13 @@ export function validateFamily(v: unknown): v is FamilyState {
           (validDate(c.date) &&
             stages.some(
               (s) =>
-                s.id ===
-                  [...places, ...(v.custom as Place[])].find((p) => p.id === id)
-                    ?.stage &&
-                String(c.date) >= s.start &&
+                s.id === ids.get(id) &&
+                String(c.date) >=
+                  (s.id === "bohol"
+                    ? "2027-03-01"
+                    : s.id === "siquijor"
+                      ? "2027-02-25"
+                      : s.start) &&
                 String(c.date) <= s.end,
             ))) &&
         (c.checked === "" || validDate(c.checked)),
@@ -209,11 +212,23 @@ export function validateFamily(v: unknown): v is FamilyState {
       validDate(d) && d >= "2027-02-17" && d <= "2027-03-09" && str(n, 3000),
   );
 }
+// Read earlier exports without moving a booked date or modifying storage on load.
+function normalizeFamily(value: unknown): unknown {
+  if (!object(value) || !Array.isArray(value.custom)) return value;
+  return {
+    ...value,
+    custom: value.custom.map((p) =>
+      object(p) && (p.stage === "loboc" || p.stage === "panglao")
+        ? { ...p, stage: "bohol" }
+        : p,
+    ),
+  };
+}
 export function readFamily(): { data: FamilyState; error: string } {
   try {
     const raw = localStorage.getItem(familyKey);
     if (raw === null) return { data: initialState(), error: "" };
-    const data: unknown = JSON.parse(raw);
+    const data = normalizeFamily(JSON.parse(raw));
     if (!validateFamily(data)) throw Error();
     return { data, error: "" };
   } catch {
@@ -311,13 +326,10 @@ export function exportFamily(data: FamilyState) {
 export function parseFamilyExport(text: string): FamilyState {
   if (text.length > 2000000) throw Error("Fichier trop volumineux.");
   const v: unknown = JSON.parse(text);
-  if (
-    !object(v) ||
-    v.format !== "unsoirlabas-family" ||
-    !validateFamily(v.data)
-  )
+  const data = object(v) ? normalizeFamily(v.data) : null;
+  if (!object(v) || v.format !== "unsoirlabas-family" || !validateFamily(data))
     throw Error("Ce fichier de préparation est invalide ou incompatible.");
-  return v.data;
+  return data;
 }
 const escape = (s: string) =>
   s.replace(
@@ -338,10 +350,10 @@ export function exportReading(data: FamilyState) {
     .map(
       (s) =>
         `<section><h2>${escape(s.name)} · ${s.nights} nuit${s.nights > 1 ? "s" : ""}</h2><p>${dateLabel(s.start)} → ${dateLabel(s.end)}</p><p>${escape(s.transfer)}</p><p><b>Alternative :</b> ${escape(s.fallback)}</p><details open><summary>Programme proposé</summary>${daily
-          .filter((d) => d[1] === s.id)
+          .filter((d) => d.stage === s.id)
           .map(
             (d) =>
-              `<p><b>${dateLabel(d[0])} · ${escape(d[2])}</b><br>${escape(d[3])}</p>`,
+              `<p><b>${dateLabel(d.date)} · ${escape(d.title)}</b><br>${"Matin · " + escape(d.morning) + "<br>Après-midi · " + escape(d.afternoon) + "<br>Soir · " + escape(d.evening) + "<br><b>Alternative</b> · " + escape(d.alternative)}</p>`,
           )
           .join("")}</details>${all
           .filter(
