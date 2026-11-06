@@ -1,6 +1,6 @@
 import { daily } from "./family-programme";
 import { kindLabels, places, stages, tasks } from "./family-data";
-import type { Place } from "./family-data";
+import type { Place, StageId } from "./family-data";
 
 export const familyKey = "unsoirlabas-family-planner-v1";
 export const statusLabels = {
@@ -83,6 +83,23 @@ export function safeUrl(v: string) {
     return false;
   }
 }
+// Earlier published calendars remain valid for saved choices and imported backups.
+const previousWindows: Record<StageId, [string, string]> = {
+  moalboal: ["2027-02-17", "2027-02-22"],
+  negros: ["2027-02-22", "2027-02-27"],
+  siquijor: ["2027-02-25", "2027-03-05"],
+  bohol: ["2027-03-01", "2027-03-08"],
+  mactan: ["2027-03-08", "2027-03-09"],
+};
+function validChoiceDate(stageId: StageId | undefined, date: string) {
+  const stage = stages.find((s) => s.id === stageId);
+  if (!stage) return false;
+  const [oldStart, oldEnd] = previousWindows[stage.id];
+  return (
+    (date >= stage.start && date <= stage.end) ||
+    (date >= oldStart && date <= oldEnd)
+  );
+}
 export function validateFamily(v: unknown): v is FamilyState {
   if (
     !object(v) ||
@@ -160,18 +177,7 @@ export function validateFamily(v: unknown): v is FamilyState {
         ) &&
         ["estimate", "quote", "confirmed"].includes(String(c.priceType)) &&
         (c.date === "" ||
-          (validDate(c.date) &&
-            stages.some(
-              (s) =>
-                s.id === ids.get(id) &&
-                String(c.date) >=
-                  (s.id === "bohol"
-                    ? "2027-03-01"
-                    : s.id === "siquijor"
-                      ? "2027-02-25"
-                      : s.start) &&
-                String(c.date) <= s.end,
-            ))) &&
+          (validDate(c.date) && validChoiceDate(ids.get(id), c.date))) &&
         (c.checked === "" || validDate(c.checked)),
     )
   )

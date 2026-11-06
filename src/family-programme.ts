@@ -38,15 +38,15 @@ export const daily: PlanDay[] = [
   {
     date: "2027-02-18",
     stage: "moalboal",
-    title: "Le premier masque, à la piscine",
+    title: "Masques en piscine et sable à White Beach",
     morning:
       "Prendre le petit-déjeuner sans réveil. Essayer les masques et les gilets dans la piscine, un adulte auprès de chaque enfant.",
     afternoon:
       "Après un déjeuner léger et une sieste, rejoindre White Beach pour jouer dans le sable. Garder l’entrée dans l’eau facultative.",
     evening:
-      "Rester pour la lumière de fin de journée, puis dîner près de l’hôtel.",
+      "Rentrer avant la fatigue, dîner près de la chambre et confirmer le guide pour la matinée à Panagsama.",
     alternative:
-      "Vent sur la plage ? Garder la piscine si elle est ouverte ou choisir un goûter à l’abri. White Beach peut attendre le 21.",
+      "Si le vol a laissé des traces, rester à l’hôtel. Une courte promenade sur le sable suffit si les enfants en ont envie.",
   },
   {
     date: "2027-02-19",
@@ -57,37 +57,12 @@ export const daily: PlanDay[] = [
     afternoon:
       "Brunch et repos à l’hôtel. Laisser les enfants choisir entre piscine et dessin des poissons observés.",
     evening:
-      "Dîner tôt à Panagsama. Vérifier avec le chauffeur les possibilités d’accès à Kawasan le lendemain.",
+      "Dîner tôt puis préparer change, goûter et billets pour la traversée du lendemain.",
     alternative:
-      "Courant, fatigue ou appréhension ? Un parent reste à terre avec l’enfant. Reporter la sortie au 21 si la mer s’améliore.",
+      "Si la mer est mauvaise, choisir White Beach ou la piscine. Kawasan peut remplacer le snorkeling uniquement si le chauffeur et le site confirment un accès simple adapté à 5 ans. Éviter les sauts et garder l’après-midi libre.",
   },
   {
     date: "2027-02-20",
-    stage: "moalboal",
-    title: "Kawasan à hauteur d’enfant",
-    morning:
-      "Faire confirmer la veille un accès simple à la cascade pour un enfant de 5 ans. Partir avec le chauffeur uniquement si cette formule est possible.",
-    afternoon:
-      "Déjeuner en route et rentrer pour une sieste. Une baignade dépend des zones autorisées et des conditions du jour.",
-    evening: "Repas tranquille près de l’hôtel, sans autre déplacement.",
-    alternative:
-      "Si l’accès impose des sauts ou si l’eau monte après la pluie, laisser Kawasan de côté. Préférer une matinée au village et un déjeuner en famille.",
-  },
-  {
-    date: "2027-02-21",
-    stage: "moalboal",
-    title: "Une journée à garder libre",
-    morning:
-      "Reprendre le snorkeling si une sortie a été reportée. Sinon, retourner à White Beach avec une serviette et des jeux de sable.",
-    afternoon:
-      "Déjeuner sur place ou rentrer pour la piscine. Pescador Island reste une option uniquement si tous ont envie de bateau et si la mer est calme.",
-    evening:
-      "Préparer les petits sacs du ferry et confirmer le chauffeur du lendemain.",
-    alternative:
-      "Si les enfants ont déjà fait le plein de mer, rester au resort. Une sieste et un goûter suffisent pour cette dernière journée.",
-  },
-  {
-    date: "2027-02-22",
     stage: "negros",
     title: "Changer d’île par le sud de Cebu",
     morning:
@@ -101,7 +76,7 @@ export const daily: PlanDay[] = [
     photo: "apo",
   },
   {
-    date: "2027-02-23",
+    date: "2027-02-21",
     stage: "negros",
     title: "Découvrir le rivage de Dauin",
     morning:
@@ -114,7 +89,7 @@ export const daily: PlanDay[] = [
       "Si la mer bouge, rester sur le rivage. Choisir les masques en piscine et reporter l’essai en mer.",
   },
   {
-    date: "2027-02-24",
+    date: "2027-02-22",
     stage: "negros",
     title: "Apo Island, au rythme des tortues",
     morning:
@@ -123,11 +98,11 @@ export const daily: PlanDay[] = [
       "Retour, déjeuner et repos. Si l’un des enfants préfère rester à terre avec un adulte, prévoir cette option avant le départ.",
     evening: "Dîner au resort et trier les photos ensemble.",
     alternative:
-      "Si la traversée est déconseillée, déplacer Apo au 26. Inverser avec la promenade à Dumaguete ou rester près de la piscine.",
+      "Si la traversée est déconseillée, déplacer Apo au 24 février. Inverser avec la promenade à Dumaguete ou rester près de la piscine.",
     photo: "turtle",
   },
   {
-    date: "2027-02-25",
+    date: "2027-02-23",
     stage: "negros",
     title: "Un matin à Dumaguete",
     morning:
@@ -139,7 +114,7 @@ export const daily: PlanDay[] = [
       "Fatigue après le bateau ? Raccourcir la visite à un seul arrêt pour le déjeuner ou la décaler au lendemain.",
   },
   {
-    date: "2027-02-26",
+    date: "2027-02-24",
     stage: "negros",
     title: "Le créneau de secours pour Apo",
     morning:
@@ -152,13 +127,13 @@ export const daily: PlanDay[] = [
       "Si les bateaux restent à quai, profiter de Negros. Une journée de plage ou de lecture garde toute sa place dans le voyage.",
   },
   {
-    date: "2027-02-27",
+    date: "2027-02-25",
     stage: "siquijor",
     title: "Arriver à San Juan",
     morning:
       "Chauffeur jusqu’au port de Dumaguete puis traversée envisagée vers Siquijor. Vérifier le quai, les bagages et la prise en charge côté île.",
     afternoon:
-      "Rejoindre San Juan. Déjeuner, installation pour six nuits et découverte de la piscine.",
+      "Rejoindre San Juan. Déjeuner, installation pour sept nuits et découverte de la piscine.",
     evening:
       "Premier dîner près de la chambre. La plage au coucher du soleil dépendra de l’heure d’arrivée.",
     alternative:
@@ -166,7 +141,7 @@ export const daily: PlanDay[] = [
     photo: "siquijor",
   },
   {
-    date: "2027-02-28",
+    date: "2027-02-26",
     stage: "siquijor",
     title: "Cambugahay, une cascade sans se presser",
     morning:
@@ -179,7 +154,7 @@ export const daily: PlanDay[] = [
       "Après de fortes pluies, renoncer à la rivière. Avancer la visite de Lazi si la route est praticable, sinon rester au resort.",
   },
   {
-    date: "2027-03-01",
+    date: "2027-02-27",
     stage: "siquijor",
     title: "La vie locale autour de Lazi",
     morning:
@@ -192,7 +167,7 @@ export const daily: PlanDay[] = [
       "Fatigue ou lieu fermé ? Garder seulement le déjeuner local. Le lendemain peut commencer plus tard.",
   },
   {
-    date: "2027-03-02",
+    date: "2027-02-28",
     stage: "siquijor",
     title: "Le récif de Tubod",
     morning:
@@ -202,10 +177,10 @@ export const daily: PlanDay[] = [
     evening:
       "Dîner dans le secteur de San Juan, par exemple au Baha Bar si la carte et l’horaire conviennent aux enfants.",
     alternative:
-      "Si la mer ou l’entrée à l’eau est difficile, reporter au 4 mars. Choisir un jeu au sec ou la piscine si elle est accessible.",
+      "Si la mer ou l’entrée à l’eau est difficile, reporter au 2 mars. Choisir un jeu au sec ou la piscine si elle est accessible.",
   },
   {
-    date: "2027-03-03",
+    date: "2027-03-01",
     stage: "siquijor",
     title: "Paliton en fin de journée",
     morning:
@@ -218,7 +193,20 @@ export const daily: PlanDay[] = [
       "Ciel couvert ? Garder la courte promenade si les conditions sont bonnes, ou choisir un goûter abrité à San Juan.",
   },
   {
-    date: "2027-03-04",
+    stage: "siquijor",
+    title: "San Juan, la journée des enfants",
+    morning:
+      "Laisser chacun choisir une activité courte : chercher sur le sable les traces de crabes avec un adulte ou dessiner les poissons aperçus à Tubod. Prévoir eau, goûter et ombre.",
+    afternoon:
+      "Déjeuner près de l’hôtel, sieste et piscine. Si Tubod a été reporté, il peut remplacer la matinée de jeux selon les conditions du jour.",
+    evening:
+      "Petite balade à pied près de l’hôtel puis dîner avant la fatigue. Chaque enfant choisit sa photo pour le carnet.",
+    alternative:
+      "Pluie ou grosse chaleur ? Reprendre le jeu sous abri avec les photos du voyage et rester au resort. Aucun trajet à organiser.",
+    date: "2027-03-02",
+  },
+  {
+    date: "2027-03-03",
     stage: "siquijor",
     title: "Une dernière journée sans valises",
     morning:
@@ -231,7 +219,7 @@ export const daily: PlanDay[] = [
       "Si la traversée du lendemain est incertaine, contacter l’opérateur et les hôtels pour connaître les possibilités réelles de report.",
   },
   {
-    date: "2027-03-05",
+    date: "2027-03-04",
     stage: "bohol",
     title: "Bohol, un seul hôtel à Panglao",
     morning:
@@ -241,11 +229,11 @@ export const daily: PlanDay[] = [
     evening:
       "Dîner à proximité. Confirmer le chauffeur privé et les deux arrêts retenus pour le lendemain.",
     alternative:
-      "Arrivée tardive ? Garder simplement le dîner et le sommeil. Si la traversée est annulée, adapter la durée à Bohol en préservant le retour à Cebu le 8.",
+      "Arrivée tardive ? Garder simplement le dîner et le sommeil. Si la traversée est annulée, adapter la durée à Bohol en préservant le retour à Cebu le 7.",
     photo: "bohol",
   },
   {
-    date: "2027-03-06",
+    date: "2027-03-05",
     stage: "bohol",
     title: "Corella et la rivière de Loboc",
     morning:
@@ -254,10 +242,10 @@ export const daily: PlanDay[] = [
       "Poursuivre vers Loboc pour déjeuner près de la rivière. Revenir à Panglao assez tôt pour la piscine. Si les Chocolate Hills sont votre priorité, choisir Carmen à la place de Loboc.",
     evening: "Dîner près de la plage sans reprendre une longue route.",
     alternative:
-      "Si les enfants sont fatigués, garder uniquement Corella. En cas de fortes pluies, reporter la sortie au 7 et rester à l’hôtel.",
+      "Si les enfants sont fatigués, garder uniquement Corella. En cas de fortes pluies, reporter la sortie au 6 et rester à l’hôtel.",
   },
   {
-    date: "2027-03-07",
+    date: "2027-03-06",
     stage: "bohol",
     title: "Dumaluan, les pieds dans le sable",
     morning:
@@ -270,18 +258,31 @@ export const daily: PlanDay[] = [
       "Mer agitée ? Rester à terre. Si la sortie à Corella a été décalée, la faire aujourd’hui à la place de la plage.",
   },
   {
-    date: "2027-03-08",
+    date: "2027-03-07",
     stage: "mactan",
-    title: "Rejoindre Cebu la veille du vol",
+    title: "Rejoindre Cebu deux nuits avant le vol",
     morning:
       "Chauffeur jusqu’au port de Tagbilaran puis ferry envisagé vers Cebu. Choisir une traversée laissant de la marge pour les attentes.",
     afternoon:
-      "Transfert jusqu’à Mactan et installation pour une nuit. Garder le reste de l’après-midi pour se reposer.",
+      "Transfert jusqu’à Mactan et installation pour deux nuits. Garder le reste de l’après-midi pour se reposer.",
     evening:
       "Dîner sur place. Reconfirmer le vol, le transfert et les possibilités de douche après la libération de la chambre.",
     alternative:
-      "En cas d’avis de perturbation, étudier dès le 7 mars un retour anticipé. Contacter l’opérateur si le départ choisi est annulé.",
+      "En cas d’avis de perturbation, étudier dès le 6 mars un retour anticipé. Contacter l’opérateur si le départ choisi est annulé.",
     photo: "cebu",
+  },
+  {
+    stage: "mactan",
+    title: "Une matinée de découverte à Mactan",
+    morning:
+      "Demander si l’atelier de guitares Alegre accueille les familles ce jour-là. Si la visite est confirmée, prévoir un seul trajet en voiture et observer comment une guitare prend forme.",
+    afternoon:
+      "Déjeuner puis rentrer pour la sieste ou la piscine. Garder les valises et la chambre au même hôtel jusqu’au lendemain.",
+    evening:
+      "Dîner sur place et préparer le bagage cabine. Confirmer le chauffeur et l’heure de départ vers l’aéroport pour le 9.",
+    alternative:
+      "Atelier fermé ? Choisir la courte promenade au Mactan Shrine s’il fait assez frais. Si le ferry du 7 a été annulé, utiliser cette journée pour rallier Cebu.",
+    date: "2027-03-08",
   },
   {
     date: "2027-03-09",
