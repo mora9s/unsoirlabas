@@ -36,7 +36,7 @@ Le script compare la SHA attendue à `/deployment.json`, vérifie l’accueil/d�
 
 ## Parcours
 
-- `/#philippines` : préparation familiale 2027, six bases, hôtels/restaurants/activités en liste et sur la carte, favoris, comparaison, calendrier, budget, checklist et exports. [Guide et limites](docs/family-planner.md). Export JSON distinct du ZIP des carnets ; aucune réservation automatique ni synchronisation entre téléphones.
+- `/#philippines` : préparation familiale 2027, planning illustré de 21 journées, cinq bases dont trois nuits à Bohol, hôtels/restaurants/activités en liste et sur la carte, favoris, comparaison, calendrier, budget, checklist et exports. [Guide et limites](docs/family-planner.md). Export JSON distinct du ZIP des carnets ; aucune réservation automatique ni synchronisation entre téléphones.
 - `/#carnet` : couverture, chronologie des trois étapes et brouillons personnels.
 - Sur l’accueil, **Le prochain départ** : destinations et dates à saisir soi-même,
   grand décompte en jours calendaires, tri chronologique, modification et retrait.

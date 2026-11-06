@@ -1,5 +1,12 @@
 import { test, expect } from "@playwright/test";
 import { readFile } from "node:fs/promises";
+async function openCatalogue(page: import("@playwright/test").Page) {
+  await page.getByRole("button", { name: "Explorer & choisir" }).click();
+  await page
+    .getByRole("navigation", { name: "Étapes du voyage" })
+    .getByRole("button", { name: /Moalboal/ })
+    .click();
+}
 const key = "unsoirlabas-family-planner-v1";
 
 test("préparation et choix restent consultables après fermeture et réouverture hors ligne", async ({
@@ -30,16 +37,21 @@ test("préparation et choix restent consultables après fermeture et réouvertur
   await context.setOffline(true);
   const offline = await context.newPage();
   await offline.goto("/#philippines");
-  await offline.getByLabel("Nos favoris & choix").check();
-  await expect(offline.locator(".fp-card")).toHaveCount(1);
-  await expect(offline.locator(".fp-card")).toContainText("Pescadores Suites");
+  await expect(offline.locator(".fp-program-photo img").first()).toBeVisible();
   await expect
     .poll(() =>
       offline
-        .locator(".fp-hero img")
-        .evaluate((i: HTMLImageElement) => i.complete && i.naturalWidth > 0),
+        .locator(".fp-program-photo img")
+        .first()
+        .evaluate(
+          (img: HTMLImageElement) => img.complete && img.naturalWidth > 0,
+        ),
     )
     .toBe(true);
+  await openCatalogue(offline);
+  await offline.getByLabel("Nos favoris & choix").check();
+  await expect(offline.locator(".fp-card")).toHaveCount(1);
+  await expect(offline.locator(".fp-card")).toContainText("Pescadores Suites");
   await offline.getByRole("button", { name: "Notre budget" }).click();
   await expect(offline.locator(".fp-budget-metrics")).toContainText("2 577,96");
 });
@@ -55,6 +67,7 @@ test("une fiche modifiée dans un autre onglet ne peut pas être écrasée silen
   const second = await context.newPage();
   await second.route("https://tile.openstreetmap.org/**", (r) => r.abort());
   await second.goto("/#philippines");
+  await openCatalogue(second);
   await second
     .getByRole("heading", { name: "Pescadores Suites", exact: true })
     .click();
@@ -83,7 +96,7 @@ test("le carnet familial est créé sur demande sans récit fictif ni doublon", 
     JSON.parse(localStorage.getItem("un-soir-la-bas-upcoming-v1")!),
   );
   expect(trips).toHaveLength(1);
-  expect(trips[0].plan.stops).toHaveLength(6);
+  expect(trips[0].plan.stops).toHaveLength(5);
   await page.goto("/#philippines");
   await page.getByRole("button", { name: "Notre carnet ↗" }).click();
   expect(
@@ -97,7 +110,10 @@ test.beforeEach(async ({ page }) => {
     route.abort(),
   );
   await page.goto("/#philippines");
-  await expect(page.getByRole("heading", { name: /Des îles/ })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: /Le planning/ }),
+  ).toBeVisible();
+  await openCatalogue(page);
 });
 
 test("un lieu personnel peut être corrigé et retiré avec son choix et son budget", async ({
@@ -122,21 +138,21 @@ test("un lieu personnel peut être corrigé et retiré avec son choix et son bud
   await page.getByLabel("Nom du lieu").fill("Notre adresse corrigée");
   await page
     .getByRole("combobox", { name: "Étape", exact: true })
-    .selectOption("loboc");
+    .selectOption("bohol");
   await page.getByRole("button", { name: "Enregistrer mon lieu" }).click();
   const state = await page.evaluate(
     (k) => JSON.parse(localStorage.getItem(k)!),
     key,
   );
-  expect(state.custom[0].stage).toBe("loboc");
+  expect(state.custom[0].stage).toBe("bohol");
   expect(state.choices[state.custom[0].id]).toMatchObject({
     date: "",
     notes: "Demander un lit supplémentaire",
     status: "chosen",
   });
   await page
-    .getByRole("navigation", { name: "Les six étapes" })
-    .getByRole("button", { name: /Loboc/ })
+    .getByRole("navigation", { name: "Étapes du voyage" })
+    .getByRole("button", { name: /Bohol/ })
     .click();
   await page
     .getByRole("heading", { name: "Notre adresse corrigée", exact: true })
@@ -233,12 +249,11 @@ test("chaque étape propose hôtels, restaurants et activités, en liste et sur 
     "Moalboal",
     "Dauin & Apo",
     "Siquijor",
-    "Loboc",
-    "Panglao",
+    "Bohol",
     "Mactan",
   ]) {
     await page
-      .getByRole("navigation", { name: "Les six étapes" })
+      .getByRole("navigation", { name: "Étapes du voyage" })
       .getByRole("button", { name: new RegExp(name) })
       .click();
     for (const category of ["Hôtels", "Restaurants", "Activités"]) {
@@ -396,6 +411,7 @@ test("un stockage corrompu ne peut pas être remplacé par un clic sur un favori
 }) => {
   await page.evaluate((k) => localStorage.setItem(k, "{broken"), key);
   await page.reload();
+  await openCatalogue(page);
   await expect(page.getByRole("alert")).toContainText("conservée intacte");
   await page
     .getByRole("button", {
@@ -466,3 +482,86 @@ for (const width of [390, 1440])
     await expect(page.getByRole("dialog")).toHaveCount(0);
     expect(errors).toEqual([]);
   });
+
+test("le planning illustré ouvre sur 21 journées dont trois nuits à Bohol", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.reload();
+  await expect(
+    page.getByRole("button", { name: "Jour par jour" }),
+  ).toHaveAttribute("aria-current", "page");
+  await expect(page.locator(".fp-day")).toHaveCount(21);
+  await expect(page.locator(".fp-day-backup")).toHaveCount(21);
+  await expect(page.locator(".fp-day-sequence dt")).toHaveCount(63);
+  await expect(page.locator(".fp-day h3").first()).toBeInViewport();
+  await expect(page.locator(".fp-program-photo img")).toHaveCount(6);
+  await page
+    .getByRole("navigation", { name: "Étapes du voyage" })
+    .getByRole("button", { name: /Bohol/ })
+    .click();
+  await expect(page.locator(".fp-day")).toHaveCount(3);
+  await expect(page.locator(".fp-sleep")).toHaveText([
+    "Nuit à Panglao",
+    "Nuit à Panglao",
+    "Nuit à Panglao",
+  ]);
+  await page.getByLabel("Aller à une journée").selectOption("2027-03-06");
+  await expect(page.locator("#plan-2027-03-06")).toBeFocused();
+});
+
+test("les dates et paiements de l’ancien circuit Bohol restent consultables et exportables", async ({
+  page,
+}, info) => {
+  await page
+    .getByRole("button", { name: "Garder Pescadores Suites dans les favoris" })
+    .click();
+  await page.evaluate((k) => {
+    const data = JSON.parse(localStorage.getItem(k)!);
+    data.custom.push({
+      id: "custom-old",
+      name: "Mon lodge de Loboc",
+      stage: "loboc",
+      kind: "hotel",
+      description: "Ancien choix",
+      family: "À quatre",
+      caution: "À vérifier",
+      lat: 9.63,
+      lon: 124.03,
+      source: "",
+      verified: false,
+      tags: [],
+      duration: "3 nuits",
+    });
+    data.choices["custom-old"] = {
+      ...data.choices.pescadores,
+      date: "2027-03-02",
+      status: "booked",
+      cost: "400",
+      paid: "100",
+      notes: "Acompte versé",
+    };
+    localStorage.setItem(k, JSON.stringify(data));
+  }, key);
+  await page.reload();
+  await page.getByRole("button", { name: /Mon lodge de Loboc ·/ }).click();
+  await expect(page.getByLabel("Date d’arrivée envisagée")).toHaveValue(
+    "2027-03-02",
+  );
+  await expect(
+    page.getByRole("dialog").getByRole("textbox", { name: "Nos notes", exact: true }),
+  ).toHaveValue("Acompte versé");
+  await page.getByRole("button", { name: "Fermer la fiche" }).click();
+  const event = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Exporter", exact: true }).click();
+  const path = info.outputPath("planning.json");
+  await (await event).saveAs(path);
+  const saved = JSON.parse(await readFile(path, "utf8")).data;
+  expect(saved.custom[0].stage).toBe("bohol");
+  expect(saved.choices["custom-old"]).toMatchObject({
+    date: "2027-03-02",
+    status: "booked",
+    paid: "100",
+    cost: "400",
+  });
+});

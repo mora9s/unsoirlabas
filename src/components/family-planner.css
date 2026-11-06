@@ -1775,3 +1775,246 @@
     background: white;
   }
 }
+
+.fp-plan-mast {
+  max-width: 1440px;
+  margin: auto;
+  padding: clamp(20px, 3vw, 46px) 4.5%;
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 28px;
+  background: var(--fp-paper);
+}
+.fp-plan-mast h1 {
+  font:
+    normal clamp(38px, 5vw, 72px)/1.1 Georgia,
+    serif;
+  letter-spacing: -0.045em;
+  margin: 7px 0;
+}
+.fp-plan-mast h1 em {
+  color: #527463;
+  font-weight: 400;
+}
+.fp-plan-mast p {
+  font-size: 14px;
+  line-height: 1.55;
+}
+.fp-plan-mast .eyebrow {
+  font-size: 10px;
+  letter-spacing: 0.13em;
+}
+.fp-plan-mast details {
+  max-width: 450px;
+  font-size: 14px;
+}
+.fp-plan-mast details summary,
+.fp-day-jump select {
+  cursor: pointer;
+}
+.fp-days .fp-section-title {
+  margin: 14px 0 10px;
+}
+.fp-days .fp-section-title h2 {
+  font-size: clamp(26px, 3vw, 40px);
+}
+.fp-day-jump {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  margin: 14px 0 18px;
+}
+.fp-day-jump select {
+  width: min(440px, 100%);
+  min-width: 0;
+  padding: 8px;
+  color: var(--fp-ink);
+  border: 1px solid var(--fp-line);
+  border-radius: 6px;
+  background: #fffdf8;
+}
+.fp-days .fp-day {
+  max-width: 1100px;
+  grid-template-columns: 64px minmax(0, 1fr);
+  scroll-margin-top: 200px;
+}
+.fp-program-photo {
+  margin: 12px 0 18px;
+}
+.fp-program-photo img {
+  display: block;
+  width: 100%;
+  height: clamp(140px, 19vw, 245px);
+  object-fit: cover;
+  border-radius: 9px;
+}
+.fp-program-photo figcaption {
+  font-size: 11px;
+  line-height: 1.45;
+  color: #475e53;
+  padding-top: 4px;
+}
+.fp-day-sequence {
+  margin: 14px 0;
+}
+.fp-day-sequence > div {
+  display: grid;
+  grid-template-columns: 86px minmax(0, 1fr);
+  gap: 12px;
+  margin: 0 0 12px;
+}
+.fp-day-sequence dt {
+  font-size: 13px;
+  font-weight: 700;
+  color: #36594b;
+}
+.fp-day-sequence dd {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.58;
+}
+.fp-day-backup,
+.fp-calendar-review {
+  background: #eef1e8;
+  border-left: 3px solid #78967d;
+  border-radius: 4px;
+  padding: 12px 16px;
+  margin: 14px 0;
+}
+.fp-day-backup p,
+.fp-calendar-review p {
+  font-size: 14px;
+  line-height: 1.55;
+  margin: 4px 0;
+}
+.fp-calendar-review button {
+  padding: 7px;
+  text-decoration: underline;
+  color: inherit;
+}
+.fp-day .fp-sleep {
+  font-weight: 700;
+  color: #40594e;
+}
+.fp-notice:empty {
+  display: none;
+}
+@media (max-width: 760px) {
+  .fp-plan-mast {
+    display: block;
+    padding: 16px 5%;
+  }
+  .fp-plan-mast details {
+    margin-top: 8px;
+  }
+  .fp-days .fp-day {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
+  .fp-day .fp-day-date {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    width: max-content;
+    height: auto;
+    padding: 5px 9px;
+  }
+  .fp-day-date strong {
+    font-size: 17px;
+  }
+  .fp-day-sequence > div {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+  .fp-day-jump {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .fp-program-photo img {
+    height: 155px;
+  }
+  .fp-day-sequence dd {
+    font-size: 15px;
+  }
+}
+
+.fp-plan-mast {
+  padding-block: 16px;
+}
+.fp-plan-mast h1 {
+  font-size: clamp(30px, 4vw, 54px);
+}
+.fp-plan-mast h1 em {
+  white-space: nowrap;
+}
+.fp-body .fp-stage-strip {
+  gap: 6px;
+  padding-bottom: 4px;
+}
+.fp-stage-strip button,
+.fp-stage-strip button:first-child {
+  min-height: 0;
+  flex: 1 0 auto;
+  padding: 7px 12px;
+  gap: 3px;
+}
+.fp-stage-strip button > span {
+  display: none;
+}
+.fp-stage-strip button strong {
+  font-size: 18px;
+}
+.fp-day-jump {
+  margin: 8px 0 12px;
+}
+.fp-day-jump select {
+  padding: 6px;
+}
+@media (min-width: 761px) {
+  .fp-day:has(.fp-program-photo) .fp-program-photo {
+    float: right;
+    width: 40%;
+    margin: 4px 0 16px 3%;
+  }
+  .fp-day:has(.fp-program-photo) .fp-day-sequence {
+    width: 56%;
+  }
+  .fp-day-backup {
+    clear: both;
+  }
+  .fp-program-photo img {
+    height: clamp(200px, 19vw, 270px);
+  }
+}
+@media (max-width: 760px) {
+  .fp-plan-mast h1 {
+    font-size: 32px;
+  }
+  .fp-plan-mast p {
+    margin: 4px 0;
+  }
+  .fp-plan-mast {
+    padding: 10px 5%;
+  }
+  .fp-body:has(.fp-days) .fp-tabs {
+    margin-bottom: 8px;
+  }
+  .fp-day-jump {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+  }
+  .fp-stage-strip button,
+  .fp-stage-strip button:first-child {
+    flex-basis: auto;
+  }
+  .fp-days .fp-day {
+    padding-top: 12px;
+  }
+  .fp-plan-mast details {
+    margin-top: 2px;
+  }
+}
