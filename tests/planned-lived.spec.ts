@@ -16,7 +16,8 @@ async function seed(page: import('@playwright/test').Page) {
 }
 
 async function recordStep(page: import('@playwright/test').Page, destination: string, place: string) {
-  await page.getByRole('button', { name: `Planifier ${destination}` }).click()
+  await page.getByRole('button', { name: new RegExp(`^(Ouvrir la carte de|Carte de) ${destination}$`) }).click()
+  await page.getByRole('navigation',{name:'Navigation du voyage'}).getByRole('link',{name:'Programme',exact:true}).click()
   await page.locator('.planner-organize > summary').click()
   await page.getByRole('button', { name: `Raconter ${place}` }).click()
   await expect(page.getByTestId('planned-step-context')).toContainText(`Étape prévue · ${place}`)
@@ -48,7 +49,8 @@ test('le lien prévu/vécu est explicite, stable sur réordre/suppression et ind
   const chapterId = await page.evaluate(key => JSON.parse(localStorage.getItem(key)!).journals.find((journal: { tripId: string }) => journal.tripId === 'trip-tokyo').chapters[0].id, journalsKey)
   expect(await page.evaluate(key => JSON.parse(localStorage.getItem(key)!).journals.find((journal: { tripId: string }) => journal.tripId === 'trip-tokyo').chapters[0].plannedStep, journalsKey)).toEqual({ tripId: 'trip-tokyo', stepId: 'step-garden', place: 'Jardin du Nord' })
   await page.getByRole('button', { name: 'Mes voyages', exact: true }).click()
-  await page.getByRole('button', { name: 'Planifier Tokyo' }).click()
+  await page.getByRole('button', { name: 'Ouvrir la carte de Tokyo' }).click()
+  await page.getByRole('navigation',{name:'Navigation du voyage'}).getByRole('link',{name:'Programme',exact:true}).click()
   await page.locator('.planner-organize > summary').click()
   await page.getByRole('button', { name: 'Monter Rive du Sud' }).click()
   await expect.poll(() => page.evaluate(key => JSON.parse(localStorage.getItem(key)!).find((trip: { id: string }) => trip.id === 'trip-tokyo').plan.stops.map((stop: { id: string }) => stop.id).join(','), upcomingKey)).toBe('step-river,step-garden')

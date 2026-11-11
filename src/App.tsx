@@ -195,7 +195,7 @@ export default function App() {
       </nav>
     </header>
     {contextTrip && <nav className="trip-navigation page-width" aria-label="Navigation du voyage"><span>{contextTrip.destination}</span><div>{[
-      ['Programme', `plan/${contextId}`], ['Carte', `explore/${contextId}`], ['Carnet', `trip/${contextId}`], ['Film', `motion/${contextId}`], ['Aujourd’hui', `today/${contextId}`],
+      ['Carte', `explore/${contextId}`], ['Programme', `plan/${contextId}`], ['Carnet', `trip/${contextId}`], ['Film', `motion/${contextId}`], ['Aujourd’hui', `today/${contextId}`],
     ].map(([label,route]) => <a key={route} href={`#${route}`} aria-current={view === route ? 'page' : undefined}>{label}</a>)}</div></nav>}
     <main id="main" ref={mainRef} tabIndex={-1}>
       {!mediaReady ? <p role="status" className="page-width">Ouverture de vos médias locaux…</p> : <>
@@ -210,6 +210,7 @@ export default function App() {
           editDraft={editDraft}
           onOpenJournal={openUpcomingJournal}
           openPlanner={id => navigate(`plan/${encodeURIComponent(id)}`)}
+          openMap={id => navigate(`explore/${encodeURIComponent(id)}`)}
           journals={journals.data.journals}
         />
       )}

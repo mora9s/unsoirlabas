@@ -39,7 +39,8 @@ test('journée mobile, photo, association et ajout au même chapitre sans perte'
   await expect(page).toHaveURL(/#journey\/today\//)
   await expect(page.getByText(/Puis une promenade/).first()).toBeVisible()
   await page.goto('/')
-  await page.getByRole('link',{name:'Voir ma journée →',exact:true}).click()
+  await page.getByRole('button',{name:'Ouvrir la carte →',exact:true}).click()
+  await page.getByRole('navigation',{name:'Navigation du voyage'}).getByRole('link',{name:'Aujourd’hui',exact:true}).click()
   await expect(page).toHaveURL(/#today\/today/)
 })
 

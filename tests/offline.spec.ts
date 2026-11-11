@@ -11,7 +11,7 @@ test('fermeture et réouverture sans réseau : programme, photo et nouveau souve
   },photo)
   await page.goto('/#today/offline')
   await page.getByRole('complementary', { name: 'Disponibilité hors connexion' }).locator('details > summary').click()
-  await page.getByRole('button',{name:'Télécharger pour le hors connexion'}).click()
+  await page.getByRole('button',{name:/^(Télécharger pour le hors connexion|Actualiser la copie hors connexion)$/}).click()
   await expect(page.getByRole('status')).toContainText('Application disponible hors connexion',{timeout:20000})
   await expect.poll(()=>page.evaluate(()=>!!navigator.serviceWorker.controller)).toBe(true)
   await page.close()

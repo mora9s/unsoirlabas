@@ -4,9 +4,9 @@ import Icon from './Icon'
 import UpcomingTrips from './UpcomingTrips'
 import '../travel-library.css'
 
-export default function Home({ openTools, create, drafts, openDraft, editDraft, onOpenJournal, openPlanner, journals }: { openDay: (day: number) => void; openTools: () => void; create: () => void; drafts: Draft[]; openDraft: (draft: Draft) => void; editDraft: (draft: Draft) => void; onOpenJournal: (trip: import('../upcoming-trips').UpcomingTrip) => void; openPlanner: (id: string) => void; journals: import('../trip-journals').PersonalJournal[] }) {
+export default function Home({ openTools, create, drafts, openDraft, editDraft, onOpenJournal, openPlanner, openMap, journals }: { openDay: (day: number) => void; openTools: () => void; create: () => void; drafts: Draft[]; openDraft: (draft: Draft) => void; editDraft: (draft: Draft) => void; onOpenJournal: (trip: import('../upcoming-trips').UpcomingTrip) => void; openPlanner: (id: string) => void; openMap: (id:string) => void; journals: import('../trip-journals').PersonalJournal[] }) {
   return <>
-    <UpcomingTrips openJournal={onOpenJournal} openPlanner={openPlanner} journals={journals} />
+    <UpcomingTrips openJournal={onOpenJournal} openPlanner={openPlanner} openMap={openMap} journals={journals} />
     <div className="discover-demo inspiration-card page-width"><img src="/assets/visayas/apo.jpg" alt="Apo Island, au large de Negros" /><div><p className="eyebrow">Une envie d’ailleurs</p><h2>20 jours dans les Visayas</h2><p>D’île en île, un exemple à explorer puis à adapter à vos envies.</p><small>Apo Island · CariolaMinze · <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a></small></div><a className="button" href="#visayas">Explorer cet exemple →</a></div>
     <section className="home-pages page-width" aria-labelledby="home-pages-title">
       <header className="library-section-heading"><div><p className="eyebrow">Vos récits</p><h2 id="home-pages-title">Pages personnelles</h2></div><button className="button home-create" onClick={create}>Créer une journée <Icon name="plus" /></button></header>
