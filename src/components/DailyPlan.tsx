@@ -5,7 +5,7 @@ import type { PlanStop, UpcomingTrip } from '../upcoming-trips'
 import './daily-plan.css'
 
 const kinds = { visit: 'Visite', stay: 'Hébergement', meal: 'Repas', transit: 'Transport' }
-export default function DailyPlan({ trip, chapters = [], update }: { trip: UpcomingTrip; chapters?: Draft[]; update: (stop: PlanStop) => boolean }) {
+export default function DailyPlan({ trip, chapters = [], update }: { trip: UpcomingTrip; chapters?: Draft[]; update: (stop: PlanStop) => Promise<boolean> }) {
   const [selectedDay,setSelectedDay] = useState<string | null>(null)
   const stops = trip.plan?.stops ?? []
   const dates = [...new Set(stops.map(stop => stop.date ?? ''))].sort((a,b) => a ? b ? a.localeCompare(b) : -1 : 1)

@@ -30,6 +30,8 @@ jobs:
         env:
           GITHUB_SHA: ${{ github.sha }}
       - run: npx playwright install --with-deps chromium
+      - name: Install PDF text extraction for the book acceptance tests
+        run: sudo apt-get update && sudo apt-get install -y poppler-utils
       - name: Full acceptance suite on local/private build
         run: npm run test:acceptance
       - name: Build public Vercel variant with commit metadata

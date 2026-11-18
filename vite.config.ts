@@ -11,7 +11,7 @@ function offlineShell(): Plugin {
       const bundled = Object.keys(bundle).filter(name => /\.(js|css)$/.test(name)).sort()
       const media = ['bacuit-island.jpg','chocolate-hills.jpg','el-nido-bay.jpg','el-nido-big-lagoon.jpg','el-nido-lagoon.jpg','limestone-island.jpg','manila-jeepney.jpg','manila-sunset.jpg','nakabuang-beach.webm','port-barton.jpg'].map(name => `/assets/${name}`)
       const visayas = ['apo','moalboal','siquijor','turtle','bohol','cebu'].map(photo => `/assets/visayas/${photo}.jpg`)
-      const files = ['/','/favicon.svg','/icons.svg', ...media, ...visayas, ...bundled.map(name => `/${name}`)]
+      const files = ['/','/favicon.svg','/icons.svg','/manifest.webmanifest','/icons/icon-192.png','/icons/icon-512.png', ...media, ...visayas, ...bundled.map(name => `/${name}`)]
       const hash = createHash('sha256')
       // Include worker logic as well as shell bytes so code-only updates invalidate it.
       hash.update(offlineShell.toString())
@@ -23,6 +23,7 @@ function offlineShell(): Plugin {
         else this.error('Missing built index.html for offline shell')
       }
       const revision = hash.digest('hex').slice(0,16)
+      this.emitFile({type:'asset',fileName:'offline-version.json',source:JSON.stringify({version:`unsoirlabas-offline-${revision}`})})
       this.emitFile({type:'asset',fileName:'offline-worker.js',source:`
 const NAME='unsoirlabas-offline-${revision}';
 const FILES=${JSON.stringify(files)};
@@ -49,8 +50,14 @@ self.addEventListener('fetch',event=>{
   if(event.request.mode==='navigate' && (url.pathname==='/' || url.pathname==='/index.html')) {
     event.respondWith((async()=>{try{return await fetch(event.request)}catch{return (await caches.open(NAME)).match('/')}})());return;
   }
-  if(FILES.includes(url.pathname)&&url.pathname!=='/')event.respondWith((async()=>{
+  const versionedAsset=/^\\/assets\\/[^/]+-[A-Za-z0-9_-]{8,}\\.(?:js|css)$/.test(url.pathname);
+  if((FILES.includes(url.pathname)&&url.pathname!=='/')||versionedAsset)event.respondWith((async()=>{
     const cached=await (await caches.open(NAME)).match(url.pathname);
+    if(!cached && versionedAsset){
+      const old=(await caches.keys()).filter(key=>key.startsWith('unsoirlabas-offline-')&&key!==NAME);
+      const previous=old[old.length-1];
+      if(previous){const retained=await (await caches.open(previous)).match(url.href);if(retained)return retained}
+    }
     if(!cached)return fetch(event.request);
     if(event.request.headers.has('range') && url.pathname.endsWith('.webm')) {
       const bytes=await cached.arrayBuffer();

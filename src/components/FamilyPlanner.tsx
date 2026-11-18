@@ -25,7 +25,8 @@ import type { Choice, FamilyState } from "../family-store";
 import OfflineAccess from "./OfflineAccess";
 import { createId } from "../id";
 import { readUpcoming } from "../upcoming-trips";
-import { saveUpcomingMetadata } from "../trip-journals";
+import { saveUpcomingMetadataUnlocked } from "../trip-journals";
+import { withMediaDurabilityLock } from "../durability-lock";
 import "./family-planner.css";
 const FamilyMap = lazy(() => import("./FamilyMap"));
 type Tab = "explore" | "days" | "budget" | "prepare";
@@ -582,13 +583,14 @@ export default function FamilyPlanner() {
       window.removeEventListener("family-planner-updated", refresh);
     };
   }, []);
-  function openJournal() {
+  async function openJournal() {
     try {
+      const id = "family-philippines-2027";
+      await withMediaDurabilityLock(async () => {
       const current = readUpcoming();
       if (current.error) throw new Error(current.error);
-      const id = "family-philippines-2027";
       if (!current.trips.some((t) => t.id === id)) {
-        saveUpcomingMetadata([
+        saveUpcomingMetadataUnlocked([
           ...current.trips,
           {
             id,
@@ -612,6 +614,7 @@ export default function FamilyPlanner() {
         ]);
         window.dispatchEvent(new Event("upcoming-trips-updated"));
       }
+      });
       window.location.hash = `trip/${id}`;
     } catch (error) {
       setNotice(

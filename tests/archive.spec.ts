@@ -24,6 +24,12 @@ async function confirmSafetyCopy(page: import('@playwright/test').Page, path: st
   await page.getByRole('checkbox', { name: /je confirme que la copie de sécurité est téléchargée et vérifiée/i }).check()
 }
 
+function expectDurableMedia(media: { id: string; name: string; src: string; storageRef?: string }) {
+  expect(media).toMatchObject({ id: 'photo-source', name: 'café du matin.jpg' })
+  expect(media.src).toMatch(/^idb:media:/)
+  expect(media.storageRef).toBe(media.src.slice('idb:media:'.length))
+}
+
 test('archive ZIP réelle, prévisualisation et restauration explicite', async ({ page, browser }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.addInitScript(() => {
@@ -55,9 +61,12 @@ test('archive ZIP réelle, prévisualisation et restauration explicite', async (
   expect(Object.keys(zip)).toContain(personalPath)
   const personalPayload = JSON.parse(new TextDecoder().decode(zip['personal-journals.json']))
   expect(personalPayload.journals[0].chapters[0].media[0]).toMatchObject({ name: 'café du matin.jpg', path: personalPath, mime: 'image/jpeg', bytes: zip[personalPath].byteLength })
+  const sourceRef = await page.evaluate(key => JSON.parse(localStorage.getItem(key)!).drafts[0].media[0].storageRef, key)
   const freshContext = await browser.newContext()
   const fresh = await freshContext.newPage()
   await fresh.goto('/')
+  const familyRaw = '{"synthetic":"family bytes must remain unchanged"}'
+  await fresh.evaluate(raw => localStorage.setItem('unsoirlabas-family-planner-v1', raw), familyRaw)
   await fresh.getByRole('button', { name: 'Outils et sauvegarde du carnet' }).click()
   await fresh.getByLabel('Choisir une sauvegarde ZIP').setInputFiles(path)
   await expect(fresh.getByRole('heading', { name: 'Restaurer ce carnet ?' })).toBeVisible()
@@ -70,12 +79,25 @@ test('archive ZIP réelle, prévisualisation et restauration explicite', async (
   const restored = await fresh.evaluate(key => JSON.parse(localStorage.getItem(key)!), key)
   expect(restored.drafts).toHaveLength(1)
   expect(restored.drafts[0]).toMatchObject({ id: 'chapitre-source', title: 'Le départ', memories: 'Un premier café.', tone: 'Spontané', story: 'Le premier matin.', coverId: 'photo-source', status: 'draft' })
-  expect(restored.drafts[0].media).toEqual([{ id: 'photo-source', name: 'café du matin.jpg', src: photo }])
+  expectDurableMedia(restored.drafts[0].media[0])
+  expect(restored.drafts[0].media[0].storageRef).not.toBe(sourceRef)
   expect(await fresh.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1)
   expect(await fresh.evaluate(key => JSON.parse(localStorage.getItem(key)!), upcomingKey)).toEqual(upcoming)
   const restoredJournals = await fresh.evaluate(() => JSON.parse(localStorage.getItem('un-soir-la-bas-journals-v1')!))
-  expect(restoredJournals.journals[0].chapters[0].media).toEqual([{ id: 'photo-source', name: 'café du matin.jpg', src: photo }])
-  await fresh.getByRole('button', { name: 'Le carnet', exact: true }).click()
+  expectDurableMedia(restoredJournals.journals[0].chapters[0].media[0])
+  expect(restoredJournals.journals[0].chapters[0].media[0].storageRef).toBe(restored.drafts[0].media[0].storageRef)
+  const restoredPhoto = await fresh.evaluate(async ref => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => { const request = indexedDB.open('un-soir-la-bas-media-v1', 1); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error) })
+    const record = await new Promise<any>((resolve, reject) => { const request = db.transaction('blobs').objectStore('blobs').get(ref); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error) })
+    db.close()
+    const url = URL.createObjectURL(new Blob([record.bytes], { type: record.mime }))
+    const image = new Image(); image.src = url; await image.decode()
+    const result = { bytes: Array.from(new Uint8Array(record.bytes)), width: image.naturalWidth, height: image.naturalHeight }; URL.revokeObjectURL(url); return result
+  }, restored.drafts[0].media[0].storageRef)
+  expect(Buffer.from(restoredPhoto.bytes)).toEqual(Buffer.from(zip['media/001-chapitre-source/001-photo-source.jpg']))
+  expect([restoredPhoto.width, restoredPhoto.height]).toEqual([1, 1])
+  expect(await fresh.evaluate(() => localStorage.getItem('unsoirlabas-family-planner-v1'))).toBe(familyRaw)
+  await fresh.getByRole('button', { name: 'Mes voyages', exact: true }).click()
   await expect(fresh.getByTestId('upcoming-trip')).toContainText('Kyoto')
   await freshContext.close()
 })
@@ -110,8 +132,9 @@ test('restaure les photos personnelles intégrées aux anciennes archives v2', a
   await confirmSafetyCopy(page, testInfo.outputPath('inline-safety.zip'))
   await page.getByRole('button', { name: 'Restaurer ce carnet' }).click()
   await expect(page.getByRole('status')).toContainText('restaurées sur cet appareil')
+  await page.waitForFunction(() => /^idb:media:/.test(JSON.parse(localStorage.getItem('un-soir-la-bas-journals-v1')!).journals[0].chapters[0].media[0].src))
   const restored = await page.evaluate(() => JSON.parse(localStorage.getItem('un-soir-la-bas-journals-v1')!))
-  expect(restored.journals[0].chapters[0].media).toEqual([{ id: 'photo-source', name: 'café du matin.jpg', src: photo }])
+  expectDurableMedia(restored.journals[0].chapters[0].media[0])
 })
 
 test('archive invalide ou annulée ne modifie jamais le stockage', async ({ page }, testInfo) => {
@@ -120,12 +143,15 @@ test('archive invalide ou annulée ne modifie jamais le stockage', async ({ page
     Object.defineProperty(navigator, 'canShare', { value: undefined, configurable: true })
   })
   await seed(page)
+  const migrated = await page.evaluate(key => localStorage.getItem(key), key)
+  expect(migrated).not.toBe(original)
+  expect(await page.evaluate(key => localStorage.getItem('un-soir-la-bas-media-legacy-v1:' + key), key)).toBe(original)
   await page.getByLabel('Choisir une sauvegarde ZIP').setInputFiles({ name: 'faux.zip', mimeType: 'application/zip', buffer: Buffer.from('pas une archive') })
   await expect(page.getByRole('alert')).toContainText('ne peut pas être ouverte')
-  expect(await page.evaluate(key => localStorage.getItem(key), key)).toBe(original)
-  await page.getByLabel('Choisir une sauvegarde ZIP').setInputFiles({ name: 'trop-grand.zip', mimeType: 'application/zip', buffer: Buffer.alloc(25 * 1024 * 1024 + 1) })
+  expect(await page.evaluate(key => localStorage.getItem(key), key)).toBe(migrated)
+  await page.getByLabel('Choisir une sauvegarde ZIP').setInputFiles({ name: 'trop-grand.zip', mimeType: 'application/zip', buffer: Buffer.alloc(25 * 1024 * 1024 + 1) }, { timeout: 15_000 })
   await expect(page.getByRole('alert')).toContainText('moins de 25 Mo')
-  expect(await page.evaluate(key => localStorage.getItem(key), key)).toBe(original)
+  expect(await page.evaluate(key => localStorage.getItem(key), key)).toBe(migrated)
   const pending = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Sauvegarder dans Drive' }).click()
   const download = await pending
@@ -141,13 +167,13 @@ test('archive invalide ou annulée ne modifie jamais le stockage', async ({ page
   await page.getByLabel('Choisir une sauvegarde ZIP').setInputFiles(legacyPath)
   await expect(page.getByRole('heading', { name: 'Restaurer ce carnet ?' })).toBeVisible()
   await page.getByRole('button', { name: 'Annuler' }).click()
-  expect(await page.evaluate(key => localStorage.getItem(key), key)).toBe(original)
+  expect(await page.evaluate(key => localStorage.getItem(key), key)).toBe(migrated)
   altered['media/001-chapitre-source/001-photo-source.jpg'][2] ^= 1
   const tamperedPath = testInfo.outputPath('modifie.zip')
   await writeFile(tamperedPath, zipSync(altered))
   await page.getByLabel('Choisir une sauvegarde ZIP').setInputFiles(tamperedPath)
   await expect(page.getByRole('alert')).toContainText('a été modifié')
-  expect(await page.evaluate(key => localStorage.getItem(key), key)).toBe(original)
+  expect(await page.evaluate(key => localStorage.getItem(key), key)).toBe(migrated)
   const unknownFields = unzipSync(await readFile(path))
   const unknownManifest = JSON.parse(new TextDecoder().decode(unknownFields['manifest.json']))
   unknownManifest.journal.drafts[0].unexpected = 'ne doit pas être restauré'
@@ -156,11 +182,11 @@ test('archive invalide ou annulée ne modifie jamais le stockage', async ({ page
   await writeFile(unknownPath, zipSync(unknownFields))
   await page.getByLabel('Choisir une sauvegarde ZIP').setInputFiles(unknownPath)
   await expect(page.getByRole('alert')).toContainText('champs inconnus')
-  expect(await page.evaluate(key => localStorage.getItem(key), key)).toBe(original)
+  expect(await page.evaluate(key => localStorage.getItem(key), key)).toBe(migrated)
   await page.getByLabel('Choisir une sauvegarde ZIP').setInputFiles(path)
   await expect(page.getByRole('heading', { name: 'Restaurer ce carnet ?' })).toBeVisible()
   await page.getByRole('button', { name: 'Annuler' }).click()
-  expect(await page.evaluate(key => localStorage.getItem(key), key)).toBe(original)
+  expect(await page.evaluate(key => localStorage.getItem(key), key)).toBe(migrated)
 })
 
 test('une archive historique sans voyages conserve les décomptes actuels', async ({ page }, testInfo) => {
@@ -183,7 +209,15 @@ test('une archive historique sans voyages conserve les décomptes actuels', asyn
   const path = testInfo.outputPath('legacy-v1.zip')
   await writeFile(path, zipSync(legacy))
 
-  await page.evaluate(key => localStorage.setItem(key, JSON.stringify({ version: 1, journals: [{ tripId: 'unrelated-trip', destination: 'Oslo', departure: '', chapters: [] }] })), 'un-soir-la-bas-journals-v1')
+  await page.evaluate(({ storage, journals }) => {
+    const stale = { id: 'chapitre-source', title: 'Ancienne copie locale', memories: '', tone: 'Spontané', story: 'Une autre version locale.', media: [], coverId: '', status: 'draft' }
+    const drafts = [stale, { ...stale, id: 'absent-de-l-archive', title: 'Présent seulement avant restauration' }]
+    localStorage.setItem(storage, JSON.stringify({ version: 1, drafts }))
+    localStorage.setItem(journals, JSON.stringify({ version: 1, journals: [
+      { tripId: 'unrelated-trip', destination: 'Oslo', departure: '', chapters: [] },
+      { tripId: 'legacy-philippines-journal', destination: 'Philippines', departure: '', chapters: drafts },
+    ] }))
+  }, { storage: key, journals: 'un-soir-la-bas-journals-v1' })
   await page.getByLabel('Choisir une sauvegarde ZIP').setInputFiles(path)
   await expect(page.getByRole('heading', { name: 'Restaurer ce carnet ?' })).toBeVisible()
   await expect(page.locator('.restore-preview')).toContainText('Cette ancienne archive ne contient pas de carnets multi-voyage : ceux de cet appareil seront conservés.')
@@ -192,10 +226,14 @@ test('une archive historique sans voyages conserve les décomptes actuels', asyn
   await expect(page.getByRole('status')).toContainText('restauré')
   expect(await page.evaluate(key => localStorage.getItem(key), upcomingKey)).toBe(JSON.stringify(upcoming))
   expect(await page.evaluate(key => JSON.parse(localStorage.getItem(key)!).journals.map((item: { destination: string; chapters: { id: string }[] }) => [item.destination, item.chapters.map(chapter => chapter.id)]), 'un-soir-la-bas-journals-v1')).toEqual([['Oslo', []], ['Philippines', ['chapitre-source']]])
+  await page.goto('/#trip/legacy-philippines-journal')
+  await expect(page.getByTestId('journal-chapter-card')).toHaveCount(1)
+  await expect(page.getByTestId('journal-chapter-card')).toContainText('Le départ')
 })
 
 test('un échec quota sur le second stockage rétablit les deux valeurs exactes', async ({ page }, testInfo) => {
   await seed(page)
+  const beforeRestore = await page.evaluate(({ key, upcomingKey }) => [localStorage.getItem(key), localStorage.getItem(upcomingKey)], { key, upcomingKey })
   const pending = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Sauvegarder dans Drive' }).click()
   const download = await pending
@@ -212,8 +250,52 @@ test('un échec quota sur le second stockage rétablit les deux valeurs exactes'
     }
   })
   await page.getByRole('button', { name: 'Restaurer ce carnet' }).click()
-  await expect(page.locator('.backup-message[role="alert"]')).toContainText('stockage est plein')
-  expect(await page.evaluate(({ key, upcomingKey }) => [localStorage.getItem(key), localStorage.getItem(upcomingKey)], { key, upcomingKey })).toEqual([original, JSON.stringify(upcoming)])
+  await expect(page.locator('.backup-message[role="alert"]')).toContainText('vérifiées et rétablies')
+  expect(await page.evaluate(({ key, upcomingKey }) => [localStorage.getItem(key), localStorage.getItem(upcomingKey)], { key, upcomingKey })).toEqual(beforeRestore)
+})
+
+test('une transaction IndexedDB refusée pendant la restauration ne publie aucune référence', async ({ page }, testInfo) => {
+  await seed(page)
+  const pending = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Sauvegarder dans Drive' }).click()
+  const path = testInfo.outputPath('archive-media-quota.zip')
+  await (await pending).saveAs(path)
+  await page.getByLabel('Choisir une sauvegarde ZIP').setInputFiles(path)
+  await expect(page.getByRole('heading', { name: 'Restaurer ce carnet ?' })).toBeVisible()
+  await confirmSafetyCopy(page, testInfo.outputPath('media-quota-safety.zip'))
+  const keys = [key, upcomingKey, 'un-soir-la-bas-journals-v1', 'unsoirlabas-family-planner-v1']
+  const before = await page.evaluate(keys => keys.map(key => localStorage.getItem(key)), keys)
+  await page.evaluate(() => {
+    const transaction = IDBDatabase.prototype.transaction
+    IDBDatabase.prototype.transaction = function (...args) {
+      const tx = Reflect.apply(transaction, this, args) as IDBTransaction
+      if (this.name === 'un-soir-la-bas-media-v1' && args[1] === 'readwrite') queueMicrotask(() => tx.abort())
+      return tx
+    }
+  })
+  await page.getByRole('button', { name: 'Restaurer ce carnet' }).click()
+  await expect(page.locator('.backup-message[role="alert"]')).toContainText('La restauration n’a pas abouti')
+  await expect(page.getByRole('heading', { name: 'Restaurer ce carnet ?' })).toBeVisible()
+  expect(await page.evaluate(keys => keys.map(key => localStorage.getItem(key)), keys)).toEqual(before)
+})
+
+test('un rollback bloqué signale explicitement la restauration incomplète', async ({ page }, testInfo) => {
+  await seed(page)
+  const pending = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Sauvegarder dans Drive' }).click()
+  const path = testInfo.outputPath('rollback-blocked.zip')
+  await (await pending).saveAs(path)
+  await page.getByLabel('Choisir une sauvegarde ZIP').setInputFiles(path)
+  await confirmSafetyCopy(page, testInfo.outputPath('rollback-blocked-safety.zip'))
+  await page.evaluate(() => {
+    const set = Storage.prototype.setItem; let tripWrites = 0
+    Storage.prototype.setItem = function (name, value) {
+      if (name === 'philippines-trip' && ++tripWrites > 1 || name === 'un-soir-la-bas-upcoming-v1') throw new DOMException('quota', 'QuotaExceededError')
+      return set.call(this, name, value)
+    }
+  })
+  await page.getByRole('button', { name: 'Restaurer ce carnet' }).click()
+  await expect(page.locator('.backup-message[role="alert"]')).toContainText('rétablissement automatique sont incomplets')
 })
 
 test('un remplacement prévisualise les différences et exige le téléchargement vérifiable de la copie de sécurité', async ({ page }, testInfo) => {
@@ -232,8 +314,13 @@ test('un remplacement prévisualise les différences et exige le téléchargemen
     localStorage.setItem('un-soir-la-bas-journals-v1', currentJournals)
   }, { key, currentTrip, upcomingKey, currentJournals })
   await page.reload()
-  const currentJournalsRaw = await page.evaluate(() => localStorage.getItem('un-soir-la-bas-journals-v1'))
-
+  await page.evaluate(async () => {
+    while (true) {
+      const locks = await navigator.locks.query()
+      if (!locks.held?.length && !locks.pending?.length) break
+      await new Promise(resolve => setTimeout(resolve, 10))
+    }
+  })
   await page.getByLabel('Choisir une sauvegarde ZIP').setInputFiles(incomingPath)
   const preview = page.locator('.restore-preview')
   await expect(preview).toContainText('Différences avec les données actuelles')
@@ -259,6 +346,7 @@ test('un remplacement prévisualise les différences et exige le téléchargemen
   await expect(page.getByRole('checkbox', { name: /je confirme que la copie de sécurité est téléchargée et vérifiée/i })).toBeVisible()
   await page.getByRole('checkbox', { name: /je confirme que la copie de sécurité est téléchargée et vérifiée/i }).check()
   await expect(restoreButton).toBeEnabled()
+  const currentJournalsRaw = await page.evaluate(() => localStorage.getItem('un-soir-la-bas-journals-v1'))
 
   await page.getByRole('button', { name: 'Annuler' }).click()
   expect(await page.evaluate(({ key, upcomingKey }) => [localStorage.getItem(key), localStorage.getItem(upcomingKey), localStorage.getItem('un-soir-la-bas-journals-v1')], { key, upcomingKey })).toEqual([currentTrip, JSON.stringify([{ id: 'voyage-kyoto', destination: 'Kyoto', departure: '2027-04-12' }, { id: 'voyage-oslo', destination: 'Oslo', departure: '2027-05-20' }]), currentJournalsRaw])
@@ -299,4 +387,34 @@ test('la sauvegarde reste disponible sans Web Crypto sur le réseau local', asyn
   const download = await pending
   expect(download.suggestedFilename()).toMatch(/\.zip$/)
   await expect(page.getByRole('status')).toContainText('Archive téléchargée')
+})
+
+test('archive ZIP preserve and restores Philippines stay wishes and accepted day schedule', async ({ page, browser }, testInfo) => {
+  const stayTrip = [{ id: 'voyage-philippines', destination: 'Philippines', departure: '2027-03-10', endDate: '2027-03-18', plan: {
+    ideas: [], stops: [], notes: '', stay: {
+      anchor: { name: 'Cebu City', latitude: 10.3157, longitude: 123.8854 },
+      places: [{ id: 'osm:node/77', name: 'Cebu Museum', category: 'activity', source: 'osm', sourceId: 'node/77', sourceUrl: 'https://www.openstreetmap.org/node/77', latitude: 10.31, longitude: 123.88 }],
+      days: [{ id: 'stay-day-1', title: 'Jour 1', placeIds: ['osm:node/77'], locked: true }], daysCount: 1,
+    },
+  } }]
+  await seed(page, original, stayTrip)
+  const pending = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Sauvegarder dans Drive' }).click()
+  const download = await pending
+  const path = testInfo.outputPath('stay-composer.zip')
+  await download.saveAs(path)
+  const zip = unzipSync(await readFile(path))
+  const manifest = JSON.parse(new TextDecoder().decode(zip['manifest.json']))
+  expect(manifest.upcoming.trips).toEqual(stayTrip)
+
+  const context = await browser.newContext()
+  const fresh = await context.newPage()
+  await fresh.goto('/')
+  await fresh.getByRole('button', { name: 'Outils et sauvegarde du carnet' }).click()
+  await fresh.getByLabel('Choisir une sauvegarde ZIP').setInputFiles(path)
+  await confirmSafetyCopy(fresh, testInfo.outputPath('stay-safety.zip'))
+  await fresh.getByRole('button', { name: 'Restaurer ce carnet' }).click()
+  await expect(fresh.getByRole('status')).toContainText('restaurées sur cet appareil')
+  expect(await fresh.evaluate(() => JSON.parse(localStorage.getItem('un-soir-la-bas-upcoming-v1')!))).toEqual(stayTrip)
+  await context.close()
 })

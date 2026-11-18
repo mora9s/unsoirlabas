@@ -5,7 +5,7 @@ const consoleErrors: string[] = []
 test.beforeEach(async ({ page }) => {
   consoleErrors.length = 0
   page.on('console', (message) => {
-    if (message.type() === 'error' || message.type() === 'warning') consoleErrors.push(message.text())
+    if (message.type() === 'error' || message.type() === 'warning') consoleErrors.push(`${message.text()} (${JSON.stringify(message.location())})`)
   })
   page.on('pageerror', (error) => consoleErrors.push(error.message))
   await page.goto('/')
@@ -15,25 +15,16 @@ test.afterEach(async () => {
   expect(consoleErrors, `Erreurs/warnings console: ${consoleErrors.join('\n')}`).toEqual([])
 })
 
-test('accueil éditorial et chapitre complet', async ({ page }) => {
+test('accueil éditorial et exemple des Visayas', async ({ page }) => {
   await expect(page.getByRole('heading', { name: /Partir, puis se souvenir/i })).toBeVisible()
   await expect(page.getByTestId('day-card')).toHaveCount(0)
-  await page.getByRole('button', { name: 'Découvrir le carnet de démonstration' }).click()
-  await expect(page).toHaveURL(/#demo$/)
-  await expect(page.getByRole('heading', { name: /carnet pour découvrir le format/i })).toBeVisible()
-  const cards = page.getByTestId('day-card')
-  await expect(cards).toHaveCount(3)
-  await expect(page.locator('[data-testid="day-card"][data-status="published"]')).toHaveCount(1)
-  await expect(page.locator('[data-testid="day-card"][data-status="draft"]')).toHaveCount(1)
-  await expect(page.locator('[data-testid="day-card"][data-status="upcoming"]')).toHaveCount(1)
-
-  await page.getByRole('button', { name: /Voir le jour 3/ }).click()
-  const detail = page.getByTestId('day-detail')
-  await expect(detail).toBeVisible()
-  await expect(detail.getByRole('heading', { name: /Entre lagons et falaises à El Nido/i })).toBeVisible()
-  await expect(detail.locator('img')).toHaveCount(7)
-  await expect(detail.locator('video[controls]')).toHaveCount(1)
-  await expect(detail.getByText(/Big Lagoon|Bacuit|El Nido/i).first()).toBeVisible()
+  await page.getByRole('link', { name: 'Explorer cet exemple →' }).click()
+  await expect(page).toHaveURL(/#visayas$/)
+  const days = page.getByRole('navigation', { name: 'Les vingt journées' }).getByRole('button')
+  await expect(days).toHaveCount(20)
+  await page.getByRole('button', { name: 'JOUR 9 Siquijor', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Le vert et l’eau de Cambugahay' })).toBeVisible()
+  await expect.poll(() => page.locator('.visayas-day img').evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true)
 })
 
 test('atelier fonctionnel, prévisualisation et persistance', async ({ page }) => {
@@ -111,6 +102,7 @@ test('un carnet reste dans les souvenirs et ouvrable après le retrait du voyage
     localStorage.setItem('un-soir-la-bas-journals-v1', JSON.stringify({ version: 1, journals: [{ tripId: 'retained', destination: 'Osaka', departure: '2027-10-03', chapters: [] }] }))
   })
   await page.reload()
+  if (!await page.locator('.next-actions details').evaluate(node => (node as HTMLDetailsElement).open)) await page.locator('.next-actions details summary').click()
   await page.getByRole('button', { name: 'Retirer Osaka' }).click()
   const memory = page.getByTestId('past-trip').filter({ hasText: 'Osaka' })
   await expect(memory).toBeVisible()
@@ -150,6 +142,7 @@ test('voyages en cours et terminés gardent leur date de départ lors de la modi
     { id: 'completed', destination: 'Lisbonne', departure, endDate: ended },
   ])), { departure: iso(-30), ended: iso(-10) })
   await page.reload()
+  if (!await page.locator('.next-actions details').evaluate(node => (node as HTMLDetailsElement).open)) await page.locator('.next-actions details summary').click()
   await page.getByRole('button', { name: 'Modifier Népal' }).click()
   await page.getByLabel('Date de fin (facultative)').fill(iso(5))
   await page.getByRole('button', { name: /enregistrer les modifications/i }).click()
@@ -170,7 +163,8 @@ test('un voyage sans date de fin se termine et se reprend explicitement sans per
   await page.goto('/')
   await page.evaluate(departure => localStorage.setItem('un-soir-la-bas-upcoming-v1', JSON.stringify([{ id: 'manual', destination: 'Népal', departure }])), departure)
   await page.reload()
-  await page.getByRole('button', { name: 'Terminer Népal' }).click()
+  if (!await page.locator('.next-actions details').evaluate(node => (node as HTMLDetailsElement).open)) await page.locator('.next-actions details summary').click()
+  await page.getByRole('button', { name: 'Terminer le voyage' }).click()
   await expect(page.getByTestId('past-trip').filter({ hasText: 'Népal' })).toBeVisible()
   await page.reload()
   await page.getByRole('button', { name: 'Reprendre Népal' }).click()

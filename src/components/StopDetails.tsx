@@ -5,7 +5,7 @@ import type { PlanStop, TransportMode } from '../upcoming-trips'
 
 type Place = { name: string; context: string; lat: number; lon: number }
 
-export default function StopDetails({ stop, first, chapters, update }: { stop: PlanStop; first: boolean; chapters: Draft[]; update: (stop: PlanStop) => boolean }) {
+export default function StopDetails({ stop, first, chapters, update }: { stop: PlanStop; first: boolean; chapters: Draft[]; update: (stop: PlanStop) => Promise<boolean> }) {
   const [query, setQuery] = useState(stop.place)
   const [gps, setGps] = useState(stop.point ? `${stop.point.lat}, ${stop.point.lon}` : '')
   const [results, setResults] = useState<Place[]>([])
@@ -29,8 +29,8 @@ export default function StopDetails({ stop, first, chapters, update }: { stop: P
     } catch { if (request.current === controller) setError('Recherche indisponible. Réessayez ou saisissez les coordonnées GPS.') }
     finally { clearTimeout(timer); if (request.current === controller) setBusy(false) }
   }
-  function locate(point: { lat: number; lon: number }) {
-    if (update({ ...stop, point })) { setGps(`${point.lat}, ${point.lon}`); setResults([]); setError('') }
+  async function locate(point: { lat: number; lon: number }) {
+    if (await update({ ...stop, point })) { setGps(`${point.lat}, ${point.lon}`); setResults([]); setError('') }
   }
   function saveGps() {
     const match = /^\s*([+-]?\d+(?:\.\d+)?)\s*[,;]\s*([+-]?\d+(?:\.\d+)?)\s*$/.exec(gps)

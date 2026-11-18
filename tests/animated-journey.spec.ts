@@ -48,16 +48,21 @@ test('lecture complète enchaîne les trajets et s’arrête à la dernière arr
 test('localisation GPS, transport train et chapitre persistent après rechargement', async ({ page }) => {
   await seed(page, { ...trip, plan: { ...trip.plan, stops: trip.plan.stops.map(s => ({ id: s.id, place: s.place })) } })
   await page.goto('/#plan/motion-test')
-  const details = page.locator('.stop-details').nth(1)
+  const organizer = page.locator('.planner-organize')
+  if (!await page.locator('.planner-organize').evaluate(node => (node as HTMLDetailsElement).open)) await page.locator('.planner-organize > summary').click()
+  const details = organizer.locator('.stop-details').nth(1)
   await details.locator('summary').click()
   await details.getByLabel('Coordonnées GPS de Cebu').fill('10.3157, 123.8854')
   await details.getByRole('button', { name: 'Valider les coordonnées' }).click()
   await details.getByLabel('Transport vers Cebu').selectOption('train')
   await details.getByLabel('Souvenirs à Cebu').selectOption('lagon')
+  const readStop = () => page.evaluate(() => JSON.parse(localStorage.getItem('un-soir-la-bas-upcoming-v1')!)[0].plan.stops[1])
+  const expected = { point: { lat: 10.3157, lon: 123.8854 }, transport: 'train', chapterId: 'lagon' }
+  // Writes use the cross-tab lock; a select event is not a completed save.
+  await expect.poll(readStop).toMatchObject(expected)
   await page.reload()
   await expect(page.locator('.stop-details').nth(1).locator('summary')).toContainText('Lieu repéré · Train')
-  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('un-soir-la-bas-upcoming-v1')!)[0].plan.stops[1])
-  expect(saved).toMatchObject({ point: { lat: 10.3157, lon: 123.8854 }, transport: 'train', chapterId: 'lagon' })
+  expect(await readStop()).toMatchObject(expected)
 })
 
 test('échec routier explicite et repli illustré volontaire', async ({ page }) => {

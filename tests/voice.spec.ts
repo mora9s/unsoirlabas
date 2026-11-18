@@ -32,6 +32,11 @@ test('le récit du soir reste replié puis importe, révise et exige une accepta
   await expect(page.getByLabel('Souvenirs de la journée')).toHaveValue(/marché était calme/)
   await expect(page.getByLabel('Votre récit, à votre façon')).toHaveValue('Version relue et corrigée du récit.')
   await expect(page.evaluate(() => localStorage.getItem('philippines-trip'))).resolves.toBeNull()
+  await page.reload()
+  await page.getByRole('button', { name: 'Reprendre le chapitre' }).click()
+  await expect(page.getByRole('button', { name: 'Commencer le récit du soir' })).toBeVisible()
+  await page.getByRole('button', { name: 'Commencer le récit du soir' }).click()
+  await expect(page.getByTestId('voice-narration').getByLabel('Votre transcription')).toHaveValue('Le marché était calme puis nous avons mangé des mangues.')
 })
 
 test('un échec de rédaction est visible et le nouvel essai utilise une nouvelle tâche', async ({ page }) => {

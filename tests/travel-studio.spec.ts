@@ -19,6 +19,16 @@ async function seed(page: import('@playwright/test').Page, populated = false) {
   },{populated,photo})
 }
 
+async function openDetails(details: import('@playwright/test').Locator) {
+  if (!await details.evaluate((element: HTMLDetailsElement) => element.open)) await details.locator(':scope > summary').click()
+}
+
+function journalContent(value: string | null) {
+  const data=JSON.parse(value!)
+  for (const journal of data.journals) for (const chapter of journal.chapters) for (const media of chapter.media) { delete media.src; delete media.storageRef }
+  return data
+}
+
 for (const width of [1280, 390]) test(`les escales du Pacifique restent dans le cadrage à ${width}px`, async ({page}) => {
   await page.setViewportSize({width,height:844})
   await seed(page)
@@ -31,7 +41,7 @@ for (const width of [1280, 390]) test(`les escales du Pacifique restent dans le 
     localStorage.setItem('un-soir-la-bas-upcoming-v1',JSON.stringify(trips))
   })
   const saved = await page.evaluate(() => localStorage.getItem('un-soir-la-bas-upcoming-v1'))
-  await page.goto('/#plan/studio')
+  await page.goto('/#plan/studio/map')
   await page.getByRole('button',{name:'Tout voir sur la carte'}).click()
   await expect(page.locator('.route-pin')).toHaveCount(2)
   const bounds = await page.locator('.route-map').boundingBox()
@@ -52,7 +62,7 @@ test('la carte filtre les journées et ouvre la fiche sans modifier le parcours'
   await seed(page,true)
   await page.evaluate(()=>{const trips=JSON.parse(localStorage.getItem('un-soir-la-bas-upcoming-v1')!);trips[0].plan.stops[0].date='2027-04-12';Object.assign(trips[0].plan.stops[1],{date:'2027-04-13',address:'Port de Cebu',booking:'ABC-42'});localStorage.setItem('un-soir-la-bas-upcoming-v1',JSON.stringify(trips))})
   const before=await page.evaluate(()=>localStorage.getItem('un-soir-la-bas-upcoming-v1'))
-  await page.goto('/#plan/studio')
+  await page.goto('/#plan/studio/map')
   await page.getByRole('combobox',{name:'Journée sur la carte'}).selectOption('2027-04-13')
   await expect(page.locator('.route-pin')).toHaveCount(1)
   await expect(page.locator('.route-pin')).toContainText('2')
@@ -69,7 +79,7 @@ test('montage personnalisé et musique produisent une vidéo avec piste audio',a
   await seed(page,true)
   await page.evaluate(()=>{const data=JSON.parse(localStorage.getItem('un-soir-la-bas-journals-v1')!);const c=data.journals[0].chapters[0];c.media.push({...c.media[0],id:'second',name:'Deuxième photo'});localStorage.setItem('un-soir-la-bas-journals-v1',JSON.stringify(data))})
   const before=await page.evaluate(()=>localStorage.getItem('un-soir-la-bas-journals-v1'))
-  await page.goto('/#motion/studio');await page.getByRole('button',{name:'Créer mon film'}).click()
+  await page.goto('/#motion/studio'); await page.getByRole('button',{name:'Créer mon film'}).click()
   await page.locator('.film-personalize > summary').click()
   await page.getByText('Montage à Cebu · 2 photo(s)',{exact:true}).click()
   await page.getByRole('button',{name:'Avancer la photo 2 à Cebu'}).click()
@@ -91,7 +101,7 @@ test('montage personnalisé et musique produisent une vidéo avec piste audio',a
   await expect.poll(()=>video.evaluate((v:HTMLVideoElement & {captureStream:()=>MediaStream})=>v.captureStream().getAudioTracks().length)).toBe(1)
   await video.evaluate((v:HTMLVideoElement)=>{v.pause();v.currentTime=11})
   await page.screenshot({path:testInfo.outputPath('film-personnalise.png'),fullPage:true})
-  expect(await page.evaluate(()=>localStorage.getItem('un-soir-la-bas-journals-v1'))).toBe(before)
+  expect(journalContent(await page.evaluate(()=>localStorage.getItem('un-soir-la-bas-journals-v1')))).toEqual(journalContent(before))
 })
 
 test('un fond de carte partiellement chargé propose une reprise sans toucher aux étapes', async ({page}) => {
@@ -103,7 +113,7 @@ test('un fond de carte partiellement chargé propose une reprise sans toucher au
     return !retry && requests % 2 ? route.abort() : route.fulfill({contentType:'image/png',body:Buffer.from(png,'base64')})
   })
   const saved = await page.evaluate(() => localStorage.getItem('un-soir-la-bas-upcoming-v1'))
-  await page.goto('/#plan/studio')
+  await page.goto('/#plan/studio/map')
   const button = page.getByRole('button',{name:'Réessayer le fond de carte'})
   await expect(button).toBeVisible()
   await expect.poll(() => page.locator('img.leaflet-tile').evaluateAll(images => images.every(img => (img as HTMLImageElement).complete))).toBe(true)
@@ -131,25 +141,29 @@ test('programme quotidien persistant et informations conservées après édition
   await page.setViewportSize({width:390,height:844})
   await seed(page,true); await page.goto('/#plan/studio')
   const daily=page.locator('.daily-plan')
-  await daily.locator('.daily-stop').filter({has:page.getByRole('heading',{name:'Nice',exact:true})}).locator('.day-edit > summary').click()
-  await daily.getByLabel('Jour de Nice',{exact:true}).fill('2027-04-12')
-  // Changing the date moves this card to its dated group; reopen its editor.
-  await daily.locator('.daily-stop').filter({has:page.getByRole('heading',{name:'Nice',exact:true})}).locator('.day-edit > summary').click()
-  await daily.getByRole('combobox',{name:'Type de Nice',exact:true}).selectOption('stay')
-  await daily.getByLabel('Heure prévue à Nice',{exact:true}).fill('16:30')
   const card=daily.locator('article').filter({has:page.getByRole('heading',{name:'Nice',exact:true})})
-  await card.getByText('Informations pratiques').click()
+  const editor=card.locator('details.day-edit')
+  await openDetails(editor)
+  await daily.getByLabel('Jour de Nice',{exact:true}).fill('2027-04-12')
+  await openDetails(editor)
+  await daily.getByRole('combobox',{name:'Type de Nice',exact:true}).selectOption('stay')
+  await openDetails(editor)
+  await daily.getByLabel('Heure prévue à Nice',{exact:true}).fill('16:30')
+  await openDetails(editor.locator('details').first())
   await card.getByLabel('Adresse de Nice',{exact:true}).fill('12 rue du Port, Nice')
   await card.getByLabel('Réservation à Nice',{exact:true}).fill('ABC-123')
   await card.getByLabel('Notes pour Nice',{exact:true}).fill('Arrivée après 16 h')
   await expect(card.getByRole('link',{name:'Ouvrir l’itinéraire'})).toHaveAttribute('href',/destination=12%20rue/)
+  await page.goto('/#plan/studio/map')
   await page.locator('.route-stop-strip button').first().click()
   await page.getByRole('button',{name:'Enregistrer cette escale'}).click()
   await page.reload()
-  await daily.locator('.daily-stop').filter({has:page.getByRole('heading',{name:'Nice',exact:true})}).locator('.day-edit > summary').click()
+  await page.goto('/#plan/studio')
+  await openDetails(card.locator('details.day-edit'))
   await expect(daily.getByLabel('Heure prévue à Nice',{exact:true})).toHaveValue('16:30')
   const stops=await page.evaluate(()=>JSON.parse(localStorage.getItem('un-soir-la-bas-upcoming-v1')!)[0].plan.stops)
   expect(stops[0]).toMatchObject({date:'2027-04-12',kind:'stay',time:'16:30',address:'12 rue du Port, Nice',booking:'ABC-123',notes:'Arrivée après 16 h'})
+  await openDetails(card.locator('details.day-edit'))
   await daily.getByLabel('Jour de Nice',{exact:true}).fill('2027-04-13')
   await expect(daily.getByRole('region',{name:'2027-04-13'})).toContainText('Nice')
   expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1)
@@ -158,7 +172,7 @@ test('programme quotidien persistant et informations conservées après édition
 
 test('construit sur la carte, cherche, déplace et annule un retrait',async({page})=>{
   await page.route('https://photon.komoot.io/**',route=>route.fulfill({contentType:'application/json',body:JSON.stringify({features:[{geometry:{type:'Point',coordinates:[7.2661,43.7031]},properties:{name:'Nice',country:'France'}}]})}))
-  await seed(page); await page.goto('/#plan/studio')
+  await seed(page); await page.goto('/#plan/studio/map')
   const builder=page.getByRole('region',{name:'Construire le parcours sur la carte'})
   await builder.getByLabel('Chercher une ville ou un lieu').fill('Nice')
   await builder.getByRole('button',{name:'Rechercher',exact:true}).click()
@@ -170,10 +184,13 @@ test('construit sur la carte, cherche, déplace et annule un retrait',async({pag
   await builder.getByLabel('Chapitre à l’arrivée').selectOption('lagon')
   await builder.getByRole('button',{name:'Ajouter cette escale'}).click()
   await expect(builder.locator('.route-stop-strip li')).toHaveCount(2)
+  const beforeRemove=await page.evaluate(()=>localStorage.getItem('un-soir-la-bas-upcoming-v1'))
   await builder.locator('.route-stop-strip button').nth(1).click()
   await builder.getByRole('button',{name:'Retirer cette escale'}).click()
   await expect(builder.locator('.route-stop-strip li')).toHaveCount(1)
   await builder.getByRole('button',{name:'Annuler le retrait'}).click()
+  await expect(builder.locator('.route-stop-strip li')).toHaveCount(2)
+  expect(await page.evaluate(()=>localStorage.getItem('un-soir-la-bas-upcoming-v1'))).toBe(beforeRemove)
   await page.reload()
   await expect(builder.locator('.route-stop-strip li')).toHaveCount(2)
   const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('un-soir-la-bas-upcoming-v1')!)[0].plan.stops)
@@ -212,7 +229,7 @@ test('annuler le film ne propose aucune vidéo partielle et réactive le lecteur
 })
 
 test('carte et réglages vidéo lisibles sur téléphone',async({page})=>{
-  await page.setViewportSize({width:390,height:844}); await seed(page,true); await page.goto('/#plan/studio')
+  await page.setViewportSize({width:390,height:844}); await seed(page,true); await page.goto('/#plan/studio/map')
   await expect(page.locator('.route-map')).toBeVisible()
   await page.screenshot({path:test.info().outputPath('route-mobile.png'),fullPage:true})
   expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1)

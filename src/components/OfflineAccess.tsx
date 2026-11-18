@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
 
 async function status(registration?: ServiceWorkerRegistration) {
-  if(!registration?.active)return false
-  return new Promise<boolean>(resolve=>{
+  if(!registration?.active)return {ready:false,version:''}
+  return new Promise<{ready:boolean,version:string}>(resolve=>{
     const channel=new MessageChannel()
-    const timer=setTimeout(()=>{channel.port1.close();resolve(false)},4000)
-    channel.port1.onmessage=event=>{clearTimeout(timer);channel.port1.close();resolve(event.data?.ready===true)}
+    const timer=setTimeout(()=>{channel.port1.close();resolve({ready:false,version:''})},4000)
+    channel.port1.onmessage=event=>{clearTimeout(timer);channel.port1.close();resolve({ready:event.data?.ready===true,version:event.data?.version})}
     registration.active!.postMessage('STATUS',[channel.port2])
   })
 }
@@ -19,13 +19,17 @@ export default function OfflineAccess() {
   useEffect(()=>{
     let alive=true
     const connection=()=>setOnline(navigator.onLine)
-    if(supported) void navigator.serviceWorker.getRegistration('/').then(status).then(value=>{if(alive)setReady(value)}).catch(()=>{})
+    if(supported) void navigator.serviceWorker.getRegistration('/').then(status).then(value=>{if(alive)setReady(value.ready)}).catch(()=>{})
     window.addEventListener('online',connection);window.addEventListener('offline',connection)
     return ()=>{alive=false;window.removeEventListener('online',connection);window.removeEventListener('offline',connection)}
   },[supported])
   async function prepare() {
     setBusy(true);setMessage('')
     try {
+      const response=await fetch('/offline-version.json',{cache:'no-store'})
+      if(!response.ok)throw new Error('version')
+      const expected=(await response.json()).version
+      if(typeof expected!=='string'||!/^unsoirlabas-offline-[a-f0-9]{16}$/.test(expected))throw new Error('version')
       const registration=await navigator.serviceWorker.register('/offline-worker.js',{scope:'/',updateViaCache:'none'})
       await registration.update()
       const worker=registration.installing || registration.waiting
@@ -36,10 +40,14 @@ export default function OfflineAccess() {
         worker.addEventListener('statechange',check);check()
       })
       const available=await status(registration)
-      setReady(available)
-      if(!available)throw new Error('incomplete')
+      setReady(available.ready)
+      if(!available.ready || available.version!==expected)throw new Error('incomplete')
       setMessage('Application disponible hors connexion. Vos données déjà enregistrées sur cet appareil seront accessibles.')
-    }catch{setMessage('Téléchargement incomplet. Vérifiez votre connexion puis réessayez. Vos carnets sont conservés.')}
+    }catch{
+      const existing=await navigator.serviceWorker.getRegistration('/').then(status).catch(()=>({ready:false,version:''}))
+      setReady(existing.ready)
+      setMessage(existing.ready ? 'Actualisation incomplète. La copie précédente reste disponible hors connexion. Vos carnets sont conservés.' : 'Téléchargement incomplet. Vérifiez votre connexion puis réessayez. Vos carnets sont conservés.')
+    }
     finally{setBusy(false)}
   }
   return <aside className="offline-access" aria-label="Disponibilité hors connexion">

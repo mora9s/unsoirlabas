@@ -1,11 +1,25 @@
 import type { PersonalJournal } from './trip-journals'
 import type { PlanStop } from './upcoming-trips'
 import { transportModes } from './upcoming-trips'
+import { mediaBytes, withMediaDurabilityLock } from './media-store'
 
 const escape = (text: string) => text.replace(/[&<>"']/g,char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]!))
-export function readingCopy(journal: PersonalJournal, stops: PlanStop[]): Blob {
+async function embeddedImage(media: PersonalJournal['chapters'][number]['media'][number]) {
+  const { mime, bytes } = await mediaBytes(media)
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(mime) || bytes.length === 0) {
+    throw new Error(`« ${media.name} » ne peut pas être intégrée à la copie de lecture.`)
+  }
+  let binary = ''
+  for (const byte of bytes) binary += String.fromCharCode(byte)
+  return `data:${mime};base64,${btoa(binary)}`
+}
+export async function readingCopy(journal: PersonalJournal, stops: PlanStop[]): Promise<Blob> {
+  const hydrated = await withMediaDurabilityLock(() => Promise.all(journal.chapters.map(async chapter => ({
+    ...chapter,
+    media: await Promise.all(chapter.media.map(async item => ({ ...item, src: await embeddedImage(item) }))),
+  }))))
   const image = (src: string, name: string) => /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(src) ? `<figure><img src="${src}" alt="${escape(name)}" loading="lazy"><figcaption>${escape(name)}</figcaption></figure>` : ''
-  const chapters = journal.chapters.map((chapter,index) => {
+  const chapters = hydrated.map((chapter,index) => {
     const media = [...chapter.media].sort((a,b) => Number(b.id === chapter.coverId)-Number(a.id === chapter.coverId))
     return `<article id="chapitre-${index+1}"><p class="eyebrow">CHAPITRE ${index+1}</p><h2>${escape(chapter.title)}</h2>${media[0] ? image(media[0].src,media[0].name) : ''}<div class="story">${escape(chapter.story)}</div><div class="photos">${media.slice(1).map(m=>image(m.src,m.name)).join('')}</div><a href="#sommaire">Retour au sommaire ↑</a></article>`
   }).join('')

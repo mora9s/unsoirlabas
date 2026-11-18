@@ -3,6 +3,7 @@ import { calendarDate, readUpcoming, transportModes } from '../upcoming-trips'
 import { importImage } from '../journal'
 import type { Media } from '../journal'
 import { saveQuickMemory } from '../quick-memory'
+import { hydrateDraft } from '../media-store'
 import { readUnsavedChapter, writeUnsavedChapter, discardUnsavedChapter } from '../unsaved-chapters'
 import { sha256 } from '@noble/hashes/sha2.js'
 import { bytesToHex } from '@noble/hashes/utils.js'
@@ -14,20 +15,30 @@ function QuickMemory({tripId,date,stopId,open}: {tripId:string;date:string;stopI
   const [recovery] = useState(() => readUnsavedChapter(scope))
   const [text,setText] = useState(recovery.draft?.story ?? '')
   const [media,setMedia] = useState<Media[]>(recovery.draft?.media ?? [])
-  const [busy,setBusy] = useState(false)
+  const [busy,setBusy] = useState(Boolean(recovery.draft))
   const [error,setError] = useState('')
   const [saved,setSaved] = useState('')
+  useEffect(() => {
+    let active = true
+    if (recovery.draft) {
+      void hydrateDraft(recovery.draft).then(draft => { if (active) setMedia(draft.media) })
+        .catch(error => { if (active) setError(error instanceof Error ? error.message : 'Photo indisponible.') })
+        .finally(() => { if (active) setBusy(false) })
+    }
+    return () => { active = false }
+  }, [recovery.draft])
   function change(nextText:string,photos:Media[]) {
     setText(nextText);setMedia(photos);setSaved('')
     const problem=nextText || photos.length
       ? writeUnsavedChapter(scope,{id:'quick',title:date,story:nextText,memories:'',tone:'',media:photos,coverId:photos[0]?.id ?? '',status:'draft'})
       : discardUnsavedChapter(scope)
-    setError(problem)
+    void problem.then(setError)
   }
-  return <form className="daily-stop quick-memory" onSubmit={event => {
-    event.preventDefault(); setError('')
-    try { const id=saveQuickMemory(tripId,date,stopId,text,media); discardUnsavedChapter(scope); setText('');setMedia([]);setSaved(id) }
+  return <form className="daily-stop quick-memory" onSubmit={async event => {
+    event.preventDefault(); if (busy) return; setError(''); setBusy(true)
+    try { const id=await saveQuickMemory(tripId,date,stopId,text,media); const cleanup=await discardUnsavedChapter(scope); setError(cleanup); setText('');setMedia([]);setSaved(id) }
     catch(error) {setError(error instanceof DOMException ? 'Stockage indisponible ou plein. Votre saisie reste ouverte ; libérez de l’espace puis réessayez.' : error instanceof Error ? error.message : 'Enregistrement impossible. Votre saisie est conservée.')}
+    finally { setBusy(false) }
   }}>
     <h2>Un souvenir, pendant qu’il est frais.</h2>
     <p>Quelques mots ou une photo suffisent. Le souvenir rejoint le chapitre de l’escale, ou une nouvelle page datée.</p>

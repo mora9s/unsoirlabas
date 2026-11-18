@@ -10,7 +10,7 @@ test('fermeture et réouverture sans réseau : programme, photo et nouveau souve
     localStorage.setItem('un-soir-la-bas-journals-v1',JSON.stringify({version:1,journals:[{tripId:'offline',destination:'Nice',departure:date,chapters:[{id:'arrival',title:'Notre arrivée',story:'La mer',memories:'',tone:'',status:'draft',coverId:'photo',media:[{id:'photo',name:'Lagon',src:`data:image/jpeg;base64,${photo}`}]}]}]}))
   },photo)
   await page.goto('/#today/offline')
-  await page.getByRole('button',{name:'Télécharger pour le hors connexion'}).click()
+  await page.getByRole('button',{name:/^(Télécharger pour le hors connexion|Actualiser la copie hors connexion)$/}).click()
   await expect(page.getByRole('status')).toContainText('Application disponible hors connexion',{timeout:20000})
   await expect.poll(()=>page.evaluate(()=>!!navigator.serviceWorker.controller)).toBe(true)
   await page.close()
@@ -33,7 +33,7 @@ test('fermeture et réouverture sans réseau : programme, photo et nouveau souve
 })
 
 test('un téléchargement refusé reste explicite sans modifier les données',async({page,context})=>{
-  await context.route('**/offline-worker.js',route=>route.abort())
+  await context.route('**/offline-version.json',route=>route.abort())
   await page.goto('/#tools')
   const before=await page.evaluate(()=>localStorage.getItem('un-soir-la-bas-journals-v1'))
   await page.getByRole('button',{name:'Télécharger pour le hors connexion'}).click()

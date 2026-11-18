@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import gc
+import hmac
 import json
 import logging
 import os
@@ -46,6 +47,8 @@ class Settings:
     ollama_url: str = "http://127.0.0.1:11434"
     ollama_model: str = "qwen2.5:3b"
     ollama_timeout_seconds: float = 180.0
+    auth_enabled: bool = False
+    auth_token: str | None = None
 
     def __post_init__(self) -> None:
         self.data_dir = Path(self.data_dir).expanduser().resolve()
@@ -63,6 +66,13 @@ class Settings:
     @classmethod
     def from_env(cls) -> "Settings":
         repo = Path(__file__).resolve().parents[1]
+        voice_auth_value = os.getenv("VOICE_AUTH_ENABLED", "false").strip().lower()
+        if voice_auth_value in {"1", "true", "yes", "on"}:
+            auth_enabled = True
+        elif voice_auth_value in {"0", "false", "no", "off"}:
+            auth_enabled = False
+        else:
+            raise ValueError("VOICE_AUTH_ENABLED must be one of: true/false, 1/0, yes/no, on/off")
         return cls(
             data_dir=Path(os.getenv("VOICE_DATA_DIR", str(repo / "voice-data"))),
             allowed_origins=tuple(v.strip() for v in os.getenv("VOICE_ALLOWED_ORIGINS", "http://127.0.0.1:4681").split(",") if v.strip()),
@@ -75,6 +85,8 @@ class Settings:
             ollama_url=os.getenv("VOICE_OLLAMA_URL", "http://127.0.0.1:11434"),
             ollama_model=os.getenv("VOICE_OLLAMA_MODEL", "qwen2.5:3b"),
             ollama_timeout_seconds=float(os.getenv("VOICE_OLLAMA_TIMEOUT_SECONDS", "180")),
+            auth_enabled=auth_enabled,
+            auth_token=os.getenv("VOICE_AUTH_TOKEN") or None,
         )
 
 
@@ -339,6 +351,43 @@ def _draft_prompt(segments: list[dict[str, Any]]) -> str:
             "--- DATA START ---\n" + data + "\n--- DATA END ---")
 
 
+def _number_values(text: str) -> set[str]:
+    """Return digit values and a deliberately bounded French cardinal vocabulary.
+
+    Only standalone whole-number words zéro and deux through vingt are mapped.
+    Compound numbers, ordinal words, decimals, durations, and unit conversion are
+    intentionally out of scope; `un`/`une` are omitted because they are commonly
+    articles in short titles.
+    """
+    french = {
+        "zéro": "0", "zero": "0", "deux": "2", "trois": "3", "quatre": "4",
+        "cinq": "5", "six": "6", "sept": "7", "huit": "8", "neuf": "9",
+        "dix": "10", "onze": "11", "douze": "12", "treize": "13",
+        "quatorze": "14", "quinze": "15", "seize": "16", "dix-sept": "17",
+        "dix-huit": "18", "dix-neuf": "19", "vingt": "20",
+    }
+    values = set(re.findall(r"(?<![\w.])\d+(?:[.,]\d+)?(?![\w.])", text))
+    for word in re.findall(r"(?<![\w])[A-Za-zÀ-ÖØ-öø-ÿ]+(?:-[A-Za-zÀ-ÖØ-öø-ÿ]+)?(?![\w])", text.casefold()):
+        if word in french:
+            values.add(french[word])
+    return values
+
+
+def _candidate_names(text: str) -> set[str]:
+    # A deliberately rough lexical signal, not named-entity recognition.
+    common = {"Le", "La", "Les", "Un", "Une", "Des", "Du", "De", "À", "Au", "Aux", "Et", "En", "On", "Je", "Nous", "Il", "Elle", "Ils", "Elles", "Quelqu'un", "Quelqu’une", "C'était", "Peut-être", "Ignore", "Invent", "Inventez", "Écris", "Écrivez"}
+    return {word for word in re.findall(r"\b[A-ZÀ-ÖØ-Þ][\wÀ-ÖØ-öø-ÿ'-]*\b", text) if word not in common}
+
+
+def _instruction_only_terms(text: str) -> set[str]:
+    """Find a narrow known instruction pattern; this is not semantic analysis."""
+    match = re.search(
+        r"ignore les règles.{0,100}?invent(?:e|ez)\b.{0,80}?\bà\s+([A-ZÀ-ÖØ-Þ][\wÀ-ÖØ-öø-ÿ'-]*).{0,80}?écri(?:s|t|vez)\b.{0,60}?\b(ravis|ravie|heureux|heureuse)",
+        text, re.IGNORECASE,
+    )
+    return set(match.groups()) if match else set()
+
+
 def validate_draft(value: Any, segments: list[dict[str, Any]]) -> dict[str, Any]:
     if not isinstance(value, dict) or set(value) - {"title", "paragraphs", "uncertainty", "warnings"}:
         raise ValueError("invalid draft object")
@@ -347,28 +396,47 @@ def validate_draft(value: Any, segments: list[dict[str, Any]]) -> dict[str, Any]
         raise ValueError("invalid draft shape")
     known = {s["id"] for s in segments}
     clean = []
+    warnings = [x for x in value.get("warnings", []) if isinstance(x, str) and len(x) <= 500]
+    source = " ".join(s["text"] for s in segments)
+    factual_source = " ".join(s["text"] for s in segments if not _instruction_only_terms(s["text"]))
+    command_only = _instruction_only_terms(source) - _candidate_names(factual_source)
+    supported_names = _candidate_names(factual_source)
     for item in paragraphs:
         ids = item.get("supportingSegmentIds") if isinstance(item, dict) else None
-        if not isinstance(item, dict) or not isinstance(item.get("text"), str) or not item["text"].strip() or len(item["text"]) > 5000 or not isinstance(ids, list) or not ids or any(not isinstance(x, str) or x not in known for x in ids):
+        if not isinstance(item, dict) or not isinstance(item.get("text"), str) or not item["text"].strip() or len(item["text"] ) > 5000 or not isinstance(ids, list) or not ids or any(not isinstance(x, str) or x not in known for x in ids):
             raise ValueError("ungrounded paragraph")
         paragraph_text = item["text"].strip()
-        cited_text = " ".join(segment["text"] for segment in segments if segment["id"] in ids)
-        paragraph_digits = set(re.findall(r"\b\d+\b", paragraph_text))
-        cited_digits = set(re.findall(r"\b\d+\b", cited_text))
-        if paragraph_digits - cited_digits:
+        cited_segments = [segment for segment in segments if segment["id"] in ids]
+        cited_text = " ".join(segment["text"] for segment in cited_segments)
+        cited_factual_segments = [segment for segment in cited_segments if not _instruction_only_terms(segment["text"])]
+        cited_factual_text = " ".join(segment["text"] for segment in cited_factual_segments)
+        cited_supported_names = _candidate_names(cited_factual_text)
+        cited_command_only = set().union(*(_instruction_only_terms(segment["text"]) for segment in cited_segments)) - _candidate_names(cited_factual_text)
+        # A verbatim reported utterance is evidence that someone said those words,
+        # not evidence that its imperative content describes the trip.
+        direct_report = any(paragraph_text == segment["text"] for segment in cited_segments) and bool(re.search(r"\b(?:a dit|a répondu|a demandé|a raconté)\b", cited_text, re.IGNORECASE))
+        paragraph_numbers = _number_values(paragraph_text)
+        cited_numbers = _number_values(cited_text)
+        if paragraph_numbers - cited_numbers:
             raise ValueError("paragraph introduces a number absent from its cited evidence")
+        if not direct_report:
+            for candidate in sorted(_candidate_names(paragraph_text) - cited_supported_names):
+                warnings.append(f"Human review required: unsupported proper-name candidate {candidate} in cited evidence; lexical check is approximate.")
+            for term in sorted(cited_command_only):
+                if re.search(rf"\b{re.escape(term)}\b", paragraph_text, re.IGNORECASE):
+                    warnings.append(f"Human review required: {term} appears only in a quoted instruction, not factual trip evidence.")
         clean.append({"text": paragraph_text, "supportingSegmentIds": ids})
-    source = " ".join(s["text"] for s in segments)
-    output = title + " " + " ".join(p["text"] for p in clean)
-    source_digits, output_digits = set(re.findall(r"\b\d+\b", source)), set(re.findall(r"\b\d+\b", output))
-    title_digits = set(re.findall(r"\b\d+\b", title))
-    if title_digits - source_digits:
-        raise ValueError("title introduces a number absent from the transcript")
-    source_names, output_names = set(re.findall(r"\b[A-ZÀ-ÖØ-Þ][\wÀ-ÖØ-öø-ÿ'-]*\b", source)), set(re.findall(r"\b[A-ZÀ-ÖØ-Þ][\wÀ-ÖØ-öø-ÿ'-]*\b", output))
-    warnings = [x for x in value.get("warnings", []) if isinstance(x, str) and len(x) <= 500]
-    warnings += [f"introduced number candidate: {x}" for x in sorted(output_digits - source_digits)]
-    warnings += [f"introduced proper-name candidate: {x}" for x in sorted(output_names - source_names) if x not in {"Le", "La", "Les", "Un", "Une"}]
-    return {"title": title.strip(), "paragraphs": clean, "uncertainty": uncertainty, "warnings": list(dict.fromkeys(warnings))}
+    title_text = title.strip()
+    title_numbers = _number_values(title_text)
+    source_numbers = _number_values(factual_source)
+    if title_numbers - source_numbers:
+        raise ValueError("title introduces a number absent from source evidence")
+    for candidate in sorted(_candidate_names(title_text) - supported_names):
+        warnings.append(f"Human review required: title introduces unsupported proper-name candidate {candidate}; lexical check is approximate.")
+    for term in sorted(command_only):
+        if re.search(rf"\b{re.escape(term)}\b", title_text, re.IGNORECASE):
+            warnings.append(f"Human review required: title promotes {term} from a quoted instruction into a trip claim.")
+    return {"title": title_text, "paragraphs": clean, "uncertainty": uncertainty, "warnings": list(dict.fromkeys(warnings))}
 
 
 class JobRequest(BaseModel):
@@ -409,6 +477,15 @@ def create_app(settings: Settings | None = None, *, transcriber: Any | None = No
             raise HTTPException(403, "origin required")
         if origin and origin.lower().rstrip("/") not in settings.allowed_origins:
             raise HTTPException(403, "origin refused")
+        if settings.auth_enabled:
+            if not settings.auth_token:
+                # Explicitly enabled but incomplete configuration must never
+                # degrade to the legacy origin/header checks.
+                raise HTTPException(503, "private voice authentication is not configured")
+            authorization = request.headers.get("authorization", "")
+            supplied = authorization[7:] if authorization.startswith("Bearer ") else ""
+            if not hmac.compare_digest(supplied.encode(), settings.auth_token.encode()):
+                raise HTTPException(401, "private voice authentication required", headers={"WWW-Authenticate": "Bearer"})
         if mutation and request.headers.get("x-un-soir-request") != "voice-v1":
             raise HTTPException(403, "request header required")
 
@@ -537,6 +614,8 @@ def create_app(settings: Settings | None = None, *, transcriber: Any | None = No
 
     @app.get("/{path:path}")
     def spa(path: str):
+        if path == "api" or path.startswith("api/"):
+            raise HTTPException(404, "not found")
         root = settings.dist_dir
         requested = (root / path).resolve()
         # Never serve an escaped path, even if it exists; SPA fallback is safe.

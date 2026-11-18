@@ -18,8 +18,9 @@ export const gallery = [
   { image: 'port-barton.jpg', alt: 'Plage de Port Barton sur l’île de Palawan', caption: '06 — Port Barton, une envie pour la suite' },
 ]
 
-export type Media = { id: string; name: string; src: string }
-export type Draft = { id: string; title: string; memories: string; tone: string; story: string; media: Media[]; coverId: string; status: 'draft' }
+export type Media = { id: string; name: string; src: string; storageRef?: string; width?: number; height?: number }
+export type PlannedStepLink = { tripId: string; stepId: string; place: string }
+export type Draft = { id: string; title: string; memories: string; tone: string; story: string; media: Media[]; coverId: string; status: 'draft'; plannedStep?: PlannedStepLink }
 export type Trip = { version: 1; drafts: Draft[] }
 export const storageKey = 'philippines-trip'
 
@@ -28,13 +29,20 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function isMedia(value: unknown): value is Media {
-  return isRecord(value) && typeof value.id === 'string' && value.id.length > 0 &&
+  return isRecord(value) && Object.keys(value).every(key => ['id', 'name', 'src', 'storageRef', 'width', 'height'].includes(key)) && typeof value.id === 'string' && value.id.length > 0 &&
     typeof value.name === 'string' && typeof value.src === 'string' &&
-    /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(value.src)
+    (value.storageRef === undefined || typeof value.storageRef === 'string' && value.storageRef.length > 0 && value.storageRef.length <= 160) &&
+    (/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(value.src) || /^idb:media:[A-Za-z0-9-]{8,160}$/.test(value.src) || typeof value.storageRef === 'string' && value.src.startsWith('blob:'))
+}
+
+function isPlannedStep(value: unknown): value is PlannedStepLink {
+  return isRecord(value) && Object.keys(value).length === 3 && typeof value.tripId === 'string' && value.tripId.length > 0 && value.tripId.length <= 160 &&
+    typeof value.stepId === 'string' && value.stepId.length > 0 && value.stepId.length <= 160 &&
+    typeof value.place === 'string' && value.place.trim().length > 0 && value.place.length <= 160
 }
 
 function isDraft(value: unknown): value is Draft {
-  return isRecord(value) && typeof value.id === 'string' && value.id.length > 0 && value.id.length <= 160 &&
+  return isRecord(value) && Object.keys(value).every(key => ['id', 'title', 'memories', 'tone', 'story', 'media', 'coverId', 'status', 'plannedStep'].includes(key)) && (value.plannedStep === undefined || isPlannedStep(value.plannedStep)) && typeof value.id === 'string' && value.id.length > 0 && value.id.length <= 160 &&
     typeof value.title === 'string' && value.title.length <= 120 && typeof value.story === 'string' && value.story.length <= 20000 &&
     typeof value.memories === 'string' && value.memories.length <= 4000 && typeof value.tone === 'string' && value.tone.length <= 80 &&
     typeof value.coverId === 'string' && value.status === 'draft' && Array.isArray(value.media) && value.media.length <= 12 &&
@@ -43,7 +51,7 @@ function isDraft(value: unknown): value is Draft {
 }
 
 export function validateTrip(value: unknown): value is Trip {
-  return isRecord(value) && value.version === 1 && Array.isArray(value.drafts) && value.drafts.length <= 40 &&
+  return isRecord(value) && Object.keys(value).every(key => ['version', 'drafts'].includes(key)) && value.version === 1 && Array.isArray(value.drafts) && value.drafts.length <= 40 &&
     value.drafts.every(isDraft) && new Set(value.drafts.map(draft => draft.id)).size === value.drafts.length
 }
 
@@ -109,7 +117,7 @@ export async function importImage(file: File): Promise<Media> {
     context.fillStyle = '#f6f2e9'
     context.fillRect(0, 0, canvas.width, canvas.height)
     context.drawImage(image, 0, 0, canvas.width, canvas.height)
-    return { id: createId(), name: file.name, src: canvas.toDataURL('image/jpeg', 0.82) }
+    return { id: createId(), name: file.name, src: canvas.toDataURL('image/jpeg', 0.82), width: canvas.width, height: canvas.height }
   } catch (error) {
     throw new Error(error instanceof Error && error.message.startsWith('La préparation') ? error.message : `Impossible de lire « ${file.name} ». Essayez une autre image.`)
   } finally {

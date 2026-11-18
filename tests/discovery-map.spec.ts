@@ -67,7 +67,7 @@ test('mobile, consultation hors réseau et refus de géolocalisation',async({pag
  await page.addInitScript(()=>{navigator.geolocation.getCurrentPosition=(_success,error)=>error?.({code:1,message:'refused',PERMISSION_DENIED:1,POSITION_UNAVAILABLE:2,TIMEOUT:3})})
  await page.route('**/tile.openstreetmap.org/**',route=>route.abort())
  await seed(page)
- await page.getByRole('button',{name:'Autour de moi',exact:true}).click()
+ await page.getByRole('button',{name:'Me situer',exact:true}).click()
  await expect(page.getByRole('status')).toContainText('autorisation refusée')
  await page.getByRole('button',{name:'Utiliser la liste'}).click()
  await page.locator('.discovery-place').filter({hasText:'Cambugahay'}).click()

@@ -22,6 +22,7 @@ export type VoiceRecord = {
   uploadKey: string
   transcriptionKey: string
   draftKey: string
+  scopeId?: string
   pending?: 'upload' | 'transcription' | 'draft'
   uploaded?: boolean
   jobId?: string
@@ -69,16 +70,16 @@ async function transaction<T>(stores: string | string[], mode: IDBTransactionMod
   } finally { db.close() }
 }
 
-export function createVoiceRecord(input: Pick<VoiceRecord, 'id' | 'name' | 'mime'> & Partial<Pick<VoiceRecord, 'size' | 'status' | 'complete'>>): VoiceRecord {
-  return { version: 1, id: input.id, name: input.name, mime: input.mime, size: input.size ?? 0, status: input.status ?? 'saving', complete: input.complete ?? false, createdAt: Date.now(), revision: 0, transcriptVersion: 0, segments: [], title: '', paragraphs: [], uncertainty: [], warnings: [], uploadKey: createId(), transcriptionKey: createId(), draftKey: createId() }
+export function createVoiceRecord(input: Pick<VoiceRecord, 'id' | 'name' | 'mime'> & Partial<Pick<VoiceRecord, 'size' | 'status' | 'complete' | 'scopeId'>>): VoiceRecord {
+  return { version: 1, id: input.id, name: input.name, mime: input.mime, size: input.size ?? 0, status: input.status ?? 'saving', complete: input.complete ?? false, createdAt: Date.now(), revision: 0, transcriptVersion: 0, segments: [], title: '', paragraphs: [], uncertainty: [], warnings: [], uploadKey: createId(), transcriptionKey: createId(), draftKey: createId(), scopeId: input.scopeId }
 }
 
 export async function beginVoice(record: VoiceRecord) { await transaction(SESSION_STORE, 'readwrite', tx => tx.objectStore(SESSION_STORE).put(record)) }
 export async function saveVoice(record: VoiceRecord) { await transaction(SESSION_STORE, 'readwrite', tx => tx.objectStore(SESSION_STORE).put(record)) }
 export async function loadVoice(id: string) { return transaction<VoiceRecord | undefined>(SESSION_STORE, 'readonly', tx => tx.objectStore(SESSION_STORE).get(id)) }
-export async function loadActiveVoice() {
+export async function loadActiveVoice(scopeId?: string) {
   const all = await transaction<VoiceRecord[]>(SESSION_STORE, 'readonly', tx => tx.objectStore(SESSION_STORE).getAll())
-  return all.sort((a, b) => b.createdAt - a.createdAt)[0]
+  return all.filter(record => scopeId === undefined ? record.scopeId === undefined : record.scopeId === scopeId).sort((a, b) => b.createdAt - a.createdAt)[0]
 }
 export async function appendChunk(sessionId: string, index: number, blob: Blob) {
   const chunk: Chunk = { id: `${sessionId}:${index}`, sessionId, index, blob }

@@ -81,18 +81,18 @@ test('couverture, ordre, suppression et reprise du brouillon après rechargement
   await expect(creator.getByLabel('Votre récit, à votre façon')).toHaveValue(/pluie au retour/)
 })
 
-test('navigation clavier, ancres du chapitre et historique', async ({ page }) => {
+test('navigation clavier et historique de l’exemple', async ({ page }) => {
   await page.goto('/')
   await page.keyboard.press('Tab')
   await expect(page.getByRole('link', { name: 'Aller au contenu' })).toBeFocused()
-  await page.getByRole('button', { name: 'Découvrir le carnet de démonstration' }).click()
-  await page.getByRole('button', { name: /Voir le jour 3/ }).click()
-  await page.getByRole('link', { name: 'Les instants', exact: true }).click()
-  await expect(page.getByTestId('day-detail')).toBeVisible()
-  await page.getByRole('button', { name: /Jour suivant/ }).click()
-  await expect(page.getByRole('heading', { name: 'Les collines de Bohol' })).toBeVisible()
+  await page.keyboard.press('Enter')
+  await expect(page).toHaveURL(/#main$/)
+  await page.goto('/#visayas')
+  await page.getByRole('link', { name: 'Explorer le voyage animé' }).click()
+  await expect(page.locator('.journey-itinerary li')).toHaveCount(25)
   await page.goBack()
-  await expect(page.getByTestId('day-detail')).toBeVisible()
+  await expect(page).toHaveURL(/#visayas$/)
+  await expect(page.getByRole('navigation', { name: 'Les vingt journées' }).getByRole('button')).toHaveCount(20)
 })
 
 test('export PNG réellement décodable aux deux formats', async ({ page }, testInfo) => {

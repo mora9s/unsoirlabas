@@ -18,12 +18,22 @@ async function seed(page: import('@playwright/test').Page) {
   await page.reload()
 }
 
+async function openTripJournal(page: import('@playwright/test').Page, destination: string) {
+  const tripNavigation = page.getByRole('navigation', { name: 'Navigation du voyage' })
+  if (await tripNavigation.isVisible().catch(() => false)) await page.getByRole('button', { name: 'Mes voyages' }).click()
+  const trip = page.getByTestId('upcoming-trip').filter({ hasText: destination })
+  if (!await trip.locator('details.trip-actions-menu').evaluate(element => (element as HTMLDetailsElement).open)) await trip.locator('details.trip-actions-menu > summary').click()
+  await trip.getByRole('button', { name: /Ouvrir le carnet|Carnet/ }).click()
+}
+
 async function createChapter(page: import('@playwright/test').Page, title: string, withPhoto = false) {
   const destination = title.includes('Tokyo') ? 'Tokyo' : 'Lisbonne'
-  await page.getByTestId('upcoming-trip').filter({ hasText: destination }).getByRole('button', { name: /^(?:Ouvrir le carnet|Carnet)$/ }).click()
+  await openTripJournal(page, destination)
   await page.getByRole('button', { name: new RegExp(`Écrire un chapitre pour ${destination}`) }).click()
   await page.reload()
   await expect(page.locator('[data-testid="creator"]:visible')).toHaveCount(1)
+  const workshop = page.getByRole('button', { name: 'Ouvrir l’atelier complet' })
+  if (await workshop.isVisible().catch(() => false)) await workshop.click()
   await page.getByLabel('Le titre de votre journée').fill(title)
   await page.getByLabel('Souvenirs de la journée').fill('Le vent et le café du matin.')
   await page.getByLabel('Votre récit, à votre façon').fill(story)
@@ -37,7 +47,7 @@ test('Partager globalement choisit un chapitre sauvegardé parmi plusieurs voyag
   await seed(page)
   await createChapter(page, 'Un matin à Tokyo', true)
   const tokyoData = await page.evaluate(key => JSON.parse(localStorage.getItem(key)!).journals.find((item: { destination: string }) => item.destination === 'Tokyo').chapters[0], journalsKey)
-  await page.getByRole('button', { name: 'Le carnet', exact: true }).click()
+  await page.getByRole('navigation', { name: 'Navigation du voyage' }).getByRole('link', { name: 'Carnet', exact: true }).click()
   await createChapter(page, 'Un soir à Lisbonne')
   const lisbonData = await page.evaluate(key => JSON.parse(localStorage.getItem(key)!).journals.find((item: { destination: string }) => item.destination === 'Lisbonne').chapters[0], journalsKey)
 
@@ -51,10 +61,11 @@ test('Partager globalement choisit un chapitre sauvegardé parmi plusieurs voyag
   await expect(page).toHaveURL(new RegExp(`#share-trip/${encodeURIComponent('trip-tokyo')}/${encodeURIComponent(tokyoData.id)}$`))
   await page.reload()
   const studio = page.getByTestId('share-studio')
-  await expect(studio.getByTestId('story-preview')).toContainText('Un matin à Tokyo')
-  await expect(studio.getByTestId('story-preview')).not.toContainText('Un soir à Lisbonne')
-  await expect(studio.getByTestId('story-preview').locator('img')).toHaveAttribute('src', tokyoData.media[0].src)
-  await expect(page.getByLabel('La légende proposée')).toHaveValue(`Un matin à Tokyo\n\n${story.replace(/\s+/g, ' ')}`)
+  await expect(studio.getByLabel('Titre retouchable')).toHaveValue('Un matin à Tokyo')
+  await expect(studio.getByTestId('story-preview').first().locator('img')).toHaveAttribute('src', /^blob:/)
+  expect(tokyoData.media[0].src).toMatch(/^idb:media:/)
+  await expect(studio.getByTestId('story-preview').first().locator('img')).toHaveAttribute('src', /^blob:/)
+  await expect(page.getByLabel('Texte à partager')).toHaveValue(story)
   await page.evaluate(() => {
     const calls = { texts: [] as string[], images: [] as string[] }
     Object.assign(window, { selectedExportCalls: calls })
@@ -66,8 +77,9 @@ test('Partager globalement choisit un chapitre sauvegardé parmi plusieurs voyag
       return Reflect.apply(drawImage, this, [image, ...coordinates])
     }
   })
+  await page.getByRole('checkbox', { name: /J’ai relu cet aperçu/ }).check()
   const pending = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Télécharger', exact: true }).click()
+  await page.getByRole('button', { name: 'Télécharger la Story' }).click()
   const download = await pending
   const pngPath = testInfo.outputPath('selected-tokyo.png')
   await download.saveAs(pngPath)
@@ -85,7 +97,8 @@ test('Partager globalement choisit un chapitre sauvegardé parmi plusieurs voyag
   const exportCalls = await page.evaluate(() => (window as unknown as { selectedExportCalls: { texts: string[]; images: string[] } }).selectedExportCalls)
   expect(exportCalls.texts.join(' ')).toContain('Un matin à Tokyo')
   expect(exportCalls.texts.join(' ')).toContain('Le vent frais du matin')
-  expect(exportCalls.images).toEqual([tokyoData.media[0].src])
+  expect(exportCalls.images).toHaveLength(1)
+  expect(exportCalls.images[0]).toMatch(/^blob:/)
   const route = page.url()
   await page.getByRole('link', { name: 'Retour à cette journée' }).click()
   await expect(page).toHaveURL(/#journey\/trip-tokyo\//)
@@ -95,9 +108,9 @@ test('Partager globalement choisit un chapitre sauvegardé parmi plusieurs voyag
   await expect(chooser.getByRole('button', { name: /Un soir à Lisbonne/ })).toBeVisible()
   await chooser.getByRole('button', { name: /Un soir à Lisbonne/ }).click()
   await expect(page).toHaveURL(new RegExp(`#share-trip/trip-lisbon/${encodeURIComponent(lisbonData.id)}$`))
-  await expect(page.getByTestId('share-studio').getByTestId('story-preview')).toContainText('Un soir à Lisbonne')
-  await expect(page.getByTestId('share-studio').getByTestId('story-preview').locator('img')).toHaveCount(0)
-  await expect(page.getByLabel('La légende proposée')).toHaveValue(`Un soir à Lisbonne\n\n${story.replace(/\s+/g, ' ')}`)
+  await expect(page.getByLabel('Titre retouchable')).toHaveValue('Un soir à Lisbonne')
+  await expect(page.getByTestId('share-studio').getByRole('checkbox', { name: /Photo/ })).toHaveCount(0)
+  await expect(page.getByLabel('Texte à partager')).toHaveValue(story)
   await page.getByRole('button', { name: 'Partager', exact: true }).click()
   await chooser.getByRole('button', { name: /Démo · Philippines · Jour 03/ }).click()
   await expect(page.getByTestId('share-studio').getByText('El Nido · Palawan', { exact: true })).toBeVisible()
@@ -107,12 +120,14 @@ test('deux voyages ont des carnets indépendants : écriture, reload, édition e
   await seed(page)
   await createChapter(page, 'Un matin à Tokyo', true)
   const tokyoRoute = page.url()
-  await page.getByRole('button', { name: 'Le carnet', exact: true }).click()
+  await page.getByRole('navigation', { name: 'Navigation du voyage' }).getByRole('link', { name: 'Carnet', exact: true }).click()
   await createChapter(page, 'Un soir à Lisbonne')
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Un soir à Lisbonne' })).toBeVisible()
-  await page.getByRole('button', { name: 'Le carnet', exact: true }).click()
-  await page.getByRole('button', { name: /Ouvrir le carnet/ }).first().click()
+  await page.getByRole('button', { name: 'Mes voyages' }).click()
+  const tokyo = page.getByTestId('upcoming-trip').filter({ hasText: 'Tokyo' })
+  if (!await tokyo.locator('details.trip-actions-menu').evaluate(element => (element as HTMLDetailsElement).open)) await tokyo.locator('details.trip-actions-menu > summary').click()
+  await tokyo.getByRole('button', { name: /Ouvrir le carnet|Carnet/ }).click()
   await expect(page.getByTestId('trip-journal').locator('h1')).toContainText('Tokyo')
   await expect(page.getByTestId('journal-chapter-card')).toContainText('Un matin à Tokyo')
   await expect(page.getByTestId('journal-chapter-card')).not.toContainText('Lisbonne')
@@ -122,13 +137,45 @@ test('deux voyages ont des carnets indépendants : écriture, reload, édition e
   await page.getByLabel('Le titre de votre journée').fill('Tokyo, un matin clair')
   await page.getByRole('button', { name: 'Prévisualiser', exact: true }).click()
   await page.getByRole('button', { name: 'Ajouter au voyage' }).click()
+  await expect(page.getByTestId('custom-chapter').getByRole('heading', { name: 'Tokyo, un matin clair' })).toBeVisible()
   expect(await page.evaluate(key => JSON.parse(localStorage.getItem(key)!).journals.map((item: { destination: string; chapters: { title: string }[] }) => [item.destination, item.chapters.map(chapter => chapter.title)]), journalsKey)).toEqual([
     ['Lisbonne', ['Un soir à Lisbonne']], ['Tokyo', ['Tokyo, un matin clair']],
   ])
   await page.getByRole('button', { name: 'Préparer le partage' }).click()
-  await expect(page.getByTestId('share-studio').getByTestId('story-preview')).toContainText('Tokyo, un matin clair')
-  await expect(page.getByTestId('share-studio').getByTestId('story-preview')).not.toContainText('Lisbonne')
+  await expect(page.getByLabel('Titre retouchable')).toHaveValue('Tokyo, un matin clair')
+  await expect(page.getByTestId('share-studio').getByTestId('story-preview').first().locator('img')).toHaveAttribute('src', /^blob:/)
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1)
+})
+
+test('une suppression dans un autre onglet ne ferme pas l’éditeur et ne ressuscite pas le chapitre', async ({ page, context }) => {
+  await seed(page)
+  await createChapter(page, 'Un matin à Tokyo')
+  await page.getByRole('button', { name: 'Modifier cette journée' }).click()
+  const title = page.getByLabel('Le titre de votre journée')
+  await title.fill('Une correction locale non publiée')
+  const other = await context.newPage()
+  await other.goto('/')
+  await other.evaluate(async ({ journalsKey, upcomingKey }) => {
+    await navigator.locks.request('un-soir-la-bas-media-durability-v1', () => {
+      const state = JSON.parse(localStorage.getItem(journalsKey)!)
+      state.journals.find((journal: { tripId: string }) => journal.tripId === 'trip-tokyo').chapters = []
+      localStorage.setItem(journalsKey, JSON.stringify(state))
+      const upcoming = JSON.parse(localStorage.getItem(upcomingKey)!)
+      upcoming.find((trip: { id: string }) => trip.id === 'trip-tokyo').destination = 'Tokyo — modifié ailleurs'
+      localStorage.setItem(upcomingKey, JSON.stringify(upcoming))
+    })
+  }, { journalsKey, upcomingKey })
+  await expect(page.getByRole('navigation', { name: 'Navigation du voyage' })).toContainText('Tokyo — modifié ailleurs')
+  await expect(title).toHaveValue('Une correction locale non publiée')
+  await page.getByRole('button', { name: 'Prévisualiser', exact: true }).click()
+  await page.getByRole('button', { name: 'Ajouter au voyage' }).click()
+  await expect(page.getByRole('alert')).toContainText('a changé ou a été supprimée')
+  await expect(title).toHaveValue('Une correction locale non publiée')
+  expect(await other.evaluate(key => JSON.parse(localStorage.getItem(key)!).journals.find((journal: { tripId: string }) => journal.tripId === 'trip-tokyo').chapters, journalsKey)).toEqual([])
+  await other.close()
+  await page.reload()
+  await expect(page.getByText('Cette page est introuvable', { exact: true })).toBeVisible()
+  await expect(page.getByTestId('creator')).toHaveCount(0)
 })
 
 test('migration Philippines non destructive puis archive ZIP restaure les carnets multi-voyage', async ({ page, browser }, testInfo) => {
@@ -140,7 +187,8 @@ test('migration Philippines non destructive puis archive ZIP restaure les carnet
   expect(await page.evaluate(key => localStorage.getItem(key), legacyKey)).toBe(legacyRaw)
   await createChapter(page, 'Un matin à Tokyo', true)
   const personalPhoto = await page.evaluate(key => JSON.parse(localStorage.getItem(key)!).journals.find((item: { destination: string }) => item.destination === 'Tokyo').chapters[0].media[0].src, journalsKey)
-  await page.getByRole('button', { name: 'Le carnet', exact: true }).click()
+  await page.getByRole('navigation', { name: 'Navigation du voyage' }).getByRole('link', { name: 'Carnet', exact: true }).click()
+  await page.getByRole('button', { name: 'Mes voyages' }).click()
   await page.getByRole('button', { name: 'Outils et sauvegarde du carnet' }).click()
   const downloadPromise = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Sauvegarder dans Drive' }).click()
@@ -168,17 +216,45 @@ test('migration Philippines non destructive puis archive ZIP restaure les carnet
   await expect(fresh.getByRole('status')).toContainText('restaurées sur cet appareil')
   const restored = await fresh.evaluate(key => JSON.parse(localStorage.getItem(key)!), journalsKey)
   expect(restored.journals.map((item: { destination: string }) => item.destination)).toEqual(['Philippines', 'Tokyo'])
-  expect(restored.journals.find((item: { destination: string }) => item.destination === 'Tokyo').chapters[0].media[0].src).toBe(personalPhoto)
-  expect(restored.journals.find((item: { destination: string }) => item.destination === 'Tokyo').chapters[0].media[0].src).toMatch(/^data:image\/jpeg;base64,/)
+  const restoredPhoto = restored.journals.find((item: { destination: string }) => item.destination === 'Tokyo').chapters[0].media[0]
+  expect(personalPhoto).toMatch(/^idb:media:/)
+  expect(restoredPhoto.src).toMatch(/^idb:media:/)
+  expect(restoredPhoto.storageRef).toBe(restoredPhoto.src.slice('idb:media:'.length))
   await freshContext.close()
+})
+
+test('une photo historique est déplacée vers IndexedDB sans conserver son data URL dans le carnet', async ({ page }) => {
+  await seed(page)
+  const legacyRaw = JSON.stringify({ version: 1, journals: [{ tripId: 'trip-tokyo', destination: 'Tokyo', departure: '2027-04-12', chapters: [{ id: 'photo-history', title: 'La lumière', memories: 'Un matin.', tone: 'Contemplatif', story, media: [{ id: 'historical-photo', name: 'lagon.jpg', src: 'data:image/jpeg;base64,/9j/2Q==' }], coverId: 'historical-photo', status: 'draft' }] }] })
+  await page.evaluate(({ key, legacyRaw }) => localStorage.setItem(key, legacyRaw), { key: journalsKey, legacyRaw })
+  await page.reload()
+  await openTripJournal(page, 'Tokyo')
+  await expect(page.getByTestId('journal-chapter-card').locator('img')).toHaveAttribute('src', /^blob:/)
+  const persisted = await page.evaluate(key => JSON.parse(localStorage.getItem(key)!).journals[0].chapters[0].media[0], journalsKey)
+  expect(persisted.src).toMatch(/^idb:media:/)
+  expect(persisted.src).not.toContain('base64')
+  expect(await page.evaluate(key => localStorage.getItem('un-soir-la-bas-media-legacy-v1:' + key), journalsKey)).toBe(legacyRaw)
+})
+
+test('IndexedDB indisponible garde les octets historiques et signale que la migration ne peut pas être validée', async ({ page }) => {
+  await page.addInitScript(() => Object.defineProperty(window, 'indexedDB', { value: undefined, configurable: true }))
+  await seed(page)
+  const legacyRaw = JSON.stringify({ version: 1, journals: [{ tripId: 'trip-tokyo', destination: 'Tokyo', departure: '2027-04-12', chapters: [{ id: 'photo-history', title: 'La lumière', memories: 'Un matin.', tone: 'Contemplatif', story, media: [{ id: 'historical-photo', name: 'lagon.jpg', src: 'data:image/jpeg;base64,/9j/2Q==' }], coverId: 'historical-photo', status: 'draft' }] }] })
+  await page.evaluate(({ key, legacyRaw }) => localStorage.setItem(key, legacyRaw), { key: journalsKey, legacyRaw })
+  await page.reload()
+  await expect(page.getByRole('alert')).toContainText('IndexedDB est indisponible')
+  expect(await page.evaluate(key => localStorage.getItem(key), journalsKey)).toBe(legacyRaw)
+  await openTripJournal(page, 'Tokyo')
+  await expect(page.getByTestId('journal-chapter-card').locator('img')).toHaveAttribute('src', /^data:image/)
 })
 
 test('un stockage de carnets corrompu est conservé et empêche un faux succès', async ({ page }) => {
   await seed(page)
   const raw = '{broken journal bytes'
   await page.evaluate(({ key, raw }) => localStorage.setItem(key, raw), { key: journalsKey, raw })
-  await page.getByTestId('upcoming-trip').filter({ hasText: 'Tokyo' }).getByRole('button', { name: /^(?:Ouvrir le carnet|Carnet)$/ }).click()
+  await openTripJournal(page, 'Tokyo')
   await page.getByRole('button', { name: /Écrire un chapitre pour Tokyo/ }).click()
+  await page.getByRole('button', { name: 'Ouvrir l’atelier complet' }).click()
   await page.getByLabel('Le titre de votre journée').fill('Une page à conserver')
   await page.getByLabel('Souvenirs de la journée').fill('Le premier café.')
   await page.getByLabel('Votre récit, à votre façon').fill(story)
@@ -191,8 +267,9 @@ test('un stockage de carnets corrompu est conservé et empêche un faux succès'
 
 test('un quota plein au moment de sauvegarder un chapitre affiche une erreur et garde les données', async ({ page }) => {
   await seed(page)
-  await page.getByTestId('upcoming-trip').filter({ hasText: 'Tokyo' }).getByRole('button', { name: /^(?:Ouvrir le carnet|Carnet)$/ }).click()
+  await openTripJournal(page, 'Tokyo')
   await page.getByRole('button', { name: /Écrire un chapitre pour Tokyo/ }).click()
+  await page.getByRole('button', { name: 'Ouvrir l’atelier complet' }).click()
   await page.getByLabel('Le titre de votre journée').fill('Une page temporaire')
   await page.getByLabel('Souvenirs de la journée').fill('Le premier café.')
   await page.getByLabel('Votre récit, à votre façon').fill(story)

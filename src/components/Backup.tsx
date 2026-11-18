@@ -2,8 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import { archiveFilename, createArchive, previewArchive } from '../archive'
 import { storageKey, validateTrip } from '../journal'
 import { upcomingKey, validateUpcomingTrips } from '../upcoming-trips'
-import { journalsKey, validateJournals } from '../trip-journals'
+import { journalsKey, legacyId, validateJournals } from '../trip-journals'
 import type { Trip } from '../journal'
+import { importArchiveMediaUnlocked, withMediaDurabilityLock } from '../media-store'
 import Icon from './Icon'
 import OfflineAccess from './OfflineAccess'
 import { backupFingerprint, backupStatus, recordBackup } from '../backup-status'
@@ -11,6 +12,7 @@ import { backupFingerprint, backupStatus, recordBackup } from '../backup-status'
 type Notice = { kind: 'success' | 'error' | 'info'; text: string }
 
 function size(bytes: number) { return bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} Ko` : `${(bytes / (1024 * 1024)).toFixed(1)} Mo` }
+function storageSize(bytes: number) { return bytes >= 1024 ** 3 ? `${(bytes / 1024 ** 3).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} Go` : bytes >= 1024 ** 2 ? `${(bytes / 1024 ** 2).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} Mo` : `${Math.max(1, Math.round(bytes / 1024))} Ko` }
 function date(value: string) { return new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long', timeStyle: 'short' }).format(new Date(value)) }
 function download(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob)
@@ -37,6 +39,7 @@ export default function Backup({ trip, onRestore }: { trip: Trip; onRestore: (tr
   const [staged, setStaged] = useState<Awaited<ReturnType<typeof previewArchive>>>()
   const [safetyDownloadRequested, setSafetyDownloadRequested] = useState(false)
   const [safetyConfirmed, setSafetyConfirmed] = useState(false)
+  const [storageEstimate, setStorageEstimate] = useState<{ usage?: number; quota?: number }>()
   const safetySnapshot = useRef<[string | null, string | null, string | null] | null>(null)
 
   useEffect(() => {
@@ -56,19 +59,31 @@ export default function Backup({ trip, onRestore }: { trip: Trip; onRestore: (tr
   }, [trip])
 
   useEffect(() => {
+    let active = true
+    void navigator.storage?.estimate().then(estimate => {
+      if (active) setStorageEstimate({ usage: estimate.usage, quota: estimate.quota })
+    }).catch(() => undefined)
+    return () => { active = false }
+  }, [])
+
+  useEffect(() => {
     if (staged) window.requestAnimationFrame(() => previewTitle.current?.focus())
   }, [staged])
 
   async function backup(preferShare: boolean) {
     setBusy(true); setNotice(undefined)
     try {
-      const snapshot = {
-        trip: storedValue(storageKey, trip, validateTrip),
-        upcomingTrips: storedValue(upcomingKey, [], validateUpcomingTrips),
-        personalJournals: storedValue(journalsKey, {version:1,journals:[]}, validateJournals),
-      }
-      const fingerprint = backupFingerprint(snapshot)
-      const archive = await createArchive(snapshot.trip, new Date().toISOString(), snapshot)
+      const { fingerprint, archive } = await withMediaDurabilityLock(async () => {
+        const snapshot = {
+          trip: storedValue(storageKey, trip, validateTrip),
+          upcomingTrips: storedValue(upcomingKey, [], validateUpcomingTrips),
+          personalJournals: storedValue(journalsKey, {version:1,journals:[]}, validateJournals),
+        }
+        return {
+          fingerprint: backupFingerprint(snapshot),
+          archive: await createArchive(snapshot.trip, new Date().toISOString(), snapshot),
+        }
+      })
       const filename = archiveFilename()
       const shareFile = new File([archive], filename, { type: 'application/zip' })
       const supported = preferShare && typeof navigator.share === 'function' && typeof navigator.canShare === 'function' && navigator.canShare({ files: [shareFile] })
@@ -102,11 +117,14 @@ export default function Backup({ trip, onRestore }: { trip: Trip; onRestore: (tr
     if (!staged) return
     setBusy(true); setNotice(undefined); setSafetyDownloadRequested(false); setSafetyConfirmed(false)
     try {
-      const currentTrip = storedValue(storageKey, trip, validateTrip)
-      const upcomingTrips = storedValue(upcomingKey, [], validateUpcomingTrips)
-      const personalJournals = storedValue(journalsKey, { version: 1, journals: [] }, validateJournals)
-      const snapshot: [string | null, string | null, string | null] = [localStorage.getItem(storageKey), localStorage.getItem(upcomingKey), localStorage.getItem(journalsKey)]
-      const archive = await createArchive(currentTrip, new Date().toISOString(), { upcomingTrips, personalJournals })
+      const { archive, snapshot } = await withMediaDurabilityLock(async () => {
+        const currentTrip = storedValue(storageKey, trip, validateTrip)
+        const upcomingTrips = storedValue(upcomingKey, [], validateUpcomingTrips)
+        const personalJournals = storedValue(journalsKey, { version: 1, journals: [] }, validateJournals)
+        const rawSnapshot: [string | null, string | null, string | null] = [localStorage.getItem(storageKey), localStorage.getItem(upcomingKey), localStorage.getItem(journalsKey)]
+        const archive = await createArchive(currentTrip, new Date().toISOString(), { upcomingTrips, personalJournals })
+        return { archive, snapshot: rawSnapshot }
+      })
       download(archive, `copie-securite-${archiveFilename()}`)
       safetySnapshot.current = snapshot
       setSafetyDownloadRequested(true)
@@ -115,47 +133,57 @@ export default function Backup({ trip, onRestore }: { trip: Trip; onRestore: (tr
     finally { setBusy(false) }
   }
 
-  function restore() {
+  async function restore() {
     if (!staged || !safetyDownloadRequested || !safetyConfirmed) return
-    if (!safetySnapshot.current || [storageKey, upcomingKey, journalsKey].some((key, index) => localStorage.getItem(key) !== safetySnapshot.current?.[index])) {
-      setSafetyDownloadRequested(false); setSafetyConfirmed(false); safetySnapshot.current = null
-      setNotice({ kind: 'error', text: 'Les données locales ont changé depuis la copie de sécurité. Téléchargez une nouvelle copie avant de restaurer.' })
-      return
-    }
-    const previous = new Map<string, string | null>()
-    const written: string[] = []
+    setBusy(true)
     try {
-      previous.set(storageKey, localStorage.getItem(storageKey))
-      previous.set(upcomingKey, localStorage.getItem(upcomingKey))
-      previous.set(journalsKey, localStorage.getItem(journalsKey))
-      const next = JSON.stringify(staged.trip)
-      const nextUpcoming = staged.upcomingTrips === undefined ? undefined : JSON.stringify(staged.upcomingTrips)
-      const nextJournals = staged.personalJournals === undefined ? undefined : JSON.stringify(staged.personalJournals)
-      localStorage.setItem(storageKey, next)
-      written.push(storageKey)
-      if (nextUpcoming !== undefined) {
-        localStorage.setItem(upcomingKey, nextUpcoming)
-        written.push(upcomingKey)
-      }
-      if (nextJournals !== undefined) {
-        localStorage.setItem(journalsKey, nextJournals)
-        written.push(journalsKey)
-      }
-      if (nextUpcoming !== undefined) window.dispatchEvent(new Event('upcoming-trips-updated'))
-      if (nextJournals !== undefined) window.dispatchEvent(new Event('trip-journals-updated'))
-      onRestore(staged.trip)
-      setStaged(undefined)
-      setNotice({ kind: 'success', text: 'Les collections présentes dans l’archive ont été restaurées sur cet appareil. Les voyages et carnets absents de l’archive ont été conservés.' })
-    } catch {
-      for (const key of written.reverse()) {
+      await withMediaDurabilityLock(async () => {
+        if (!safetySnapshot.current || [storageKey, upcomingKey, journalsKey].some((key, index) => localStorage.getItem(key) !== safetySnapshot.current?.[index])) {
+          setSafetyDownloadRequested(false); setSafetyConfirmed(false); safetySnapshot.current = null
+          setNotice({ kind: 'error', text: 'Les données locales ont changé depuis la copie de sécurité. Téléchargez une nouvelle copie avant de restaurer.' })
+          return
+        }
+        const previous = new Map<string, string | null>()
+        const written: string[] = []
         try {
-          localStorage.removeItem(key)
-          const value = previous.get(key)
-          if (value != null) localStorage.setItem(key, value)
-        } catch { /* Restore each prior key independently if storage is constrained. */ }
-      }
-      setNotice({ kind: 'error', text: 'La restauration n’a pas abouti : le stockage est plein ou indisponible. Le carnet et les décomptes déjà présents n’ont pas été modifiés.' })
-    }
+          previous.set(storageKey, localStorage.getItem(storageKey))
+          previous.set(upcomingKey, localStorage.getItem(upcomingKey))
+          previous.set(journalsKey, localStorage.getItem(journalsKey))
+          const allDrafts = [...staged.trip.drafts, ...(staged.personalJournals?.journals.flatMap(journal => journal.chapters) ?? [])]
+          const photos = await importArchiveMediaUnlocked(allDrafts.flatMap(draft => draft.media))
+          let photoIndex = 0
+          const durable = (draft: typeof allDrafts[number]) => ({ ...draft, media: draft.media.map(() => photos[photoIndex++]) })
+          const restoredTrip = { ...staged.trip, drafts: staged.trip.drafts.map(durable) }
+          const restoredJournals = staged.personalJournals && { ...staged.personalJournals, journals: staged.personalJournals.journals.map(journal => ({ ...journal, chapters: journal.chapters.map(durable) })) }
+          if ([storageKey, upcomingKey, journalsKey].some((key, index) => localStorage.getItem(key) !== safetySnapshot.current?.[index])) throw new Error('Les données locales ont changé pendant la préparation. Téléchargez une nouvelle copie de sécurité.')
+          const next = JSON.stringify(restoredTrip)
+          const nextUpcoming = staged.upcomingTrips === undefined ? undefined : JSON.stringify(staged.upcomingTrips)
+          // Legacy ZIPs replace the main carnet, including its mirror, not the other personal journals.
+          const currentJournals = restoredJournals === undefined ? storedValue(journalsKey, { version: 1, journals: [] }, validateJournals) : undefined
+          const nextJournals = restoredJournals !== undefined ? JSON.stringify(restoredJournals) : currentJournals?.journals.some(journal => journal.tripId === legacyId)
+            ? JSON.stringify({ ...currentJournals, journals: currentJournals.journals.map(journal => journal.tripId === legacyId ? { ...journal, chapters: restoredTrip.drafts } : journal) })
+            : undefined
+          localStorage.setItem(storageKey, next); written.push(storageKey)
+          if (nextUpcoming !== undefined) { localStorage.setItem(upcomingKey, nextUpcoming); written.push(upcomingKey) }
+          if (nextJournals !== undefined) { localStorage.setItem(journalsKey, nextJournals); written.push(journalsKey) }
+          if (localStorage.getItem(storageKey) !== next || (nextUpcoming !== undefined && localStorage.getItem(upcomingKey) !== nextUpcoming) || (nextJournals !== undefined && localStorage.getItem(journalsKey) !== nextJournals)) throw new Error('La vérification de restauration a échoué.')
+
+          if (nextUpcoming !== undefined) window.dispatchEvent(new Event('upcoming-trips-updated'))
+          if (nextJournals !== undefined) window.dispatchEvent(new Event('trip-journals-updated'))
+          onRestore(restoredTrip)
+          setStaged(undefined)
+          setNotice({ kind: 'success', text: 'Les collections présentes dans l’archive ont été restaurées sur cet appareil. Les voyages et carnets absents de l’archive ont été conservés.' })
+        } catch (error) {
+          for (const key of written.reverse()) {
+            try { const value = previous.get(key); if (value == null) localStorage.removeItem(key); else localStorage.setItem(key, value) }
+            catch { /* Restore each prior key independently if storage is constrained. */ }
+          }
+          const rolledBack = written.every(key => localStorage.getItem(key) === previous.get(key))
+          setNotice({ kind: 'error', text: rolledBack ? `La restauration n’a pas abouti. Les collections écrites ont été vérifiées et rétablies. ${error instanceof Error ? error.message : 'Vérifiez le stockage.'}` : 'La restauration et le rétablissement automatique sont incomplets. Ne poursuivez pas ; vérifiez les données et utilisez la copie de sécurité téléchargée.' })
+        }
+      })
+    } catch (error) { setNotice({ kind: 'error', text: error instanceof Error ? error.message : 'La restauration ne peut pas obtenir un verrouillage sûr.' }) }
+    finally { setBusy(false) }
   }
 
   return <section className="backup page-width" aria-labelledby="backup-title">
@@ -168,12 +196,13 @@ export default function Backup({ trip, onRestore }: { trip: Trip; onRestore: (tr
       <button className="text-button" onClick={() => input.current?.click()} disabled={busy}>Importer depuis Drive <Icon name="book" /></button>
       <input ref={input} className="visually-hidden" type="file" accept="application/zip,.zip" aria-label="Choisir une sauvegarde ZIP" onChange={event => stage(event.target.files?.[0])} />
       <p className="local-note">Drive s’ouvre via la feuille de partage quand elle est disponible. Sinon, le téléchargement reste possible, même hors ligne ou sur un réseau local.</p>
+      <p className="local-note" data-testid="storage-estimate">{storageEstimate?.usage !== undefined ? `Utilisation estimée : ${storageSize(storageEstimate.usage)} utilisés${storageEstimate.quota !== undefined ? ` sur ${storageSize(storageEstimate.quota)} estimés` : ''}.` : 'Estimation du stockage indisponible.'} Ce stockage peut être supprimé par le navigateur ; gardez une archive séparée.</p>
     </div>
     {notice && <p role={notice.kind === 'error' ? 'alert' : 'status'} aria-live="polite" className={notice.kind === 'error' ? 'error-message backup-message' : notice.kind === 'success' ? 'success-message backup-message' : 'backup-message'}>{notice.text}</p>}
     {staged && <section className="restore-preview" aria-labelledby="restore-title" aria-live="polite">
       <p className="eyebrow">Archive prête à relire</p><h3 id="restore-title" ref={previewTitle} tabIndex={-1}>Restaurer ce carnet ?</h3>
       <p>Créée le {date(staged.createdAt)} · {staged.records} chapitre{staged.records > 1 ? 's' : ''} · {staged.trip.drafts.reduce((sum, item) => sum + item.media.length, 0)} photo{staged.trip.drafts.reduce((sum, item) => sum + item.media.length, 0) > 1 ? 's' : ''} du carnet principal · {staged.personalJournals ? `${staged.personalJournals.journals.length} carnet${staged.personalJournals.journals.length > 1 ? 's' : ''}, ${staged.personalJournals.journals.reduce((sum, item) => sum + item.chapters.length, 0)} chapitre${staged.personalJournals.journals.reduce((sum, item) => sum + item.chapters.length, 0) > 1 ? 's' : ''}, ${staged.personalJournals.journals.reduce((sum, item) => sum + item.chapters.reduce((photos, chapter) => photos + chapter.media.length, 0), 0)} photo${staged.personalJournals.journals.reduce((sum, item) => sum + item.chapters.reduce((photos, chapter) => photos + chapter.media.length, 0), 0) > 1 ? 's' : ''} personnelle${staged.personalJournals.journals.reduce((sum, item) => sum + item.chapters.reduce((photos, chapter) => photos + chapter.media.length, 0), 0) > 1 ? 's' : ''}` : 'ancienne archive : aucun carnet multi-voyage inclus'} · {size(staged.bytes)}</p>
-      <p><strong>Remplacement uniquement pour les collections présentes dans l’archive ; aucune fusion automatique.</strong> {staged.personalJournals === undefined ? 'Cette ancienne archive ne contient pas de carnets multi-voyage : ceux de cet appareil seront conservés.' : 'Les carnets personnels de cet appareil seront remplacés par ceux de l’archive.'} {staged.upcomingTrips === undefined ? 'Les voyages à venir de cet appareil seront conservés.' : 'Les voyages à venir de cet appareil seront remplacés.'} Le carnet historique principal sera remplacé.</p>
+      <p><strong>Remplacement uniquement pour les collections présentes dans l’archive ; aucune fusion automatique.</strong> {staged.personalJournals === undefined ? 'Cette ancienne archive ne contient pas de carnets multi-voyage : ceux de cet appareil seront conservés.' : 'Les carnets personnels de cet appareil seront remplacés par ceux de l’archive.'} {staged.upcomingTrips === undefined ? 'Les voyages à venir de cet appareil seront conservés.' : 'Les voyages à venir de cet appareil seront remplacés.'} Le carnet historique principal sera remplacé, y compris sa copie dans les carnets personnels.</p>
       <div className="restore-differences">
         <h4>Différences avec les données actuelles</h4>
         {(() => {

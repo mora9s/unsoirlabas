@@ -105,6 +105,26 @@ test("le carnet familial est créé sur demande sans récit fictif ni doublon", 
     ),
   ).toHaveLength(1);
 });
+test("la création familiale attend le verrou et signale son échec sans naviguer", async ({ page }) => {
+  await page.evaluate(() => Object.defineProperty(navigator, "locks", { configurable: true, value: { request: async () => { throw new Error("Verrou indisponible"); } } }));
+  await page.getByRole("button", { name: "Notre carnet ↗" }).click();
+  await expect(page.getByText("Verrou indisponible")).toBeVisible();
+  await expect(page).toHaveURL(/#philippines$/);
+  expect(await page.evaluate(() => localStorage.getItem("un-soir-la-bas-upcoming-v1"))).toBeNull();
+});
+
+test("deux onglets créent un seul carnet familial", async ({ page, context }) => {
+  const second = await context.newPage();
+  await second.goto("/#philippines");
+  await expect(second.getByRole("button", { name: "Notre carnet ↗" })).toBeVisible();
+  await Promise.all([page.getByRole("button", { name: "Notre carnet ↗" }).click(), second.getByRole("button", { name: "Notre carnet ↗" }).click()]);
+  await expect(page).toHaveURL(/#trip\/family-philippines-2027/);
+  await expect(second).toHaveURL(/#trip\/family-philippines-2027/);
+  const trips = await page.evaluate(() => JSON.parse(localStorage.getItem("un-soir-la-bas-upcoming-v1")!));
+  expect(trips).toHaveLength(1);
+  expect(trips[0].id).toBe("family-philippines-2027");
+  await second.close();
+});
 test.beforeEach(async ({ page }) => {
   await page.route("https://tile.openstreetmap.org/**", (route) =>
     route.abort(),
