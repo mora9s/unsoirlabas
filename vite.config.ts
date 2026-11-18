@@ -1,7 +1,7 @@
 import react from '@vitejs/plugin-react'
 import { defineConfig, type Plugin } from 'vite'
 import { createHash } from 'node:crypto'
-import { readFileSync, readdirSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 function offlineShell(): Plugin {
@@ -9,7 +9,7 @@ function offlineShell(): Plugin {
     name: 'offline-shell',
     generateBundle: { order: 'post', handler(_, bundle) {
       const bundled = Object.keys(bundle).filter(name => /\.(js|css)$/.test(name)).sort()
-      const media = readdirSync(resolve('public/assets')).filter(name => /^[a-z0-9-]+\.(jpg|webm)$/.test(name)).sort().map(name => `/assets/${name}`)
+      const media = ['bacuit-island.jpg','chocolate-hills.jpg','el-nido-bay.jpg','el-nido-big-lagoon.jpg','el-nido-lagoon.jpg','limestone-island.jpg','manila-jeepney.jpg','manila-sunset.jpg','nakabuang-beach.webm','port-barton.jpg'].map(name => `/assets/${name}`)
       const visayas = ['apo','moalboal','siquijor','turtle','bohol','cebu'].map(photo => `/assets/visayas/${photo}.jpg`)
       const files = ['/','/favicon.svg','/icons.svg', ...media, ...visayas, ...bundled.map(name => `/${name}`)]
       const hash = createHash('sha256')
