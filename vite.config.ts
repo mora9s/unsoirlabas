@@ -1,13 +1,28 @@
 import react from '@vitejs/plugin-react'
 import { defineConfig, type Plugin } from 'vite'
 import { createHash } from 'node:crypto'
+import { readFileSync, readdirSync } from 'node:fs'
+import { resolve } from 'node:path'
 
 function offlineShell(): Plugin {
   return {
     name: 'offline-shell',
-    generateBundle(_, bundle) {
-      const files = ['/','/favicon.svg','/icons.svg',...['apo','moalboal','siquijor','turtle','bohol','cebu'].map(photo=>`/assets/visayas/${photo}.jpg`), ...Object.keys(bundle).filter(name => /\.(js|css)$/.test(name)).map(name=>`/${name}`)]
-      const revision=createHash('sha256').update(JSON.stringify(files)).digest('hex').slice(0,16)
+    generateBundle: { order: 'post', handler(_, bundle) {
+      const bundled = Object.keys(bundle).filter(name => /\.(js|css)$/.test(name)).sort()
+      const media = readdirSync(resolve('public/assets')).filter(name => /^[a-z0-9-]+\.(jpg|webm)$/.test(name)).sort().map(name => `/assets/${name}`)
+      const visayas = ['apo','moalboal','siquijor','turtle','bohol','cebu'].map(photo => `/assets/visayas/${photo}.jpg`)
+      const files = ['/','/favicon.svg','/icons.svg', ...media, ...visayas, ...bundled.map(name => `/${name}`)]
+      const hash = createHash('sha256')
+      // Include worker logic as well as shell bytes so code-only updates invalidate it.
+      hash.update(offlineShell.toString())
+      for (const file of files) {
+        hash.update(file)
+        const output = bundle[file === '/' ? 'index.html' : file.slice(1)]
+        if (output) hash.update(output.type === 'asset' ? output.source : output.code)
+        else if (file !== '/') hash.update(readFileSync(resolve('public', file.slice(1))))
+        else this.error('Missing built index.html for offline shell')
+      }
+      const revision = hash.digest('hex').slice(0,16)
       this.emitFile({type:'asset',fileName:'offline-worker.js',source:`
 const NAME='unsoirlabas-offline-${revision}';
 const FILES=${JSON.stringify(files)};
@@ -16,7 +31,11 @@ self.addEventListener('install',event=>event.waitUntil((async()=>{
   try {await cache.addAll(FILES.map(url=>new Request(url,{cache:'reload'})));await self.skipWaiting()}
   catch(error){await caches.delete(NAME);throw error}
 })()));
-self.addEventListener('activate',event=>event.waitUntil(self.clients.claim()));
+self.addEventListener('activate',event=>event.waitUntil((async()=>{
+  const old=(await caches.keys()).filter(key=>key.startsWith('unsoirlabas-offline-')&&key!==NAME);
+  await Promise.all(old.slice(0,Math.max(0,old.length-1)).map(key=>caches.delete(key)));
+  await self.clients.claim();
+})()));
 self.addEventListener('message',event=>{
   if(event.data==='STATUS')event.waitUntil((async()=>{
     const cache=await caches.open(NAME);
@@ -31,10 +50,23 @@ self.addEventListener('fetch',event=>{
     event.respondWith((async()=>{try{return await fetch(event.request)}catch{return (await caches.open(NAME)).match('/')}})());return;
   }
   if(FILES.includes(url.pathname)&&url.pathname!=='/')event.respondWith((async()=>{
-    const cached=await (await caches.open(NAME)).match(url.pathname);return cached || fetch(event.request);
+    const cached=await (await caches.open(NAME)).match(url.pathname);
+    if(!cached)return fetch(event.request);
+    if(event.request.headers.has('range') && url.pathname.endsWith('.webm')) {
+      const bytes=await cached.arrayBuffer();
+      const match=/^bytes=(\\d*)-(\\d*)$/.exec(event.request.headers.get('range')||'');
+      if(!match||(!match[1]&&!match[2]))return new Response(null,{status:416,headers:{'Content-Range':'bytes */'+bytes.byteLength,'Accept-Ranges':'bytes'}});
+      const start=match[1]?Number(match[1]):Math.max(0,bytes.byteLength-Number(match[2]));
+      const end=match[1]&&match[2]?Math.min(Number(match[2]),bytes.byteLength-1):bytes.byteLength-1;
+      if(start>=bytes.byteLength||start>end||(!match[1]&&Number(match[2])===0))return new Response(null,{status:416,headers:{'Content-Range':'bytes */'+bytes.byteLength,'Accept-Ranges':'bytes'}});
+      const headers=new Headers(cached.headers);
+      headers.set('Accept-Ranges','bytes');headers.set('Content-Range','bytes '+start+'-'+end+'/'+bytes.byteLength);headers.set('Content-Length',String(end-start+1));
+      return new Response(bytes.slice(start,end+1),{status:206,headers});
+    }
+    return cached;
   })());
 });`})
-    },
+    }},
   }
 }
 
